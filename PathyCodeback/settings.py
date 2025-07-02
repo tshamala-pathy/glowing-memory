@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users',  # Custom app for user management
     'rest_framework',  # Django REST Framework for API development
+    'projects',  # Custom app for project management
 ]
 
 MIDDLEWARE = [
@@ -81,9 +82,14 @@ WSGI_APPLICATION = 'PathyCodeback.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': config('DB_ENGINE'),
-        'NAME': os.path.join(BASE_DIR, config('DB_NAME')),
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
 }
+
 
 
 # Password validation
