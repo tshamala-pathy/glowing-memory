@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',  # Django REST Framework for API development
     'projects',  # Custom app for project management
     'services',  # Custom app for service management
+    'blog',  # Custom app for blog management
 ]
 
 MIDDLEWARE = [
