@@ -1,0 +1,57 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Environment variables file (hide secrets)
+.env
+
+# Virtual environment folder
+venv/
+ENV/
+env/
+.venv/
+
+# Django database file (if using SQLite)
+db.sqlite3
+
+# Django static files (collected static folder)
+staticfiles/
+static/
+
+# Media files (user uploaded content)
+media/
+
+# PyCharm IDE files
+.idea/
+
+# VSCode IDE files
+.vscode/
+
+# Logs
+*.log
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Migrations folder (optional, sometimes you want to commit migrations)
+*/migrations/
+
+# Byte-compiled / optimized / DLL files
+*.so
+
+# Test result files
+.pytest_cache/
+
+# mypy type checker
+.mypy_cache/
+.dmypy.json
+dmypy.json
+# Pyre type checker
+.pyre/
