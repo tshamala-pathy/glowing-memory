@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'users',  # Custom app for user management
     'rest_framework',  # Django REST Framework for API development
     'projects',  # Custom app for project management
+    'services',  # Custom app for service management
 ]
 
 MIDDLEWARE = [
