@@ -218,7 +218,7 @@ const Projects = () => {
                   <p className="text-gray-600 mb-4 line-clamp-3 leading-relaxed">
                     {project.description}
                   </p>
-                  {project.technologies && project.technologies.length > 0 && (
+                  {project.technologies && Array.isArray(project.technologies) && project.technologies.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       {project.technologies.slice(0, 3).map((tech, idx) => (
                         <span

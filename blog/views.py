@@ -27,4 +27,10 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'title']
     ordering = ['-created_at']
     pagination_class = PageNumberPagination
+    
+    def get_serializer_context(self):
+        """Add request to serializer context for building absolute URLs."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     # Pagination settings can be customized here if needed

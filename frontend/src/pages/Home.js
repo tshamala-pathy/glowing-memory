@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Newsletter from '../components/Newsletter';
 import Testimonials from '../components/Testimonials';
+import AboutSection from '../components/AboutSection';
 
 const Home = () => {
   const features = [
@@ -14,6 +15,7 @@ const Home = () => {
       title: 'Project Portfolio',
       description: 'Showcase your innovative projects and solutions with detailed descriptions, technologies, and live demonstrations.',
       color: 'from-blue-500 to-blue-600',
+      link: '/projects',
     },
     {
       icon: (
@@ -24,6 +26,7 @@ const Home = () => {
       title: 'Professional Services',
       description: 'Offer comprehensive services tailored to your clients\' business needs with detailed pricing and feature lists.',
       color: 'from-purple-500 to-purple-600',
+      link: '/services',
     },
     {
       icon: (
@@ -34,6 +37,7 @@ const Home = () => {
       title: 'Blog & Insights',
       description: 'Share your knowledge, insights, and industry updates through beautifully designed blog posts and articles.',
       color: 'from-green-500 to-green-600',
+      link: '/blog',
     },
     {
       icon: (
@@ -44,6 +48,7 @@ const Home = () => {
       title: 'Contact Management',
       description: 'Efficiently manage client inquiries and communication through an intuitive contact system.',
       color: 'from-orange-500 to-orange-600',
+      link: '/contact',
     },
   ];
 
@@ -86,40 +91,75 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 lg:py-32 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 fade-in">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Everything You Need
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Powerful features to help you showcase your work and grow your business
-            </p>
+<section className="py-20 lg:py-32 bg-gray-50">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    {/* Section Header */}
+    <div className="text-center mb-16 fade-in">
+      <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+        Everything You Need
+      </h2>
+      <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+        Powerful features to help you showcase your work and grow your business
+      </p>
+    </div>
+
+    {/* Features Grid */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+      {features.map((feature, index) => (
+        <div
+          key={index}
+          className={`
+            group fade-in p-8 rounded-2xl shadow-lg border border-gray-200 
+            transition-all duration-300
+          `}
+          style={{
+            animationDelay: `${index * 0.1}s`,
+            backgroundColor: feature.bgColor || "#ffffff", // Each feature gets its own bg color
+          }}
+        >
+          {/* Icon */}
+          <div
+            className={`
+              w-16 h-16 rounded-xl flex items-center justify-center text-white mb-6
+              transform group-hover:scale-110 transition-transform shadow-xl
+              bg-gradient-to-br ${feature.color}
+            `}
+          >
+            {feature.icon}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="group card-professional p-8 fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center text-white mb-6 transform group-hover:scale-110 transition-transform shadow-lg`}>
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">{feature.description}</p>
-                <div className="flex items-center text-blue-600 font-medium group-hover:translate-x-2 transition-transform">
-                  <span>Learn more</span>
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Title */}
+          <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+
+          {/* Description */}
+          <p className="text-gray-700 leading-relaxed mb-6">{feature.description}</p>
+
+          {/* CTA */}
+          <Link
+            to={feature.link}
+            className="flex items-center text-blue-600 font-medium group-hover:translate-x-2 transition-transform cursor-pointer"
+          >
+            <span>Learn more</span>
+            <svg
+              className="w-5 h-5 ml-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
-      </section>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+
+      {/* About Section */}
+      <AboutSection />
 
       {/* Stats Section */}
       <section className="py-16 bg-gradient-to-br from-gray-50 to-white">

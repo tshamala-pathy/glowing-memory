@@ -27,7 +27,14 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const response = await api.get('/users/profile/');
-      setUser(response.data);
+      const userData = response.data;
+      // Debug: Log user data to verify is_superuser is included
+      console.log('User data fetched:', { 
+        email: userData.email, 
+        is_superuser: userData.is_superuser,
+        is_staff: userData.is_staff 
+      });
+      setUser(userData);
     } catch (error) {
       console.error('Error fetching user:', error);
       localStorage.removeItem('access_token');
@@ -44,7 +51,9 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      setUser(userData);
+      
+      // Fetch fresh user data to ensure we have all fields including is_superuser
+      await fetchUser();
       
       return { success: true };
     } catch (error) {
@@ -64,11 +73,13 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/users/register/', userData);
-      const { access, refresh, user: newUser } = response.data;
+      const { access, refresh } = response.data;
       
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      setUser(newUser);
+      
+      // Fetch fresh user data to ensure we have all fields including is_superuser
+      await fetchUser();
       
       return { success: true };
     } catch (error) {

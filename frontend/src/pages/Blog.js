@@ -180,7 +180,7 @@ const Blog = () => {
                   <p className="text-gray-600 mb-4 line-clamp-3 leading-relaxed">
                     {post.excerpt || post.content?.substring(0, 150) + '...'}
                   </p>
-                  {post.tags && post.tags.length > 0 && (
+                  {post.tags && Array.isArray(post.tags) && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       {post.tags.slice(0, 3).map((tag, idx) => (
                         <span

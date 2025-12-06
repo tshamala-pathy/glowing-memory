@@ -76,6 +76,16 @@ const Navbar = () => {
               Blog
             </Link>
             <Link
+              to="/about"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/about')
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              About
+            </Link>
+            <Link
               to="/contact"
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive('/contact')
@@ -106,6 +116,18 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Link>
+                {user?.is_superuser === true && (
+                  <Link
+                    to="/admin"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive('/admin')
+                        ? 'bg-purple-50 text-purple-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Admin
+                  </Link>
+                )}
                 <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
@@ -225,6 +247,17 @@ const Navbar = () => {
                 Blog
               </Link>
               <Link
+                to="/about"
+                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                  isActive('/about')
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                About
+              </Link>
+              <Link
                 to="/contact"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
                   isActive('/contact')
@@ -249,6 +282,19 @@ const Navbar = () => {
                   >
                     Dashboard
                   </Link>
+                  {user?.is_superuser === true && (
+                    <Link
+                      to="/admin"
+                      className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                        isActive('/admin')
+                          ? 'bg-purple-50 text-purple-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
                   <div className="px-4 py-3 border-t border-gray-200 mt-2">
                     <div className="flex items-center space-x-3 mb-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">

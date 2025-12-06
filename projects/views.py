@@ -30,5 +30,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description', 'technologies', 'tags']
     ordering_fields = ['created_at', 'title']
     ordering = ['-created_at']
+    
+    def get_serializer_context(self):
+        """Add request to serializer context for building absolute URLs."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     # The permission_classes attribute ensures that only authenticated users can create, update, or delete projects,
     # while unauthenticated users can only view the project list and details.
