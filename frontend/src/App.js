@@ -12,6 +12,12 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminProjects from './pages/admin/AdminProjects';
+import AdminBlog from './pages/admin/AdminBlog';
+import AdminServices from './pages/admin/AdminServices';
+import AdminContact from './pages/admin/AdminContact';
+import AdminTestimonials from './pages/admin/AdminTestimonials';
+import AdminNewsletter from './pages/admin/AdminNewsletter';
 import './App.css';
 
 function App() {
@@ -32,6 +38,12 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/projects" element={<AdminProjects />} />
+              <Route path="/admin/blog" element={<AdminBlog />} />
+              <Route path="/admin/services" element={<AdminServices />} />
+              <Route path="/admin/contact" element={<AdminContact />} />
+              <Route path="/admin/testimonials" element={<AdminTestimonials />} />
+              <Route path="/admin/newsletter" element={<AdminNewsletter />} />
             </Routes>
           </main>
         </div>

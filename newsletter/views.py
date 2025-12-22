@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from .models import NewsletterSubscription
 from .serializers import NewsletterSubscriptionSerializer
@@ -48,3 +48,16 @@ class NewsletterSubscriptionView(generics.CreateAPIView):
             {'detail': 'Successfully subscribed to newsletter!'},
             status=status.HTTP_201_CREATED
         )
+
+class NewsletterSubscriptionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing newsletter subscriptions (admin only).
+    Allows authenticated users to list, retrieve, update, and delete subscriptions.
+    """
+    queryset = NewsletterSubscription.objects.all().order_by('-subscribed_at')
+    serializer_class = NewsletterSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_serializer_class(self):
+        # Allow updating all fields for admin operations
+        return NewsletterSubscriptionSerializer

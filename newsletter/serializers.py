@@ -7,6 +7,6 @@ class NewsletterSubscriptionSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = NewsletterSubscription
-        fields = ['id', 'email', 'name', 'subscribed_at', 'is_active']
-        read_only_fields = ['id', 'subscribed_at', 'is_active']
+        fields = ['id', 'email', 'name', 'subscribed_at', 'is_active', 'subscribed_ip']
+        read_only_fields = ['id', 'subscribed_at', 'subscribed_ip']
 
