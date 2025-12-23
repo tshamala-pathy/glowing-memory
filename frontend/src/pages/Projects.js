@@ -1,6 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
+/**
+ * Helper function to construct full image URL for project images.
+ * 
+ * The Django backend returns image URLs that may be absolute (http://...) or relative (/media/...).
+ * This function ensures we always have a complete, absolute URL that the browser can load.
+ * 
+ * @param {string|null} imageUrl - The image URL from the API response
+ * @returns {string|null} Absolute URL to the image, or null if no URL provided
+ */
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  
+  // If it's already a full URL (starts with http:// or https://), return as is
+  // This handles cases where Django serializer already built the absolute URL
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // If it's a relative URL (e.g., '/media/projects/image.jpg'), prepend the backend base URL
+  // Media files are served at the root level, not under /api, so we use the base server URL
+  const backendUrl = 'http://localhost:8000';
+  return `${backendUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+};
+
 const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +48,9 @@ const Projects = () => {
       if (filters.search) params.search = filters.search;
 
       const response = await api.get('/projects/', { params });
-      setProjects(response.data.results || response.data || []);
+      const projectsData = response.data.results || response.data || [];
+      
+      setProjects(projectsData);
       setError('');
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -182,26 +208,43 @@ const Projects = () => {
                 className="card-professional group fade-in"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                {project.image && (
-                  <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                  {project.image ? (
                     <img
-                      src={project.image}
+                      src={getImageUrl(project.image)}
                       alt={project.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        console.error('Failed to load image for project:', project.title, 'URL:', getImageUrl(project.image));
+                        // Hide the broken image and show placeholder
+                        e.target.style.display = 'none';
+                        const placeholder = e.target.nextElementSibling;
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
                     />
-                    <div className="absolute top-4 right-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        project.status === 'Completed' 
-                          ? 'bg-green-100 text-green-800' 
-                          : project.status === 'In Progress'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {project.status}
-                      </span>
-                    </div>
+                  ) : null}
+                  <div 
+                    className="w-full h-full flex items-center justify-center text-gray-400"
+                    style={{ display: project.image ? 'none' : 'flex' }}
+                  >
+                    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                   </div>
-                )}
+                  <div className="absolute top-4 right-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      project.status === 'Completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : project.status === 'In Progress'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {project.status}
+                    </span>
+                  </div>
+                </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-gray-500">

@@ -28,12 +28,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get('/users/profile/');
       const userData = response.data;
-      // Debug: Log user data to verify is_superuser is included
-      console.log('User data fetched:', { 
-        email: userData.email, 
-        is_superuser: userData.is_superuser,
-        is_staff: userData.is_staff 
-      });
+      // Store user data in context for use throughout the application
       setUser(userData);
     } catch (error) {
       console.error('Error fetching user:', error);

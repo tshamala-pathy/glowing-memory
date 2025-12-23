@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Blog from './pages/Blog';
 import Projects from './pages/Projects';
@@ -18,6 +19,11 @@ import AdminServices from './pages/admin/AdminServices';
 import AdminContact from './pages/admin/AdminContact';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
+import AdminQuotes from './pages/admin/AdminQuotes';
+import AdminInvoices from './pages/admin/AdminInvoices';
+import AdminUsers from './pages/admin/AdminUsers';
+import Pricing from './pages/Pricing';
+import Quotes from './pages/Quotes';
 import './App.css';
 
 function App() {
@@ -36,14 +42,103 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/projects" element={<AdminProjects />} />
-              <Route path="/admin/blog" element={<AdminBlog />} />
-              <Route path="/admin/services" element={<AdminServices />} />
-              <Route path="/admin/contact" element={<AdminContact />} />
-              <Route path="/admin/testimonials" element={<AdminTestimonials />} />
-              <Route path="/admin/newsletter" element={<AdminNewsletter />} />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/projects" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminProjects />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/blog" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminBlog />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/services" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminServices />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/contact" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminContact />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/testimonials" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminTestimonials />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/newsletter" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminNewsletter />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/quotes" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminQuotes />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/invoices" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminInvoices />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/users" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route 
+                path="/quotes" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Quotes />
+                  </ProtectedRoute>
+                } 
+              />
             </Routes>
           </main>
         </div>
