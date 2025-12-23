@@ -66,6 +66,16 @@ const Navbar = () => {
               Services
             </Link>
             <Link
+              to="/pricing"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive('/pricing')
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              Pricing
+            </Link>
+            <Link
               to="/blog"
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive('/blog')
@@ -234,6 +244,17 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Services
+              </Link>
+              <Link
+                to="/pricing"
+                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                  isActive('/pricing')
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Pricing
               </Link>
               <Link
                 to="/blog"
