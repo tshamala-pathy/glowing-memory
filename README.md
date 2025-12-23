@@ -1,260 +1,229 @@
-# PathyCode - Django + React Full-Stack Application
+# PathyCode Portfolio Platform
 
-A modern full-stack web application built with Django REST Framework backend and React frontend.
+A comprehensive full-stack web application built with Django REST Framework and React for managing a digital portfolio, blog, services, client quotes, and more.
 
 ## Features
 
-- **User Authentication**: JWT-based authentication system
-- **Blog Management**: Create, read, update, and delete blog posts
-- **Project Portfolio**: Showcase your projects with images and descriptions
-- **Service Management**: Manage and display your services
-- **Contact System**: Handle contact form submissions
-- **Responsive Design**: Modern UI with Tailwind CSS
-- **API Integration**: Seamless communication between frontend and backend
+- **Project Portfolio**: Showcase projects with images, descriptions, and technologies
+- **Blog System**: Create and manage blog posts with categories and tags
+- **Services Catalog**: Display services with pricing and features
+- **Quote Requests**: Authenticated users can request project quotes
+- **Contact Management**: Handle client inquiries and messages
+- **Testimonials**: Display customer testimonials
+- **Admin Panel**: Comprehensive admin interface for content management
+- **User Authentication**: JWT-based authentication with role-based access control
 
-## Tech Stack
+## Technology Stack
 
 ### Backend
 - Django 5.2.3
 - Django REST Framework
-- Django CORS Headers
-- JWT Authentication
-- SQLite (development) / PostgreSQL (production)
-- Python 3.13+
+- JWT Authentication (django-rest-framework-simplejwt)
+- SQLite (development) / PostgreSQL (production-ready)
 
 ### Frontend
-- React 19.1.0
-- React Router DOM
-- Axios for API calls
-- Tailwind CSS for styling
+- React 18
+- React Router v6
+- Axios
+- Tailwind CSS
 - Context API for state management
+
+## Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Node.js 14+
+- pip
+- npm
+
+### Backend Setup
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd glowing-memory
+```
+
+2. **Create and activate virtual environment**
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
+```
+
+3. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+4. **Run migrations**
+```bash
+python manage.py migrate
+```
+
+5. **Create superuser** (optional, for admin access)
+```bash
+python manage.py createsuperuser
+```
+
+6. **Run development server**
+```bash
+python manage.py runserver
+```
+
+The backend API will be available at `http://localhost:8000`
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**
+```bash
+cd frontend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Run development server**
+```bash
+npm start
+```
+
+The frontend will be available at `http://localhost:3000`
 
 ## Project Structure
 
 ```
 glowing-memory/
-├── manage.py                 # Django management script
-├── requirements.txt          # Python dependencies
-├── .env                     # Environment variables (create this)
-├── PathyCodeback/           # Django project settings
-│   ├── settings.py
-│   ├── urls.py
-│   ├── wsgi.py
-│   └── asgi.py
-├── users/                   # User management app
-├── blog/                    # Blog app
-├── projects/                # Projects app
-├── services/                # Services app
-├── contact/                 # Contact app
-└── frontend/                # React application
-    ├── src/
-    │   ├── components/      # Reusable React components
-    │   ├── pages/          # Page components
-    │   ├── contexts/       # React contexts
-    │   ├── services/       # API services
-    │   └── utils/          # Utility functions
-    ├── package.json
-    └── tailwind.config.js
+├── PathyCodeback/          # Django project root
+│   ├── settings.py         # Django configuration
+│   └── urls.py            # Root URL routing
+├── users/                  # User authentication app
+├── projects/               # Project portfolio app
+├── blog/                   # Blog posts app
+├── services/               # Services catalog app
+├── quotes/                 # Quote requests app
+├── invoices/               # Invoice management app
+├── contact/                # Contact messages app
+├── testimonials/           # Testimonials app
+├── newsletter/             # Newsletter subscriptions
+├── about/                  # About page content
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/     # Reusable components
+│   │   ├── pages/          # Page components
+│   │   ├── contexts/       # React Context providers
+│   │   └── services/       # API services
+│   └── public/
+├── media/                  # User-uploaded files
+└── docs/                   # Documentation
 ```
 
-## Setup Instructions
+## Key Documentation
 
-### Prerequisites
-- Python 3.13+
-- Node.js 18+
-- npm or yarn
-
-### Backend Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd glowing-memory
-   ```
-
-2. **Create and activate virtual environment**
-   ```bash
-   python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   # macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install Python dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Create environment file**
-   Create a `.env` file in the root directory:
-   ```env
-   SECRET_KEY=your-secret-key-here
-   DEBUG=True
-   ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-   DB_ENGINE=django.db.backends.sqlite3
-   DB_NAME=db.sqlite3
-   DB_USER=
-   DB_PASSWORD=
-   DB_HOST=
-   DB_PORT=
-   ```
-
-5. **Run migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-6. **Create superuser (optional)**
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-7. **Start Django server**
-   ```bash
-   python manage.py runserver
-   ```
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start React development server**
-   ```bash
-   npm start
-   ```
-
-## Running the Application
-
-1. **Start Django backend** (Terminal 1)
-   ```bash
-   python manage.py runserver
-   ```
-   Backend will be available at: http://127.0.0.1:8000
-
-2. **Start React frontend** (Terminal 2)
-   ```bash
-   cd frontend
-   npm start
-   ```
-   Frontend will be available at: http://localhost:3000
+- **[Architecture Guide](docs/ARCHITECTURE.md)**: Complete system architecture and data flow
+- **[Authentication Guide](docs/AUTHENTICATION.md)**: Authentication flow and security
+- **[Quotes Workflow](docs/QUOTES_WORKFLOW.md)**: Quote request and management process
 
 ## API Endpoints
 
-- **Authentication**
-  - `POST /api/users/register/` - User registration (returns JWT tokens)
-  - `POST /api/users/login/` - User login with email (returns JWT tokens and user data)
-  - `POST /api/users/token/` - Alternative login endpoint
-  - `POST /api/users/token/refresh/` - Refresh JWT token
-  - `GET /api/users/profile/` - Get current user profile (authenticated)
+### Authentication
+- `POST /api/users/register/` - User registration
+- `POST /api/users/login/` - User login
+- `POST /api/users/token/refresh/` - Refresh JWT token
+- `GET /api/users/profile/` - Get current user profile
 
-- **Blog**
-  - `GET /api/blog/` - List blog posts
-  - `POST /api/blog/` - Create blog post (authenticated)
-  - `GET /api/blog/{id}/` - Get blog post
-  - `PUT /api/blog/{id}/` - Update blog post (authenticated)
-  - `DELETE /api/blog/{id}/` - Delete blog post (authenticated)
+### Projects
+- `GET /api/projects/` - List all projects (public)
+- `GET /api/projects/{id}/` - Get project details (public)
+- `POST /api/projects/` - Create project (authenticated)
+- `PUT/PATCH /api/projects/{id}/` - Update project (authenticated)
+- `DELETE /api/projects/{id}/` - Delete project (authenticated)
 
-- **Projects**
-  - `GET /api/projects/` - List projects
-  - `POST /api/projects/` - Create project (authenticated)
-  - `GET /api/projects/{id}/` - Get project
-  - `PUT /api/projects/{id}/` - Update project (authenticated)
-  - `DELETE /api/projects/{id}/` - Delete project (authenticated)
+### Quotes
+- `POST /api/quotes/` - Submit quote request (authenticated)
 
-- **Services**
-  - `GET /api/services/` - List services
-  - `POST /api/services/` - Create service (authenticated)
-  - `GET /api/services/{id}/` - Get service
-  - `PUT /api/services/{id}/` - Update service (authenticated)
-  - `DELETE /api/services/{id}/` - Delete service (authenticated)
+See [Architecture Documentation](docs/ARCHITECTURE.md) for complete API reference.
 
-- **Contact**
-  - `GET /api/contact/` - List contact messages (authenticated)
-  - `POST /api/contact/` - Submit contact form
-  - `GET /api/contact/{id}/` - Get contact message (authenticated)
+## Access Control
 
-## Features Overview
+### Public Access
+- Home, About, Blog, Projects (view), Services, Contact pages
 
-### Authentication System
-- User registration and login
-- JWT token-based authentication
-- Protected routes and API endpoints
-- User profile management
+### Authenticated Users
+- Dashboard, Quotes (submit requests)
 
-### Blog System
-- Create and manage blog posts
-- Rich text content support
-- Tag system for categorization
-- Featured images
-- Author attribution
+### Superusers/Admins
+- All authenticated user access
+- Admin Panel (`/admin/*`)
+- Full CRUD access to all models
 
-### Project Portfolio
-- Showcase projects with descriptions
-- Technology stack tags
-- GitHub and live demo links
-- Project status tracking
-- Image galleries
+## Media Files
 
-### Service Management
-- Service catalog with pricing
-- Feature lists
-- Category organization
-- Service descriptions
+Project images and other media files are stored in the `media/` directory. In development, Django serves these files directly. In production, configure your web server (nginx/Apache) to serve media files for better performance.
 
-### Contact System
-- Contact form with validation
-- Message management
-- Email notifications (configurable)
+See [Architecture Documentation](docs/ARCHITECTURE.md#media-handling) for detailed media handling information.
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+SECRET_KEY=your-secret-key-here
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+DB_ENGINE=django.db.backends.sqlite3
+DB_NAME=db.sqlite3
+```
+
+See `PathyCodeback/settings.py` for all configurable settings.
 
 ## Development
 
-### Adding New Features
+### Running Tests
+```bash
+python manage.py test
+```
 
-1. **Backend**: Create new Django apps or extend existing ones
-2. **Frontend**: Add new components in `frontend/src/components/`
-3. **API Integration**: Update `frontend/src/services/api.js`
-4. **Routing**: Add new routes in `frontend/src/App.js`
+### Creating Migrations
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
 
-### Styling
-The project uses Tailwind CSS for styling. Custom styles can be added to:
-- `frontend/src/App.css` for global styles
-- Component-specific styles using Tailwind classes
+### Collecting Static Files
+```bash
+python manage.py collectstatic
+```
 
 ## Deployment
 
-### Backend Deployment
-1. Set up production database (PostgreSQL recommended)
-2. Configure environment variables for production
-3. Set `DEBUG=False` in production
-4. Use a production WSGI server like Gunicorn
-5. Set up static file serving
+See [Architecture Documentation - Deployment Notes](docs/ARCHITECTURE.md#deployment-notes) for production deployment checklist and recommendations.
 
-### Frontend Deployment
-1. Build the React app: `npm run build`
-2. Serve the build folder with a web server
-3. Configure API base URL for production
+### Production Checklist
+- [ ] Set `DEBUG = False`
+- [ ] Configure `ALLOWED_HOSTS`
+- [ ] Use PostgreSQL database
+- [ ] Set up web server (nginx) for static/media files
+- [ ] Configure HTTPS/SSL
+- [ ] Set secure environment variables
+- [ ] Configure proper logging
+- [ ] Set up database backups
+
+## License
+
+See LICENSE file for details.
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+4. Submit a pull request
 
 ## Support
 
-For support and questions, please contact us through the contact form or create an issue in the repository.
+For issues and questions, please open an issue in the repository.
