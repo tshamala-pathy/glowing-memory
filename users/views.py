@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from .models import CustomUser
 from .serializers import RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer
@@ -90,3 +90,13 @@ class ProfileUpdateView(generics.UpdateAPIView):
         Return the current authenticated user.
         """
         return self.request.user
+
+# ViewSet for listing users (admin only)
+class UserListViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint that allows superusers to view the list of all users.
+    Only accessible to superusers.
+    """
+    queryset = CustomUser.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  # Only admin/superuser can access

@@ -1,10 +1,14 @@
-from django.urls import path
-from .views import RegisterView, ProfileView, CustomTokenObtainPairView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import RegisterView, ProfileView, CustomTokenObtainPairView, UserListViewSet
 from rest_framework_simplejwt.views import TokenRefreshView
 
 # ================================
 # URL Configuration for User Authentication
 # ================================
+
+router = DefaultRouter()
+router.register(r'list', UserListViewSet, basename='user-list')
 
 urlpatterns = [
     # Endpoint for user registration
@@ -20,4 +24,7 @@ urlpatterns = [
 
     # Endpoint to refresh the JWT access token using a refresh token
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Include router URLs for user list (admin only)
+    path('', include(router.urls)),
 ]
