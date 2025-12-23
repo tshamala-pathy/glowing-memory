@@ -31,8 +31,15 @@ urlpatterns = [
     path('api/newsletter/', include('newsletter.urls')),
     path('api/testimonials/', include('testimonials.urls')),
     path('api/about/', include('about.urls')),
+    path('api/quotes/', include('quotes.urls')),
+    path('api/invoices/', include('invoices.urls')),
 ]
 
-# Serve media files in development
+# ================================
+# Media Files Configuration
+# ================================
+# Serve media files (user-uploaded files like project images) in development mode.
+# In production, media files should be served by the web server (nginx, Apache, etc.)
+# rather than Django for better performance and security.
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

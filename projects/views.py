@@ -32,9 +32,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     def get_serializer_context(self):
-        """Add request to serializer context for building absolute URLs."""
+        """
+        Add request object to serializer context.
+        
+        This is crucial for the ProjectSerializer to build absolute image URLs.
+        The request object provides scheme (http/https) and host information
+        needed to construct complete media file URLs.
+        
+        Returns:
+            dict: Serializer context including the request object
+        """
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    # The permission_classes attribute ensures that only authenticated users can create, update, or delete projects,
-    # while unauthenticated users can only view the project list and details.
+    
+    # Permission notes:
+    # IsAuthenticatedOrReadOnly allows:
+    # - Unauthenticated users: READ access (view projects)
+    # - Authenticated users: FULL access (create, update, delete projects)

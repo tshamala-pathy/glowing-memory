@@ -1,14 +1,21 @@
 from rest_framework import serializers
 from .models import Project
 
-# 📌 Serializer for the Project model.
+# ================================
+# Project Serializer
+# ================================
+
 class ProjectSerializer(serializers.ModelSerializer):
     """
-    Serializer to convert Project model instances into JSON format
-    and validate incoming project data.
-    Converts technologies and tags from comma-separated strings to arrays.
-    Returns full image URLs.
+    Serializer for Project model.
+    
+    Handles conversion between Project model instances and JSON format.
+    Key features:
+    - Converts comma-separated technologies and tags strings to arrays for frontend consumption
+    - Builds absolute image URLs using request context for proper media file serving
+    - Validates project data on create/update operations
     """
+    # Use SerializerMethodField to customize how these fields are serialized
     technologies = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
@@ -19,19 +26,61 @@ class ProjectSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at', 'updated_at')
     
     def get_technologies(self, obj):
-        """Return technologies as a list."""
+        """
+        Convert comma-separated technologies string to a list.
+        
+        Args:
+            obj: Project instance
+            
+        Returns:
+            list: Array of technology strings
+        """
         return obj.get_technologies_list()
     
     def get_tags(self, obj):
-        """Return tags as a list."""
+        """
+        Convert comma-separated tags string to a list.
+        
+        Args:
+            obj: Project instance
+            
+        Returns:
+            list: Array of tag strings
+        """
         return obj.get_tags_list()
     
     def get_image(self, obj):
-        """Return full image URL."""
+        """
+        Build and return absolute URL for project image.
+        
+        Media files need absolute URLs so the frontend can properly load images
+        from the Django backend server. This method constructs the full URL
+        using the request's scheme (http/https) and host (domain:port).
+        
+        Args:
+            obj: Project instance with an optional image field
+            
+        Returns:
+            str: Absolute URL to the image (e.g., 'http://localhost:8000/media/projects/image.jpg')
+            None: If no image is associated with the project
+        """
         if obj.image:
             request = self.context.get('request')
             if request:
-                return request.build_absolute_uri(obj.image.url)
+                # Build absolute URL with proper scheme and domain
+                # This ensures images load correctly from any client origin
+                scheme = request.scheme  # http or https
+                host = request.get_host()  # localhost:8000 or production domain
+                image_path = obj.image.url  # e.g., '/media/projects/image.jpg'
+                
+                # Ensure image_path starts with / for proper URL construction
+                if not image_path.startswith('/'):
+                    image_path = '/' + image_path
+                
+                return f"{scheme}://{host}{image_path}"
+            
+            # Fallback: return relative URL if no request context
+            # This shouldn't normally happen, but provides graceful degradation
             return obj.image.url
         return None
     
