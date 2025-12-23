@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     'newsletter',  # Newsletter subscription app
     'testimonials',  # Testimonials app
     'about',  # About Us app
+    'quotes',  # Quotes/Estimates app
+    'invoices',  # Invoices app
 ]
 
 MIDDLEWARE = [
