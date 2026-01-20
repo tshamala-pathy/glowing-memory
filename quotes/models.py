@@ -14,7 +14,7 @@ class Quote(models.Model):
         ('Completed', 'Completed'),
     ]
     
-    # Client Information
+    # Client Informations
     client_name = models.CharField(max_length=255)
     client_email = models.EmailField()
     client_phone = models.CharField(max_length=20, blank=True, null=True)
