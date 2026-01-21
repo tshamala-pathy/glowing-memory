@@ -16,11 +16,30 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from .views import search
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/search/', search, name='search'),
     path('api/users/', include('users.urls')),
     path('api/projects/', include('projects.urls')),
     path('api/services/', include('services.urls')),
     path('api/blog/', include('blog.urls')),
+    path('api/contact/', include('contact.urls')),
+    path('api/newsletter/', include('newsletter.urls')),
+    path('api/testimonials/', include('testimonials.urls')),
+    path('api/about/', include('about.urls')),
+    path('api/quotes/', include('quotes.urls')),
+    path('api/invoices/', include('invoices.urls')),
 ]
+
+# ================================
+# Media Files Configuration
+# ================================
+# Serve media files (user-uploaded files like project images) in development mode.
+# In production, media files should be served by the web server (nginx, Apache, etc.)
+# rather than Django for better performance and security.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
