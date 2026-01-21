@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const Blog = () => {
   const [posts, setPosts] = useState([]);
@@ -10,6 +10,7 @@ const Blog = () => {
 
   useEffect(() => {
     fetchPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory]);
 
   const fetchPosts = async () => {
@@ -144,9 +145,10 @@ const Blog = () => {
                 {post.featured_image && (
                   <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                     <img
-                      src={post.featured_image}
+                      src={getMediaUrl(post.featured_image)}
                       alt={post.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   </div>
                 )}

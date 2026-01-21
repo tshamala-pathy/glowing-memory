@@ -2,6 +2,23 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+/**
+ * Build an absolute URL for media files (images, etc.).
+ * - If url is already http(s)://, return as-is.
+ * - If relative (e.g. /media/...), prepend the backend base so images load
+ *   when the frontend is served from a different origin (e.g. localhost:3000).
+ */
+export const getMediaUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Browsers often cannot load http://0.0.0.0:8000; replace with localhost
+    if (url.includes('0.0.0.0')) return url.replace(/0\.0\.0\.0/g, 'localhost');
+    return url;
+  }
+  const base = API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:8000';
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,

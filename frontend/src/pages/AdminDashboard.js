@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
 import api from '../services/api';
 import AdminLayout from '../components/admin/AdminLayout';
 
 const AdminDashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [stats, setStats] = useState({
     projects: 0,
     blogPosts: 0,

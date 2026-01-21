@@ -37,7 +37,7 @@ const StatCard = ({ icon: Icon, value, label, suffix = "" }) => {
 const StatsSection = () => {
   return (
     <section className="py-24 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <StatCard icon={Rocket} value={100} suffix="+" label="Projects Completed" />
         <StatCard icon={Users} value={50} suffix="+" label="Happy Clients" />
         <StatCard icon={Briefcase} value={5} suffix="+" label="Years Experience" />

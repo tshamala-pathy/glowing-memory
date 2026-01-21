@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const AboutSection = () => {
   const [aboutData, setAboutData] = useState(null);
@@ -50,9 +50,10 @@ const AboutSection = () => {
           {aboutData.image && (
             <div className="fade-in" style={{ animationDelay: '0.1s' }}>
               <img
-                src={aboutData.image}
+                src={getMediaUrl(aboutData.image)}
                 alt="About Us"
                 className="w-full h-auto rounded-2xl shadow-2xl"
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
             </div>
           )}

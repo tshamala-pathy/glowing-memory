@@ -1,29 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
-
-/**
- * Helper function to construct full image URL for project images.
- * 
- * The Django backend returns image URLs that may be absolute (http://...) or relative (/media/...).
- * This function ensures we always have a complete, absolute URL that the browser can load.
- * 
- * @param {string|null} imageUrl - The image URL from the API response
- * @returns {string|null} Absolute URL to the image, or null if no URL provided
- */
-const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return null;
-  
-  // If it's already a full URL (starts with http:// or https://), return as is
-  // This handles cases where Django serializer already built the absolute URL
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-  
-  // If it's a relative URL (e.g., '/media/projects/image.jpg'), prepend the backend base URL
-  // Media files are served at the root level, not under /api, so we use the base server URL
-  const backendUrl = 'http://localhost:8000';
-  return `${backendUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-};
+import api, { getMediaUrl } from '../services/api';
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -37,7 +13,8 @@ const Projects = () => {
 
   useEffect(() => {
     fetchProjects();
-  }, [filters.status, filters.category]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.status, filters.category, filters.search]);
 
   const fetchProjects = async () => {
     try {
@@ -211,11 +188,11 @@ const Projects = () => {
                 <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                   {project.image ? (
                     <img
-                      src={getImageUrl(project.image)}
+                      src={getMediaUrl(project.image)}
                       alt={project.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       onError={(e) => {
-                        console.error('Failed to load image for project:', project.title, 'URL:', getImageUrl(project.image));
+                        console.error('Failed to load image for project:', project.title, 'URL:', getMediaUrl(project.image));
                         // Hide the broken image and show placeholder
                         e.target.style.display = 'none';
                         const placeholder = e.target.nextElementSibling;

@@ -115,7 +115,7 @@ const Login = () => {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                <a href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
                   Forgot password?
                 </a>
               </div>
@@ -160,11 +160,11 @@ const Login = () => {
 
         <p className="mt-8 text-center text-sm text-gray-600">
           By signing in, you agree to our{' '}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+          <a href="/terms" className="font-medium text-blue-600 hover:text-blue-500">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+          <a href="/privacy" className="font-medium text-blue-600 hover:text-blue-500">
             Privacy Policy
           </a>
         </p>

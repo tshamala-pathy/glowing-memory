@@ -7,13 +7,13 @@ class BlogPostSerializer(serializers.ModelSerializer):
 
     Handles converting BlogPost instances to and from JSON representations for use in the API.
     Converts tags from comma-separated string to array.
-    Includes validation rules and custom error messages.
+    Includes featured_image as absolute URL for frontend display.
     """
     tags = serializers.SerializerMethodField()
 
     class Meta:
         model = BlogPost
-        fields = ['id', 'title', 'body', 'category', 'tags', 'created_at']
+        fields = ['id', 'title', 'body', 'category', 'tags', 'featured_image', 'created_at']
         read_only_fields = ['created_at', 'id']
 
         # Custom error messages for required fields
@@ -34,6 +34,19 @@ class BlogPostSerializer(serializers.ModelSerializer):
                 }
             },
         }
+
+    def to_representation(self, instance):
+        """Output featured_image as absolute URL for frontend."""
+        ret = super().to_representation(instance)
+        if instance.featured_image:
+            request = self.context.get('request')
+            if request:
+                ret['featured_image'] = request.build_absolute_uri(instance.featured_image.url)
+            else:
+                ret['featured_image'] = instance.featured_image.url
+        else:
+            ret['featured_image'] = None
+        return ret
     
     def get_tags(self, obj):
         """Return tags as a list."""

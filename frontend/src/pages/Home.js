@@ -3,78 +3,96 @@ import { Link } from "react-router-dom";
 import Newsletter from "../components/Newsletter";
 import Testimonials from "../components/Testimonials";
 import AboutSection from "../components/AboutSection";
-import StatsSection from "../components/StatsSection"; // new component
+import StatsSection from "../components/StatsSection";
+
+// Shared container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+const CONTAINER = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
+const CONTAINER_NARROW = "max-w-4xl mx-auto px-4 sm:px-6 lg:px-8";
+const SECTION_HEADING = "text-3xl sm:text-4xl font-bold text-gray-900 mb-4";
+const SECTION_SUB = "text-gray-600 max-w-2xl mx-auto";
+
+const features = [
+  {
+    title: "Projects",
+    description: "Explore our portfolio: web apps, APIs, and digital solutions built for real clients.",
+    color: "from-blue-500 to-blue-600",
+    link: "/projects",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    ),
+  },
+  {
+    title: "Services",
+    description: "Web development, systems, APIs, and business solutions tailored to your needs.",
+    color: "from-purple-500 to-purple-600",
+    link: "/services",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Blog",
+    description: "Insights, tutorials, and updates on tech, design, and building digital products.",
+    color: "from-green-500 to-green-600",
+    link: "/blog",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6m4-4h-4m-4 0H9m0 0v4" />
+      </svg>
+    ),
+  },
+  {
+    title: "About",
+    description: "Our story, mission, values, and the people behind PathyCode.",
+    color: "from-teal-500 to-teal-600",
+    link: "/about",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Pricing",
+    description: "Transparent plans and packages. Find the right fit for your project.",
+    color: "from-amber-500 to-amber-600",
+    link: "/pricing",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Contact",
+    description: "Get in touch for quotes, support, or to start your next project.",
+    color: "from-orange-500 to-orange-600",
+    link: "/contact",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+];
 
 const Home = () => {
-  const features = [
-    {
-      title: "Project Portfolio",
-      description:
-        "Showcase your best projects with clean layouts, tech stacks, and live demos.",
-      color: "from-blue-500 to-blue-600",
-      link: "/projects",
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-        </svg>
-      ),
-    },
-    {
-      title: "Professional Services",
-      description:
-        "Web development, systems, APIs, and business solutions tailored to your needs.",
-      color: "from-purple-500 to-purple-600",
-      link: "/services",
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 12h6M9 16h6M9 8h6" />
-        </svg>
-      ),
-    },
-    {
-      title: "Blog & Insights",
-      description:
-        "Share your ideas, tech knowledge, and industry insights with the world.",
-      color: "from-green-500 to-green-600",
-      link: "/blog",
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M12 6v12m6-6H6" />
-        </svg>
-      ),
-    },
-    {
-      title: "Contact & Support",
-      description:
-        "Easy communication and fast response for clients and collaborators.",
-      color: "from-orange-500 to-orange-600",
-      link: "/contact",
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M21 8V7a2 2 0 00-2-2H5a2 2 0 00-2 2v1m18 0v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8m18 0l-9 6-9-6" />
-        </svg>
-      ),
-    },
-  ];
-
   return (
     <div className="bg-white text-gray-800">
 
-      {/* ================= HERO SECTION ================= */}
+      {/* ——— Hero ——— */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1498050108023-c5249f4df085')",
+            backgroundImage: "url('https://images.unsplash.com/photo-1498050108023-c5249f4df085')",
           }}
-        ></div>
-
-        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/80"></div>
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/80" />
 
         <div className="relative z-10 text-center px-4 max-w-4xl">
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white mb-6">
@@ -83,12 +101,10 @@ const Home = () => {
               Presence
             </span>
           </h1>
-
           <p className="text-xl text-gray-200 mb-10">
             I design and build modern websites, applications, and digital
             solutions that help businesses grow.
           </p>
-
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/register"
@@ -103,85 +119,83 @@ const Home = () => {
               View Projects
             </Link>
           </div>
-
           <p className="mt-6 text-sm text-gray-300">
-            No credit card required • Trusted by professionals
+            No credit card required · Trusted by professionals
           </p>
         </div>
       </section>
 
-      {/* ================= FEATURES ================= */}
+      {/* ——— What I Offer (Features) ——— */}
       <section className="py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">What I Offer</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+        <div className={CONTAINER}>
+          <header className="text-center mb-16">
+            <h2 className={SECTION_HEADING}>What I Offer</h2>
+            <p className={SECTION_SUB}>
               Everything you need to build a strong and professional online presence.
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="bg-white/70 backdrop-blur-lg p-8 rounded-3xl border shadow-xl hover:-translate-y-2 hover:shadow-2xl transition"
+          </header>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, i) => (
+              <Link
+                key={i}
+                to={feature.link}
+                className="group bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300"
               >
                 <div
-                  className={`w-16 h-16 flex items-center justify-center rounded-2xl text-white mb-6 bg-gradient-to-br ${feature.color}`}
+                  className={`w-14 h-14 flex items-center justify-center rounded-xl text-white mb-5 bg-gradient-to-br ${feature.color}`}
                 >
                   {feature.icon}
                 </div>
-
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-gray-600 mb-6">{feature.description}</p>
-
-                <Link
-                  to={feature.link}
-                  className="text-blue-600 font-medium hover:underline"
-                >
-                  Learn more →
-                </Link>
-              </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {feature.description}
+                </p>
+                <span className="inline-flex items-center mt-4 text-blue-600 font-medium text-sm">
+                  Learn more
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ================= ABOUT ================= */}
+      {/* ——— About ——— */}
       <AboutSection />
 
-      {/* ================= STATS ================= */}
+      {/* ——— Stats ——— */}
       <StatsSection />
 
-      {/* ================= TESTIMONIALS ================= */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <Testimonials />
-        </div>
-      </section>
+      {/* ——— Testimonials ——— */}
+      <Testimonials />
 
-      {/* ================= NEWSLETTER ================= */}
+      {/* ——— Newsletter ——— */}
       <section className="py-24 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-6 bg-white rounded-3xl shadow-xl p-12">
+        <div className={CONTAINER_NARROW}>
           <Newsletter />
         </div>
       </section>
 
-      {/* ================= CTA ================= */}
-      <section className="py-28 bg-gradient-to-r from-blue-600 to-purple-600 text-center">
-        <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-6">
-          Ready to Work Together?
-        </h2>
-        <p className="text-blue-100 mb-10 max-w-xl mx-auto">
-          Let’s build something amazing for your business or personal brand.
-        </p>
-
-        <Link
-          to="/contact"
-          className="inline-block px-12 py-5 bg-white text-blue-600 rounded-full font-semibold shadow-2xl hover:scale-110 transition"
-        >
-          Contact Me 🚀
-        </Link>
+      {/* ——— CTA ——— */}
+      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600 text-center">
+        <div className="max-w-2xl mx-auto px-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6">
+            Ready to Work Together?
+          </h2>
+          <p className="text-blue-100 mb-10 text-lg">
+            Let’s build something amazing for your business or personal brand.
+          </p>
+          <Link
+            to="/contact"
+            className="inline-block px-12 py-4 bg-white text-blue-600 rounded-full font-semibold text-lg shadow-xl hover:scale-105 transition"
+          >
+            Contact Me →
+          </Link>
+        </div>
       </section>
     </div>
   );

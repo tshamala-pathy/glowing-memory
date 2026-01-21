@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const Testimonials = () => {
   const [testimonials, setTestimonials] = useState([]);
@@ -71,9 +71,10 @@ const Testimonials = () => {
               <div className="flex items-center">
                 {testimonial.image && (
                   <img
-                    src={testimonial.image}
+                    src={getMediaUrl(testimonial.image)}
                     alt={testimonial.name}
                     className="w-12 h-12 rounded-full object-cover mr-4"
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 )}
                 <div>

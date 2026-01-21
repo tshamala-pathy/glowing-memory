@@ -207,11 +207,11 @@ const Register = () => {
 
         <p className="mt-8 text-center text-sm text-gray-600">
           By creating an account, you agree to our{' '}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+          <a href="/terms" className="font-medium text-blue-600 hover:text-blue-500">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+          <a href="/privacy" className="font-medium text-blue-600 hover:text-blue-500">
             Privacy Policy
           </a>
         </p>

@@ -11,12 +11,15 @@ const AdminInvoices = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line no-unused-vars -- reserved for create/edit form modal
   const [showForm, setShowForm] = useState(false);
+  // eslint-disable-next-line no-unused-vars -- reserved for edit form
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, invoice: null });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  // eslint-disable-next-line no-unused-vars -- reserved for create from quote
   const [quotes, setQuotes] = useState([]);
 
   useEffect(() => {

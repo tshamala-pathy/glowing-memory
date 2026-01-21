@@ -25,6 +25,12 @@ class BlogPost(models.Model):
         blank=True,
         help_text="Comma-separated tags to help categorize or search blog posts."
     )
+    featured_image = models.ImageField(
+        upload_to='blog/',
+        blank=True,
+        null=True,
+        help_text="Optional featured image for the blog post."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="The timestamp when the post was created."

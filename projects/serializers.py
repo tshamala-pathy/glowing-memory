@@ -52,37 +52,38 @@ class ProjectSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         """
         Build and return absolute URL for project image.
-        
+
         Media files need absolute URLs so the frontend can properly load images
         from the Django backend server. This method constructs the full URL
         using the request's scheme (http/https) and host (domain:port).
-        
+
         Args:
             obj: Project instance with an optional image field
-            
+
         Returns:
             str: Absolute URL to the image (e.g., 'http://localhost:8000/media/projects/image.jpg')
             None: If no image is associated with the project
         """
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                # Build absolute URL with proper scheme and domain
-                # This ensures images load correctly from any client origin
-                scheme = request.scheme  # http or https
-                host = request.get_host()  # localhost:8000 or production domain
-                image_path = obj.image.url  # e.g., '/media/projects/image.jpg'
-                
-                # Ensure image_path starts with / for proper URL construction
-                if not image_path.startswith('/'):
-                    image_path = '/' + image_path
-                
-                return f"{scheme}://{host}{image_path}"
-            
-            # Fallback: return relative URL if no request context
-            # This shouldn't normally happen, but provides graceful degradation
-            return obj.image.url
-        return None
+        if not obj.image:
+            return None
+
+        image_path = obj.image.url
+        if not image_path.startswith('/'):
+            image_path = '/' + image_path
+
+        request = self.context.get('request')
+        if request:
+            scheme = request.scheme
+            host = request.get_host()
+            # Browsers often cannot load http://0.0.0.0:8000; use localhost instead
+            if '0.0.0.0' in host:
+                host = host.replace('0.0.0.0', 'localhost', 1)
+            return f"{scheme}://{host}{image_path}"
+
+        # Fallback when no request: absolute URL so the frontend can load the image.
+        from django.conf import settings
+        base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000')
+        return f"{str(base).rstrip('/')}{image_path}"
     
     def to_internal_value(self, data):
         """Convert technologies and tags lists to comma-separated strings for storage."""
