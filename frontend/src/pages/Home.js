@@ -11,6 +11,20 @@ const CONTAINER_NARROW = "max-w-4xl mx-auto px-4 sm:px-6 lg:px-8";
 const SECTION_HEADING = "text-3xl sm:text-4xl font-bold text-gray-900 mb-4";
 const SECTION_SUB = "text-gray-600 max-w-2xl mx-auto";
 
+// High-quality Unsplash images for a polished, professional UI
+const IMAGES = {
+  hero: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1920&q=80",
+  heroFloating: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80",
+  strip: [
+    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80",
+    "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&q=80",
+    "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&q=80",
+    "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80",
+  ],
+  cta: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1920&q=80",
+  newsletter: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&q=80",
+};
+
 const features = [
   {
     title: "Projects",
@@ -87,12 +101,21 @@ const Home = () => {
       {/* ——— Hero ——— */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1498050108023-c5249f4df085')",
-          }}
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('${IMAGES.hero}')` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/75 via-black/60 to-black/80" />
+
+        {/* Floating dashboard preview (desktop) */}
+        <div className="absolute right-[5%] top-1/2 -translate-y-1/2 hidden xl:block w-[320px] z-10">
+          <div className="rounded-xl overflow-hidden shadow-2xl ring-2 ring-white/20">
+            <img
+              src={IMAGES.heroFloating}
+              alt="Dashboard preview"
+              className="w-full h-52 object-cover"
+            />
+          </div>
+        </div>
 
         <div className="relative z-10 text-center px-4 max-w-4xl">
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white mb-6">
@@ -134,6 +157,25 @@ const Home = () => {
               Everything you need to build a strong and professional online presence.
             </p>
           </header>
+
+          {/* Image strip: coding, teamwork, design, delivery */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+            {IMAGES.strip.map((src, i) => (
+              <div
+                key={i}
+                className="relative rounded-2xl overflow-hidden shadow-lg group h-44 md:h-52"
+              >
+                <img
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, i) => (
               <Link
@@ -175,18 +217,37 @@ const Home = () => {
 
       {/* ——— Newsletter ——— */}
       <section className="py-24 bg-gray-50">
-        <div className={CONTAINER_NARROW}>
-          <Newsletter />
+        <div className={CONTAINER}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+            <div className="lg:col-span-5 order-2 lg:order-1">
+              <div className="rounded-2xl overflow-hidden shadow-xl">
+                <img
+                  src={IMAGES.newsletter}
+                  alt="Stay in the loop"
+                  loading="lazy"
+                  className="w-full h-64 lg:h-80 object-cover"
+                />
+              </div>
+            </div>
+            <div className="lg:col-span-7 order-1 lg:order-2">
+              <Newsletter />
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ——— CTA ——— */}
-      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600 text-center">
-        <div className="max-w-2xl mx-auto px-4">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6">
+      <section className="relative py-24 overflow-hidden text-center">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('${IMAGES.cta}')` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/92 via-purple-600/90 to-blue-700/92" />
+        <div className="relative z-10 max-w-2xl mx-auto px-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6 [text-shadow:0_2px_16px_rgba(0,0,0,0.6)]">
             Ready to Work Together?
           </h2>
-          <p className="text-blue-100 mb-10 text-lg">
+          <p className="text-white mb-10 text-xl font-semibold [text-shadow:0_2px_12px_rgba(0,0,0,0.9),0_0_24px_rgba(0,0,0,0.5)]">
             Let’s build something amazing for your business or personal brand.
           </p>
           <Link
