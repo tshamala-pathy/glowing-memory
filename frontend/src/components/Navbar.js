@@ -211,6 +211,10 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4 fade-in">
+            {/* Mobile Search Bar */}
+            <div className="px-4 mb-4">
+              <SearchBar />
+            </div>
             <div className="space-y-1">
               <Link
                 to="/"

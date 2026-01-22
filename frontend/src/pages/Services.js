@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 
 const Services = () => {
@@ -91,9 +92,10 @@ const Services = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map((service, index) => (
-              <div
+              <Link
                 key={service.id}
-                className="card-professional group fade-in"
+                to={`/services/${service.id}`}
+                className="card-professional group fade-in block"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="p-8">
@@ -150,11 +152,15 @@ const Services = () => {
                     </div>
                   )}
                   
-                  <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg">
+                  <Link
+                    to="/contact"
+                    onClick={(e) => e.stopPropagation()}
+                    className="block w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-center"
+                  >
                     Get Started
-                  </button>
+                  </Link>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 
 const Projects = () => {
@@ -180,9 +181,10 @@ const Projects = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project, index) => (
-              <div
+              <Link
                 key={project.id}
-                className="card-professional group fade-in"
+                to={`/projects/${project.id}`}
+                className="card-professional group fade-in block"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
@@ -284,7 +286,7 @@ const Projects = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

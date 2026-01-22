@@ -26,6 +26,10 @@ import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminUsers from './pages/admin/AdminUsers';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
+import SearchResults from './pages/SearchResults';
+import ProjectDetail from './pages/ProjectDetail';
+import BlogDetail from './pages/BlogDetail';
+import ServiceDetail from './pages/ServiceDetail';
 import './App.css';
 
 function App() {
@@ -39,8 +43,11 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -135,6 +142,7 @@ function App() {
                 } 
               />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/search" element={<SearchResults />} />
               <Route 
                 path="/quotes" 
                 element={

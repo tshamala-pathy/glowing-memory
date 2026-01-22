@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 
 const Blog = () => {
@@ -137,9 +138,10 @@ const Blog = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {posts.map((post, index) => (
-              <article
+              <Link
                 key={post.id}
-                className="card-professional group fade-in overflow-hidden"
+                to={`/blog/${post.id}`}
+                className="card-professional group fade-in overflow-hidden block"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {post.featured_image && (
@@ -206,7 +208,7 @@ const Blog = () => {
                     </svg>
                   </div>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         )}
