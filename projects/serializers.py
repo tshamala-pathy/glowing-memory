@@ -14,11 +14,13 @@ class ProjectSerializer(serializers.ModelSerializer):
     - Converts comma-separated technologies and tags strings to arrays for frontend consumption
     - Builds absolute image URLs using request context for proper media file serving
     - Validates project data on create/update operations
+    - Allows image uploads via API (ImageField is writable, URL conversion in to_representation)
     """
     # Use SerializerMethodField to customize how these fields are serialized
     technologies = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
+    # Image field is directly included (writable) - URL conversion happens in to_representation
+    # This matches the BlogPostSerializer pattern that works correctly
 
     class Meta:
         model = Project
@@ -49,41 +51,32 @@ class ProjectSerializer(serializers.ModelSerializer):
         """
         return obj.get_tags_list()
     
-    def get_image(self, obj):
+    def to_representation(self, instance):
         """
-        Build and return absolute URL for project image.
-
-        Media files need absolute URLs so the frontend can properly load images
-        from the Django backend server. This method constructs the full URL
-        using the request's scheme (http/https) and host (domain:port).
-
-        Args:
-            obj: Project instance with an optional image field
-
-        Returns:
-            str: Absolute URL to the image (e.g., 'http://localhost:8000/media/projects/image.jpg')
-            None: If no image is associated with the project
+        Convert image field to absolute URL for frontend display.
+        This matches the BlogPostSerializer pattern that works correctly.
         """
-        if not obj.image:
-            return None
-
-        image_path = obj.image.url
-        if not image_path.startswith('/'):
-            image_path = '/' + image_path
-
-        request = self.context.get('request')
-        if request:
-            scheme = request.scheme
-            host = request.get_host()
-            # Browsers often cannot load http://0.0.0.0:8000; use localhost instead
-            if '0.0.0.0' in host:
-                host = host.replace('0.0.0.0', 'localhost', 1)
-            return f"{scheme}://{host}{image_path}"
-
-        # Fallback when no request: absolute URL so the frontend can load the image.
-        from django.conf import settings
-        base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000')
-        return f"{str(base).rstrip('/')}{image_path}"
+        ret = super().to_representation(instance)
+        if instance.image:
+            try:
+                request = self.context.get('request')
+                if request:
+                    # Use Django's build_absolute_uri method (same as BlogPostSerializer)
+                    ret['image'] = request.build_absolute_uri(instance.image.url)
+                else:
+                    # Fallback when no request context
+                    image_path = instance.image.url
+                    if not image_path.startswith('/'):
+                        image_path = '/' + image_path
+                    from django.conf import settings
+                    base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000')
+                    ret['image'] = f"{str(base).rstrip('/')}{image_path}"
+            except (ValueError, AttributeError):
+                # Image field exists but file doesn't exist on disk
+                ret['image'] = None
+        else:
+            ret['image'] = None
+        return ret
     
     def to_internal_value(self, data):
         """Convert technologies and tags lists to comma-separated strings for storage."""
@@ -94,3 +87,4 @@ class ProjectSerializer(serializers.ModelSerializer):
             data = data.copy()
             data['tags'] = ','.join([str(tag) for tag in data['tags']])
         return super().to_internal_value(data)
+    
