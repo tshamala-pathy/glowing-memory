@@ -3,7 +3,7 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Project
 from .serializers import ProjectSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 
 # Create your views here.
 
@@ -17,14 +17,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
     Attributes:
         queryset (QuerySet): Retrieves all Project instances ordered by creation date descending.
         serializer_class (Serializer): Specifies the serializer to use for Project objects.
-        permission_classes (list): Permissions to allow authenticated users to edit and others read-only access.
+        permission_classes (list): Permissions - requires authentication for all operations.
         filter_backends: Enables filtering and searching capabilities.
         filterset_fields: Fields that can be used for filtering.
         search_fields: Fields that can be searched.
     """
     queryset = Project.objects.all().order_by('-created_at')
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]  # Require authentication for all operations
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'category']
     search_fields = ['title', 'description', 'technologies', 'tags']
@@ -47,6 +47,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return context
     
     # Permission notes:
-    # IsAuthenticatedOrReadOnly allows:
-    # - Unauthenticated users: READ access (view projects)
-    # - Authenticated users: FULL access (create, update, delete projects)
+    # IsAuthenticated requires:
+    # - All users must be authenticated to access projects (read, create, update, delete)
+    # - Unauthenticated requests will receive 401 Unauthorized

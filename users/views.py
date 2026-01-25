@@ -2,7 +2,13 @@ from django.shortcuts import render
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from .models import CustomUser
-from .serializers import RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer
+from .serializers import (
+    RegisterSerializer,
+    UserSerializer,
+    CustomTokenObtainPairSerializer,
+    ForgotPasswordSerializer,
+    ResetPasswordSerializer
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # ================================
@@ -100,3 +106,65 @@ class UserListViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CustomUser.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]  # Only admin/superuser can access
+
+
+# ViewSet for full CRUD operations on users (admin only)
+class UserAdminViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows superusers to perform full CRUD operations on users.
+    Only accessible to superusers.
+    """
+    queryset = CustomUser.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  # Only admin/superuser can access
+    
+    def get_serializer_class(self):
+        """Use AdminUserSerializer for create/update operations."""
+        if self.action in ['create', 'update', 'partial_update']:
+            from .serializers import AdminUserSerializer
+            return AdminUserSerializer
+        return UserSerializer
+
+
+# ================================
+# Password Recovery Views
+# ================================
+
+class ForgotPasswordView(generics.GenericAPIView):
+    """
+    API endpoint for password reset request (forgot password).
+    Sends email with password reset link.
+    Accessible to anyone (no authentication required).
+    """
+    serializer_class = ForgotPasswordSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        
+        return Response(
+            result,
+            status=status.HTTP_200_OK
+        )
+
+
+class ResetPasswordView(generics.GenericAPIView):
+    """
+    API endpoint for password reset confirmation.
+    Validates token and sets new password.
+    Accessible to anyone (no authentication required).
+    """
+    serializer_class = ResetPasswordSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        
+        return Response(
+            result,
+            status=status.HTTP_200_OK
+        )

@@ -37,4 +37,17 @@ class AboutUsSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
+    
+    def to_representation(self, instance):
+        """Convert image field to absolute URL for frontend display."""
+        ret = super().to_representation(instance)
+        if instance.image:
+            request = self.context.get('request')
+            if request:
+                ret['image'] = request.build_absolute_uri(instance.image.url)
+            else:
+                ret['image'] = instance.image.url
+        else:
+            ret['image'] = None
+        return ret
 

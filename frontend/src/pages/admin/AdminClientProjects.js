@@ -6,23 +6,23 @@ import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api from '../../services/api';
 
-const AdminServices = () => {
+const AdminClientProjects = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [services, setServices] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingService, setEditingService] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, service: null });
+  const [editingProject, setEditingProject] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, project: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
-    title: '', // Legacy field for backward compatibility
+    title: '',
     description: '',
-    price: '',
-    features: '',
-    categories: '',
-    icon: '',
+    client: '',
+    tech_stack: '',
+    repo_url: '',
+    live_url: '',
   });
 
   useEffect(() => {
@@ -34,91 +34,110 @@ const AdminServices = () => {
       navigate('/dashboard');
       return;
     }
-    fetchServices();
+    fetchData();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchServices = async () => {
+  const fetchData = async () => {
     try {
-      const response = await api.get('/services/');
-      const data = response.data.results || response.data;
-      setServices(Array.isArray(data) ? data : []);
+      const [projectsRes, clientsRes] = await Promise.all([
+        api.get('/clients/projects/'),
+        api.get('/clients/clients/'),
+      ]);
+      const projectsData = projectsRes.data.results || projectsRes.data;
+      const clientsData = clientsRes.data.results || clientsRes.data;
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreate = () => {
-    setEditingService(null);
-    setFormData({ name: '', title: '', description: '', price: '', features: '', categories: '', icon: '' });
-    setShowForm(true);
-  };
-
-  const handleEdit = (service) => {
-    setEditingService(service);
+    setEditingProject(null);
     setFormData({
-      name: service.name || '',
-      title: service.title || '', // Legacy field
-      description: service.description || '',
-      price: service.price || '',
-      features: Array.isArray(service.features) ? service.features.join(', ') : (service.features || ''),
-      categories: Array.isArray(service.categories) ? service.categories.join(', ') : (service.categories || ''),
-      icon: service.icon || '',
+      title: '',
+      description: '',
+      client: '',
+      tech_stack: '',
+      repo_url: '',
+      live_url: '',
     });
     setShowForm(true);
   };
 
-  const handleDelete = (service) => {
-    setDeleteDialog({ open: true, service });
+  const handleEdit = (project) => {
+    setEditingProject(project);
+    setFormData({
+      title: project.title || '',
+      description: project.description || '',
+      client: project.client || '',
+      tech_stack: Array.isArray(project.tech_stack) ? project.tech_stack.join(', ') : project.tech_stack || '',
+      repo_url: project.repo_url || '',
+      live_url: project.live_url || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = (project) => {
+    setDeleteDialog({ open: true, project });
   };
 
   const confirmDelete = async () => {
     try {
-      await api.delete(`/services/${deleteDialog.service.id}/`);
-      fetchServices();
-      setDeleteDialog({ open: false, service: null });
+      await api.delete(`/clients/projects/${deleteDialog.project.id}/`);
+      fetchData();
+      setDeleteDialog({ open: false, project: null });
     } catch (error) {
-      console.error('Error deleting service:', error);
-      alert('Failed to delete service');
+      console.error('Error deleting project:', error);
+      alert('Failed to delete project');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = { ...formData };
-      if (submitData.price === '') delete submitData.price;
-      if (editingService) {
-        await api.put(`/services/${editingService.id}/`, submitData);
+      const submitData = {
+        ...formData,
+        tech_stack: formData.tech_stack.split(',').map(t => t.trim()).filter(t => t),
+      };
+
+      if (editingProject) {
+        await api.put(`/clients/projects/${editingProject.id}/`, submitData);
       } else {
-        await api.post('/services/', submitData);
+        await api.post('/clients/projects/', submitData);
       }
-      fetchServices();
+      fetchData();
       setShowForm(false);
-      setEditingService(null);
+      setEditingProject(null);
     } catch (error) {
-      console.error('Error saving service:', error);
-      alert('Failed to save service');
+      console.error('Error saving project:', error);
+      alert('Failed to save project');
     }
   };
 
-  const filteredServices = services.filter((service) =>
-    service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = projects.filter((project) =>
+    project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
-    { header: 'Name', accessor: 'name' },
+    { header: 'Title', accessor: 'title' },
+    { header: 'Client', accessor: 'client_name' },
     {
-      header: 'Description',
-      accessor: 'description',
-      render: (value) => <div className="max-w-md truncate">{value}</div>,
-    },
-    {
-      header: 'Price',
-      accessor: 'price',
-      render: (value) => value ? `$${parseFloat(value).toFixed(2)}` : 'N/A',
+      header: 'Tech Stack',
+      accessor: 'tech_stack',
+      render: (value) => (
+        <div className="flex flex-wrap gap-1">
+          {Array.isArray(value) ? value.slice(0, 3).map((tech, idx) => (
+            <span key={idx} className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+              {tech}
+            </span>
+          )) : '-'}
+        </div>
+      ),
     },
     {
       header: 'Created',
@@ -142,35 +161,38 @@ const AdminServices = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Services</h1>
-            <p className="text-gray-600 mt-1">Manage your service offerings</p>
+            <h1 className="text-3xl font-bold text-gray-900">Client Projects</h1>
+            <p className="text-gray-600 mt-1">Manage projects for your clients</p>
           </div>
           <button
             onClick={handleCreate}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            + Add Service
+            + Add Project
           </button>
         </div>
 
+        {/* Search */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <input
             type="text"
-            placeholder="Search services..."
+            placeholder="Search projects..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
+        {/* Data Table */}
         <DataTable
           columns={columns}
-          data={filteredServices}
+          data={filteredProjects}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          emptyMessage="No services found"
+          emptyMessage="No projects found"
         />
 
+        {/* Form Modal */}
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -178,31 +200,37 @@ const AdminServices = () => {
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
                 <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    {editingService ? 'Edit Service' : 'Create Service'}
+                    {editingProject ? 'Edit Project' : 'Create Project'}
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Name</label>
+                      <label className="block text-sm font-medium text-gray-700">Title *</label>
                       <input
                         type="text"
                         required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Title (Legacy - optional)</label>
-                      <input
-                        type="text"
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Legacy field for backward compatibility"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Description</label>
+                      <label className="block text-sm font-medium text-gray-700">Client *</label>
+                      <select
+                        required
+                        value={formData.client}
+                        onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select a client</option>
+                        {clients.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Description *</label>
                       <textarea
                         required
                         rows={4}
@@ -211,45 +239,35 @@ const AdminServices = () => {
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Price</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.price}
-                          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Icon (FontAwesome class)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g., fas fa-code"
-                          value={formData.icon}
-                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Features (comma-separated)</label>
-                      <textarea
-                        rows={3}
-                        value={formData.features}
-                        onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Categories (comma-separated)</label>
+                      <label className="block text-sm font-medium text-gray-700">Tech Stack (comma-separated)</label>
                       <input
                         type="text"
-                        value={formData.categories}
-                        onChange={(e) => setFormData({ ...formData, categories: e.target.value })}
+                        value={formData.tech_stack}
+                        onChange={(e) => setFormData({ ...formData, tech_stack: e.target.value })}
+                        placeholder="e.g., React, Django, PostgreSQL"
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Repository URL</label>
+                        <input
+                          type="url"
+                          value={formData.repo_url}
+                          onChange={(e) => setFormData({ ...formData, repo_url: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Live URL</label>
+                        <input
+                          type="url"
+                          value={formData.live_url}
+                          onChange={(e) => setFormData({ ...formData, live_url: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="mt-6 flex justify-end space-x-3">
@@ -264,7 +282,7 @@ const AdminServices = () => {
                       type="submit"
                       className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
                     >
-                      {editingService ? 'Update' : 'Create'}
+                      {editingProject ? 'Update' : 'Create'}
                     </button>
                   </div>
                 </form>
@@ -275,15 +293,14 @@ const AdminServices = () => {
 
         <ConfirmDialog
           isOpen={deleteDialog.open}
-          onClose={() => setDeleteDialog({ open: false, service: null })}
+          onClose={() => setDeleteDialog({ open: false, project: null })}
           onConfirm={confirmDelete}
-          title="Delete Service"
-          message={`Are you sure you want to delete "${deleteDialog.service?.name}"? This action cannot be undone.`}
+          title="Delete Project"
+          message={`Are you sure you want to delete "${deleteDialog.project?.title}"? This action cannot be undone.`}
         />
       </div>
     </AdminLayout>
   );
 };
 
-export default AdminServices;
-
+export default AdminClientProjects;

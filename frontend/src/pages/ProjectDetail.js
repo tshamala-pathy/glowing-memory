@@ -19,6 +19,15 @@ const ProjectDetail = () => {
       setError(null);
       const response = await api.get(`/projects/${id}/`);
       setProject(response.data);
+      // Debug: Log image information
+      if (response.data.image) {
+        console.log('Project image data:', {
+          rawImage: response.data.image,
+          processedUrl: getMediaUrl(response.data.image)
+        });
+      } else {
+        console.log('Project has no image');
+      }
     } catch (err) {
       console.error('Error fetching project:', err);
       setError('Project not found or failed to load.');
@@ -29,7 +38,7 @@ const ProjectDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">Loading project details...</p>
@@ -40,7 +49,7 @@ const ProjectDetail = () => {
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-red-50 py-12">
+      <div className="min-h-screen bg-white py-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -66,16 +75,24 @@ const ProjectDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-white">
+    <div className="min-h-screen bg-white">
       {/* Hero Section with Image */}
       <div className="relative">
         {project.image ? (
-          <div className="relative h-[60vh] min-h-[500px] overflow-hidden">
+          <div className="relative h-[60vh] min-h-[500px] overflow-hidden bg-gray-300">
             <img
               src={getMediaUrl(project.image)}
               alt={project.title}
               className="w-full h-full object-cover"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              onError={(e) => {
+                console.error('❌ Failed to load project image:', project.title);
+                console.error('Image URL:', project.image);
+                console.error('Processed URL:', getMediaUrl(project.image));
+                e.target.style.display = 'none';
+              }}
+              onLoad={() => {
+                console.log('✅ Project image loaded successfully:', project.title);
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
             <div className="absolute inset-0 flex items-end">
@@ -106,28 +123,22 @@ const ProjectDetail = () => {
             </div>
           </div>
         ) : (
-          <div className="relative h-[50vh] min-h-[400px] bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 overflow-hidden">
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute inset-0" style={{
-                backgroundImage: "url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1920&q=80')",
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }} />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center max-w-4xl px-4">
-                <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <div className="flex items-center justify-center gap-3 mb-6">
-                  <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+          <div className="relative h-[60vh] min-h-[500px] overflow-hidden">
+            <img
+              src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1920&q=80"
+              alt="Project"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <div className="absolute inset-0 flex items-end">
+              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-12">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className={`px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-sm ${
                     project.status === 'Completed' 
-                      ? 'bg-green-500 text-white' 
+                      ? 'bg-green-500/90 text-white' 
                       : project.status === 'In Progress'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-yellow-500 text-white'
+                      ? 'bg-blue-500/90 text-white'
+                      : 'bg-yellow-500/90 text-white'
                   }`}>
                     {project.status}
                   </span>
@@ -140,6 +151,9 @@ const ProjectDetail = () => {
                 <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 drop-shadow-2xl">
                   {project.title}
                 </h1>
+                <p className="text-xl text-white/90 max-w-3xl drop-shadow-lg">
+                  {project.description?.substring(0, 150)}...
+                </p>
               </div>
             </div>
           </div>
@@ -179,7 +193,7 @@ const ProjectDetail = () => {
           {/* Full Description */}
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+              <div className="w-1 h-8 bg-blue-600 rounded-full"></div>
               <h2 className="text-3xl font-bold text-gray-900">About This Project</h2>
             </div>
             <p className="text-gray-700 leading-relaxed text-lg whitespace-pre-line">
@@ -191,7 +205,7 @@ const ProjectDetail = () => {
           {project.technologies && (
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                <div className="w-1 h-8 bg-blue-600 rounded-full"></div>
                 <h2 className="text-3xl font-bold text-gray-900">Technologies Used</h2>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -199,13 +213,13 @@ const ProjectDetail = () => {
                   project.technologies.map((tech, idx) => (
                     <span
                       key={idx}
-                      className="px-5 py-2.5 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 rounded-xl text-sm font-semibold border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
+                      className="px-5 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
                     >
                       {tech}
                     </span>
                   ))
                 ) : (
-                  <span className="px-5 py-2.5 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 rounded-xl text-sm font-semibold border border-blue-200 shadow-sm">
+                  <span className="px-5 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold border border-blue-200 shadow-sm">
                     {project.technologies}
                   </span>
                 )}
@@ -217,7 +231,7 @@ const ProjectDetail = () => {
           {project.tags && (
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                <div className="w-1 h-8 bg-blue-600 rounded-full"></div>
                 <h2 className="text-3xl font-bold text-gray-900">Tags</h2>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -260,7 +274,7 @@ const ProjectDetail = () => {
                   href={project.live_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  className="flex items-center px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                 >
                   <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -271,7 +285,7 @@ const ProjectDetail = () => {
               {!project.github_url && !project.live_url && (
                 <Link
                   to="/contact"
-                  className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  className="flex items-center px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                 >
                   <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -286,20 +300,28 @@ const ProjectDetail = () => {
 
       {/* Related Projects CTA */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-16">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 md:p-12 text-center text-white shadow-xl">
+        <div className="relative rounded-2xl overflow-hidden p-8 md:p-12 text-center text-white shadow-xl">
+          <img
+            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=80"
+            alt="Projects"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/60"></div>
+          <div className="relative z-10">
           <h3 className="text-3xl font-bold mb-4">Explore More Projects</h3>
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Check out our other innovative projects and solutions
           </p>
-          <Link
-            to="/projects"
-            className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
-          >
-            View All Projects
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
+            <Link
+              to="/projects"
+              className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
+            >
+              View All Projects
+              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

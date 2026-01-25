@@ -35,6 +35,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1 flex-1 mx-4">
+            {/* Home is always visible */}
             <Link
               to="/"
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -45,66 +46,91 @@ const Navbar = () => {
             >
               Home
             </Link>
-            <Link
-              to="/projects"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/projects')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Projects
-            </Link>
-            <Link
-              to="/services"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/services')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Services
-            </Link>
-            <Link
-              to="/pricing"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/pricing')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Pricing
-            </Link>
-            <Link
-              to="/blog"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/blog')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Blog
-            </Link>
-            <Link
-              to="/about"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/about')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              About
-            </Link>
-            <Link
-              to="/contact"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/contact')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Contact
-            </Link>
+            {/* Protected navigation - only show for authenticated users */}
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/projects"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/projects')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Projects
+                </Link>
+                <Link
+                  to="/services"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/services')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Services
+                </Link>
+                <Link
+                  to="/pricing"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/pricing')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Pricing
+                </Link>
+                <Link
+                  to="/blog"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/blog')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Blog
+                </Link>
+                <Link
+                  to="/about"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/about')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  About
+                </Link>
+                <Link
+                  to="/clients"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/clients')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Clients
+                </Link>
+                <Link
+                  to="/case-studies"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/case-studies')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Case Studies
+                </Link>
+                <Link
+                  to="/contact"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/contact')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Contact
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Search Bar */}
@@ -216,6 +242,7 @@ const Navbar = () => {
               <SearchBar />
             </div>
             <div className="space-y-1">
+              {/* Home is always visible */}
               <Link
                 to="/"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
@@ -227,72 +254,99 @@ const Navbar = () => {
               >
                 Home
               </Link>
-              <Link
-                to="/projects"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/projects')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Projects
-              </Link>
-              <Link
-                to="/services"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/services')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
-              <Link
-                to="/pricing"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/pricing')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Pricing
-              </Link>
-              <Link
-                to="/blog"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/blog')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Blog
-              </Link>
-              <Link
-                to="/about"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/about')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About
-              </Link>
-              <Link
-                to="/contact"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/contact')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
+              {/* Protected navigation - only show for authenticated users */}
+              {isAuthenticated && (
+                <>
+                  <Link
+                    to="/projects"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/projects')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Projects
+                  </Link>
+                  <Link
+                    to="/services"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/services')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Services
+                  </Link>
+                  <Link
+                    to="/pricing"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/pricing')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    to="/blog"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/blog')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Blog
+                  </Link>
+                  <Link
+                    to="/about"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/about')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    About
+                  </Link>
+                  <Link
+                    to="/clients"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/clients')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Clients
+                  </Link>
+                  <Link
+                    to="/case-studies"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/case-studies')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Case Studies
+                  </Link>
+                  <Link
+                    to="/contact"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/contact')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Contact
+                  </Link>
+                </>
+              )}
 
               {isAuthenticated ? (
                 <>

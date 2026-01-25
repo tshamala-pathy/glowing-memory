@@ -16,7 +16,16 @@ from datetime import timedelta
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# __file__ is PathyCodeback/settings.py
+# .parent = PathyCodeback/ directory
+# .parent.parent = project root directory (where manage.py is located)
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Debug: Log the actual paths (remove in production)
+import os
+if os.environ.get('DJANGO_DEBUG_PATHS', '').lower() == 'true':
+    print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
+    print(f"[DEBUG] MEDIA_ROOT will be: {BASE_DIR / 'media'}")
 
 
 # Quick-start development settings - unsuitable for production
@@ -54,6 +63,7 @@ INSTALLED_APPS = [
     'about',  # About Us app
     'quotes',  # Quotes/Estimates app
     'invoices',  # Invoices app
+    'clients',  # Clients and case studies app
 ]
 
 MIDDLEWARE = [
@@ -146,7 +156,22 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files (User uploaded files)
 MEDIA_URL = '/media/'
+# BASE_DIR points to project root (where manage.py is), so media goes at root level
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Ensure media directory and subdirectories exist at startup
+import os
+_media_root = str(MEDIA_ROOT)
+_media_projects = str(MEDIA_ROOT / 'projects')
+os.makedirs(_media_root, exist_ok=True)
+os.makedirs(_media_projects, exist_ok=True)
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB - files larger than this will be saved to disk
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -203,3 +228,17 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
 }
+
+# Email Configuration
+# In development, emails are printed to console
+# In production, configure SMTP settings
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@pathycodes.com')
+
+# Frontend URL for password reset links
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')

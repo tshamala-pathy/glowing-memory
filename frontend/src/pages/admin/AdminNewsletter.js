@@ -84,6 +84,11 @@ const AdminNewsletter = () => {
       ),
     },
     {
+      header: 'IP Address',
+      accessor: 'subscribed_ip',
+      render: (value) => value || 'N/A',
+    },
+    {
       header: 'Subscribed',
       accessor: 'subscribed_at',
       render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A',

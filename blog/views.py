@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination 
 from .models import BlogPost
 from .serializers import BlogPostSerializer
@@ -12,7 +12,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     API endpoint that allows blog posts to be viewed, created, updated, or deleted.
 
     Features:
-    - Permissions: Authenticated users can modify, others can only read.
+    - Permissions: Requires authentication for all operations.
     - Searchable by title, body, category, and tags.
     - Filterable by category.
     - Ordered by created_at (newest first) or title.
@@ -20,7 +20,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     """
     queryset = BlogPost.objects.all().order_by('-created_at')
     serializer_class = BlogPostSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]  # Require authentication for all operations
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category']
     search_fields = ['title', 'body', 'category', 'tags']

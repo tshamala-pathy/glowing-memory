@@ -9,7 +9,11 @@ import { useAuth } from '../contexts/AuthContext';
  * Prevents unauthorized users from accessing protected routes by:
  * - Checking authentication status
  * - Verifying user permissions (superuser status)
- * - Redirecting unauthorized users to appropriate pages
+ * - Redirecting unauthorized users to homepage (not login, to maintain UX)
+ * 
+ * SECURITY NOTE: This is a UX layer only. Backend APIs enforce authentication
+ * and will return 401/403 for unauthenticated requests. This component prevents
+ * unnecessary API calls and provides smooth redirects.
  * 
  * @param {React.ReactNode} children - The component(s) to render if access is granted
  * @param {boolean} requireAuth - If true, user must be authenticated to access
@@ -32,9 +36,10 @@ const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = fals
     );
   }
 
-  // Redirect to login if authentication is required but user is not authenticated
+  // Redirect to homepage if authentication is required but user is not authenticated
+  // Security: Backend will also enforce authentication, this is just for UX
   if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Redirect to dashboard if superuser access is required but user lacks permissions

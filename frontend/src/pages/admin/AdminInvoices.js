@@ -11,16 +11,44 @@ const AdminInvoices = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line no-unused-vars -- reserved for create/edit form modal
   const [showForm, setShowForm] = useState(false);
-  // eslint-disable-next-line no-unused-vars -- reserved for edit form
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, invoice: null });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  // eslint-disable-next-line no-unused-vars -- reserved for create from quote
   const [quotes, setQuotes] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [formData, setFormData] = useState({
+    quote: '',
+    client_name: '',
+    client_email: '',
+    client_phone: '',
+    client_address: '',
+    client_company: '',
+    client_vat_number: '',
+    provider_name: 'PathyCode',
+    provider_address: '',
+    provider_phone: '',
+    provider_email: '',
+    provider_vat_number: '',
+    items: [],
+    subtotal: '0.00',
+    vat_rate: '15.00',
+    vat_amount: '0.00',
+    total_amount: '0.00',
+    amount_paid: '0.00',
+    amount_due: '0.00',
+    issue_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    paid_date: '',
+    status: 'Draft',
+    payment_method: '',
+    payment_reference: '',
+    notes: '',
+    created_by: '',
+  });
+  const [currentItem, setCurrentItem] = useState({ description: '', quantity: '1', price: '0.00' });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,6 +61,7 @@ const AdminInvoices = () => {
     }
     fetchInvoices();
     fetchQuotes();
+    fetchUsers();
   }, [isAuthenticated, user, navigate]);
 
   const fetchInvoices = async () => {
@@ -57,15 +86,85 @@ const AdminInvoices = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/users/admin/');
+      const data = response.data.results || response.data;
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
   const handleCreate = () => {
     setEditingInvoice(null);
     setSelectedInvoice(null);
+    setFormData({
+      quote: '',
+      client_name: '',
+      client_email: '',
+      client_phone: '',
+      client_address: '',
+      client_company: '',
+      client_vat_number: '',
+      provider_name: 'PathyCode',
+      provider_address: '',
+      provider_phone: '',
+      provider_email: '',
+      provider_vat_number: '',
+      items: [],
+      subtotal: '0.00',
+      vat_rate: '15.00',
+      vat_amount: '0.00',
+      total_amount: '0.00',
+      amount_paid: '0.00',
+      amount_due: '0.00',
+      issue_date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      paid_date: '',
+      status: 'Draft',
+      payment_method: '',
+      payment_reference: '',
+      notes: '',
+      created_by: user?.id || '',
+    });
+    setCurrentItem({ description: '', quantity: '1', price: '0.00' });
     setShowForm(true);
   };
 
   const handleEdit = (invoice) => {
     setEditingInvoice(invoice);
     setSelectedInvoice(invoice);
+    setFormData({
+      quote: invoice.quote || '',
+      client_name: invoice.client_name || '',
+      client_email: invoice.client_email || '',
+      client_phone: invoice.client_phone || '',
+      client_address: invoice.client_address || '',
+      client_company: invoice.client_company || '',
+      client_vat_number: invoice.client_vat_number || '',
+      provider_name: invoice.provider_name || 'PathyCode',
+      provider_address: invoice.provider_address || '',
+      provider_phone: invoice.provider_phone || '',
+      provider_email: invoice.provider_email || '',
+      provider_vat_number: invoice.provider_vat_number || '',
+      items: Array.isArray(invoice.items) ? invoice.items : [],
+      subtotal: invoice.subtotal || '0.00',
+      vat_rate: invoice.vat_rate || '15.00',
+      vat_amount: invoice.vat_amount || '0.00',
+      total_amount: invoice.total_amount || '0.00',
+      amount_paid: invoice.amount_paid || '0.00',
+      amount_due: invoice.amount_due || '0.00',
+      issue_date: invoice.issue_date || new Date().toISOString().split('T')[0],
+      due_date: invoice.due_date || '',
+      paid_date: invoice.paid_date || '',
+      status: invoice.status || 'Draft',
+      payment_method: invoice.payment_method || '',
+      payment_reference: invoice.payment_reference || '',
+      notes: invoice.notes || '',
+      created_by: invoice.created_by || user?.id || '',
+    });
+    setCurrentItem({ description: '', quantity: '1', price: '0.00' });
     setShowForm(true);
   };
 
@@ -121,6 +220,81 @@ const AdminInvoices = () => {
       alert('Failed to update invoice');
     }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = { ...formData };
+      // Convert empty strings to null for optional fields
+      Object.keys(submitData).forEach(key => {
+        if (submitData[key] === '') {
+          submitData[key] = null;
+        }
+      });
+      // Ensure items is an array
+      if (!Array.isArray(submitData.items)) {
+        submitData.items = [];
+      }
+      // Convert quote and created_by to null if empty
+      if (submitData.quote === '') submitData.quote = null;
+      if (submitData.created_by === '') submitData.created_by = null;
+
+      if (editingInvoice) {
+        await api.put(`/invoices/${editingInvoice.id}/`, submitData);
+      } else {
+        await api.post('/invoices/', submitData);
+      }
+      fetchInvoices();
+      setShowForm(false);
+      setEditingInvoice(null);
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      const errorMsg = error.response?.data?.detail || 
+                       Object.values(error.response?.data || {}).flat().join(', ') ||
+                       'Failed to save invoice';
+      alert(errorMsg);
+    }
+  };
+
+  const calculateTotals = (items, vatRate, amountPaid) => {
+    const itemsArray = items || [];
+    const subtotal = itemsArray.reduce((sum, item) => {
+      return sum + (parseFloat(item.quantity || 0) * parseFloat(item.price || 0));
+    }, 0);
+    const vat = parseFloat(vatRate || 15);
+    const vatAmount = subtotal * (vat / 100);
+    const totalAmount = subtotal + vatAmount;
+    const paid = parseFloat(amountPaid || 0);
+    const amountDue = totalAmount - paid;
+
+    setFormData(prev => ({
+      ...prev,
+      subtotal: subtotal.toFixed(2),
+      vat_amount: vatAmount.toFixed(2),
+      total_amount: totalAmount.toFixed(2),
+      amount_due: amountDue.toFixed(2),
+    }));
+  };
+
+  const addItem = () => {
+    if (currentItem.description && currentItem.quantity && currentItem.price) {
+      const newItems = [...formData.items, {
+        description: currentItem.description,
+        quantity: parseFloat(currentItem.quantity),
+        price: parseFloat(currentItem.price),
+      }];
+      setFormData(prev => ({ ...prev, items: newItems }));
+      setCurrentItem({ description: '', quantity: '1', price: '0.00' });
+      calculateTotals(newItems, formData.vat_rate, formData.amount_paid);
+    }
+  };
+
+  const removeItem = (index) => {
+    const newItems = formData.items.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, items: newItems }));
+    calculateTotals(newItems, formData.vat_rate, formData.amount_paid);
+  };
+
 
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
@@ -282,6 +456,405 @@ const AdminInvoices = () => {
             </div>
           )}
         </div>
+
+        {/* Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowForm(false)}></div>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full max-h-[90vh] overflow-y-auto">
+                <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {editingInvoice ? 'Edit Invoice' : 'Create Invoice'}
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    {/* Invoice Details */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Invoice Details</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Quote (Optional)</label>
+                          <select
+                            value={formData.quote || ''}
+                            onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">-- No Quote --</option>
+                            {quotes.map((quote) => (
+                              <option key={quote.id} value={quote.id}>
+                                {quote.project_title} - {quote.client_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Status</label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="Draft">Draft</option>
+                            <option value="Sent">Sent</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Issue Date</label>
+                          <input
+                            type="date"
+                            required
+                            value={formData.issue_date}
+                            onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                          <input
+                            type="date"
+                            required
+                            value={formData.due_date}
+                            onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Client Information */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Client Information</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client Name *</label>
+                          <input
+                            type="text"
+                            required
+                            value={formData.client_name}
+                            onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client Email *</label>
+                          <input
+                            type="email"
+                            required
+                            value={formData.client_email}
+                            onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client Phone</label>
+                          <input
+                            type="text"
+                            value={formData.client_phone}
+                            onChange={(e) => setFormData({ ...formData, client_phone: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client Company</label>
+                          <input
+                            type="text"
+                            value={formData.client_company}
+                            onChange={(e) => setFormData({ ...formData, client_company: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client Address</label>
+                          <textarea
+                            rows={2}
+                            value={formData.client_address}
+                            onChange={(e) => setFormData({ ...formData, client_address: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Client VAT Number</label>
+                          <input
+                            type="text"
+                            value={formData.client_vat_number}
+                            onChange={(e) => setFormData({ ...formData, client_vat_number: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Provider Information */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Provider Information</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Provider Name</label>
+                          <input
+                            type="text"
+                            value={formData.provider_name}
+                            onChange={(e) => setFormData({ ...formData, provider_name: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Provider Email</label>
+                          <input
+                            type="email"
+                            value={formData.provider_email}
+                            onChange={(e) => setFormData({ ...formData, provider_email: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Provider Phone</label>
+                          <input
+                            type="text"
+                            value={formData.provider_phone}
+                            onChange={(e) => setFormData({ ...formData, provider_phone: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Provider VAT Number</label>
+                          <input
+                            type="text"
+                            value={formData.provider_vat_number}
+                            onChange={(e) => setFormData({ ...formData, provider_vat_number: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700">Provider Address</label>
+                          <textarea
+                            rows={2}
+                            value={formData.provider_address}
+                            onChange={(e) => setFormData({ ...formData, provider_address: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Invoice Items */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Invoice Items</h4>
+                      <div className="space-y-3">
+                        {formData.items.map((item, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <div className="flex-1">
+                              <span className="font-medium">{item.description}</span>
+                              <span className="text-gray-600 ml-2">
+                                Qty: {item.quantity} × R {parseFloat(item.price).toFixed(2)} = R {(parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-4 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Description"
+                            value={currentItem.description}
+                            onChange={(e) => setCurrentItem({ ...currentItem, description: e.target.value })}
+                            className="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <input
+                            type="number"
+                            step="1"
+                            placeholder="Quantity"
+                            value={currentItem.quantity}
+                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
+                            className="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Price"
+                            value={currentItem.price}
+                            onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })}
+                            className="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={addItem}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                          >
+                            Add Item
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Financial Details */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Financial Details</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">VAT Rate (%)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.vat_rate}
+                            onChange={(e) => {
+                              const newVatRate = e.target.value;
+                              setFormData(prev => ({ ...prev, vat_rate: newVatRate }));
+                              calculateTotals(formData.items, newVatRate, formData.amount_paid);
+                            }}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Subtotal</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={`R ${parseFloat(formData.subtotal).toFixed(2)}`}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">VAT Amount</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={`R ${parseFloat(formData.vat_amount).toFixed(2)}`}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={`R ${parseFloat(formData.total_amount).toFixed(2)}`}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Amount Paid</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.amount_paid}
+                            onChange={(e) => {
+                              const newAmountPaid = e.target.value;
+                              setFormData(prev => ({ ...prev, amount_paid: newAmountPaid }));
+                              calculateTotals(formData.items, formData.vat_rate, newAmountPaid);
+                            }}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Amount Due</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={`R ${parseFloat(formData.amount_due).toFixed(2)}`}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 font-semibold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Information */}
+                    <div className="border-b pb-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Payment Information</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                          <select
+                            value={formData.payment_method || ''}
+                            onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">-- Select Method --</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="PayPal">PayPal</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Payment Reference</label>
+                          <input
+                            type="text"
+                            value={formData.payment_reference}
+                            onChange={(e) => setFormData({ ...formData, payment_reference: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Paid Date</label>
+                          <input
+                            type="date"
+                            value={formData.paid_date}
+                            onChange={(e) => setFormData({ ...formData, paid_date: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Created By</label>
+                          <select
+                            value={formData.created_by || ''}
+                            onChange={(e) => setFormData({ ...formData, created_by: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">-- Select User --</option>
+                            {users.map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.username || u.email}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">Notes</h4>
+                      <textarea
+                        rows={4}
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Additional notes or comments..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
+                    >
+                      {editingInvoice ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
         <ConfirmDialog
           isOpen={deleteDialog.open}

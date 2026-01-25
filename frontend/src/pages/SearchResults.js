@@ -87,7 +87,7 @@ const SearchResults = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">Searching...</p>
@@ -98,7 +98,7 @@ const SearchResults = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-red-50 py-12">
+      <div className="min-h-screen bg-white py-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -115,7 +115,7 @@ const SearchResults = () => {
 
   if (!query) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12">
+      <div className="min-h-screen bg-white py-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
             <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -134,10 +134,16 @@ const SearchResults = () => {
   const totalResults = results?.total || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-white">
+    <div className="min-h-screen bg-white">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative text-white py-16 overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80"
+          alt="Search"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/60"></div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
             <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,9 +209,16 @@ const SearchResults = () => {
                       to={item.url}
                       className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
-                      <div className={`h-48 bg-gradient-to-br ${getCategoryGradient('project')} flex items-center justify-center`}>
-                        <div className="w-16 h-16 bg-blue-600/20 rounded-xl flex items-center justify-center">
-                          {getCategoryIcon('project')}
+                      <div className="h-48 relative overflow-hidden">
+                        <img
+                          src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80"
+                          alt="Project"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
+                          <div className="w-16 h-16 bg-blue-600/30 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            {getCategoryIcon('project')}
+                          </div>
                         </div>
                       </div>
                       <div className="p-6">
@@ -245,9 +258,16 @@ const SearchResults = () => {
                       to={item.url}
                       className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
-                      <div className={`h-48 bg-gradient-to-br ${getCategoryGradient('blog')} flex items-center justify-center`}>
-                        <div className="w-16 h-16 bg-green-600/20 rounded-xl flex items-center justify-center">
-                          {getCategoryIcon('blog')}
+                      <div className="h-48 relative overflow-hidden">
+                        <img
+                          src="https://images.unsplash.com/photo-1486312338219-ce68e2c6f44d?w=800&q=80"
+                          alt="Blog"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center">
+                          <div className="w-16 h-16 bg-green-600/30 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            {getCategoryIcon('blog')}
+                          </div>
                         </div>
                       </div>
                       <div className="p-6">
@@ -287,9 +307,16 @@ const SearchResults = () => {
                       to={item.url}
                       className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100"
                     >
-                      <div className={`h-48 bg-gradient-to-br ${getCategoryGradient('service')} flex items-center justify-center`}>
-                        <div className="w-16 h-16 bg-purple-600/20 rounded-xl flex items-center justify-center">
-                          {getCategoryIcon('service')}
+                      <div className="h-48 relative overflow-hidden">
+                        <img
+                          src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
+                          alt="Service"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center">
+                          <div className="w-16 h-16 bg-purple-600/30 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            {getCategoryIcon('service')}
+                          </div>
                         </div>
                       </div>
                       <div className="p-6">

@@ -10,6 +10,7 @@ const AdminQuotes = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingQuote, setEditingQuote] = useState(null);
@@ -30,6 +31,7 @@ const AdminQuotes = () => {
     estimated_amount: '',
     status: 'Pending',
     notes: '',
+    assigned_to: '',
   });
 
   useEffect(() => {
@@ -42,6 +44,7 @@ const AdminQuotes = () => {
       return;
     }
     fetchQuotes();
+    fetchUsers();
   }, [isAuthenticated, user, navigate]);
 
   const fetchQuotes = async () => {
@@ -53,6 +56,16 @@ const AdminQuotes = () => {
       console.error('Error fetching quotes:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/users/list/');
+      const data = response.data.results || response.data;
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -71,6 +84,7 @@ const AdminQuotes = () => {
       estimated_amount: quote.estimated_amount || '',
       status: quote.status || 'Pending',
       notes: quote.notes || '',
+      assigned_to: quote.assigned_to || '',
     });
     setShowForm(true);
   };
@@ -117,8 +131,13 @@ const AdminQuotes = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const submitData = { ...formData };
+      // Convert empty string to null for assigned_to (ForeignKey field)
+      if (submitData.assigned_to === '') {
+        submitData.assigned_to = null;
+      }
       if (editingQuote) {
-        await api.put(`/quotes/${editingQuote.id}/`, formData);
+        await api.put(`/quotes/${editingQuote.id}/`, submitData);
       }
       fetchQuotes();
       setShowForm(false);
@@ -323,6 +342,23 @@ const AdminQuotes = () => {
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Assigned To</label>
+                      <select
+                        value={formData.assigned_to}
+                        onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">-- Unassigned --</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.first_name && user.last_name
+                              ? `${user.first_name} ${user.last_name} (${user.email})`
+                              : user.username || user.email}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Notes</label>

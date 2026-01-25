@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets
 from .models import Service
 from .serializers import ServiceSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 
 # ✅ ViewSet for handling Service model API endpoints.
 class ServiceViewSet(viewsets.ModelViewSet):
@@ -10,12 +10,11 @@ class ServiceViewSet(viewsets.ModelViewSet):
     API endpoint that allows services to be viewed or edited.
 
     This viewset provides full CRUD operations (Create, Read, Update, Delete)
-    and uses IsAuthenticatedOrReadOnly permission, allowing read access to
-    unauthenticated users and write access to authenticated users only.
+    and requires authentication for all operations.
     """
     queryset = Service.objects.all().order_by('-created_at')  # Fetch all services ordered by creation date (newest first)
     serializer_class = ServiceSerializer  # Use the custom serializer to control JSON structure
-    permission_classes = [IsAuthenticatedOrReadOnly]  # Allow read access to everyone; write access only to authenticated users
+    permission_classes = [IsAuthenticated]  # Require authentication for all operations
     http_method_names = ['get', 'post', 'put', 'patch', 'delete']  # Restrict to only standard CRUD HTTP methods
     """
     Metadata options for the ServiceViewSet.

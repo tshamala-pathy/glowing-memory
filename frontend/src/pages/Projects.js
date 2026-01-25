@@ -6,6 +6,7 @@ const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [imageLoadStates, setImageLoadStates] = useState({}); // Track which images loaded successfully
   const [filters, setFilters] = useState({
     status: '',
     category: '',
@@ -27,6 +28,24 @@ const Projects = () => {
 
       const response = await api.get('/projects/', { params });
       const projectsData = response.data.results || response.data || [];
+      
+      // Debug: Log image URLs to help diagnose issues
+      if (projectsData.length > 0) {
+        console.log('📦 Projects fetched:', projectsData.length);
+        projectsData.forEach((project, idx) => {
+          if (project.image) {
+            const processedUrl = getMediaUrl(project.image);
+            console.log(`📸 Project ${idx + 1} (${project.title}):`, {
+              hasImage: true,
+              rawImage: project.image,
+              processedUrl: processedUrl,
+              imageType: typeof project.image
+            });
+          } else {
+            console.log(`📭 Project ${idx + 1} (${project.title}): No image field or image is null/undefined`);
+          }
+        });
+      }
       
       setProjects(projectsData);
       setError('');
@@ -188,30 +207,52 @@ const Projects = () => {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-                  {project.image ? (
-                    <img
-                      src={getMediaUrl(project.image)}
-                      alt={project.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={(e) => {
-                        console.error('Failed to load image for project:', project.title, 'URL:', getMediaUrl(project.image));
-                        // Hide the broken image and show placeholder
-                        e.target.style.display = 'none';
-                        const placeholder = e.target.nextElementSibling;
-                        if (placeholder) {
-                          placeholder.style.display = 'flex';
-                        }
-                      }}
-                    />
-                  ) : null}
+                  {/* Placeholder - always rendered, shown when no image or image failed */}
                   <div 
-                    className="w-full h-full flex items-center justify-center text-gray-400"
-                    style={{ display: project.image ? 'none' : 'flex' }}
+                    className="image-placeholder w-full h-full flex items-center justify-center text-gray-400 absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 z-0"
+                    style={{ 
+                      display: (project.image && imageLoadStates[project.id] === true) ? 'none' : 'flex',
+                      zIndex: project.image ? 0 : 1
+                    }}
                   >
                     <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
+                  
+                  {/* Image - always try to render if project.image exists */}
+                  {project.image && (() => {
+                    const imageUrl = getMediaUrl(project.image);
+                    if (!imageUrl) {
+                      console.warn(`⚠️ No valid image URL for project: ${project.title}`);
+                      return null;
+                    }
+                    return (
+                      <img
+                        key={`img-${project.id}-${imageUrl}`}
+                        src={imageUrl}
+                        alt={project.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 relative z-10"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          console.error('❌ Failed to load image for project:', project.title);
+                          console.error('Raw image value from API:', project.image);
+                          console.error('Processed URL:', imageUrl);
+                          console.error('Image element src:', e.target.src);
+                          console.error('Image element error:', e);
+                          // Mark this image as failed
+                          setImageLoadStates(prev => ({ ...prev, [project.id]: false }));
+                          // Hide the broken image
+                          e.target.style.display = 'none';
+                        }}
+                        onLoad={(e) => {
+                          // Mark this image as loaded successfully
+                          setImageLoadStates(prev => ({ ...prev, [project.id]: true }));
+                          console.log('✅ Image loaded successfully for project:', project.title, 'URL:', e.target.src);
+                        }}
+                      />
+                    );
+                  })()}
                   <div className="absolute top-4 right-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       project.status === 'Completed' 

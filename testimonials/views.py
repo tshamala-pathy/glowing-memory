@@ -5,12 +5,11 @@ from .serializers import TestimonialSerializer
 class TestimonialViewSet(viewsets.ModelViewSet):
     """
     API endpoint for testimonials.
-    Only approved testimonials are visible to public.
-    Authenticated users can create testimonials.
+    Requires authentication for all operations.
     """
-    queryset = Testimonial.objects.filter(is_approved=True)
+    queryset = Testimonial.objects.all()  # Show all testimonials to authenticated users
     serializer_class = TestimonialSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]  # Require authentication for all operations
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_at', 'rating']
     ordering = ['-is_featured', '-created_at']
@@ -20,15 +19,3 @@ class TestimonialViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-
-    def get_permissions(self):
-        """
-        Allow anyone to view approved testimonials.
-        Allow anyone to create testimonials (for submission).
-        Require authentication for update/delete.
-        """
-        if self.action == 'create':
-            return [permissions.AllowAny()]
-        elif self.action in ['update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated()]
-        return [permissions.AllowAny()]

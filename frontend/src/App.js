@@ -24,12 +24,18 @@ import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminQuotes from './pages/admin/AdminQuotes';
 import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminClients from './pages/admin/AdminClients';
+import AdminClientProjects from './pages/admin/AdminClientProjects';
+import AdminCaseStudies from './pages/admin/AdminCaseStudies';
+import AdminAbout from './pages/admin/AdminAbout';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import SearchResults from './pages/SearchResults';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogDetail from './pages/BlogDetail';
 import ServiceDetail from './pages/ServiceDetail';
+import Clients from './pages/Clients';
+import CaseStudies from './pages/CaseStudies';
 import './App.css';
 
 function App() {
@@ -40,19 +46,110 @@ function App() {
           <Navbar />
           <main>
             <Routes>
+              {/* Public routes - only homepage and authentication */}
               <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:id" element={<BlogDetail />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/services/:id" element={<ServiceDetail />} />
-              <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Protected routes - require authentication */}
+              <Route 
+                path="/about" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <About />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/blog" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Blog />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/blog/:id" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <BlogDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/projects" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Projects />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/projects/:id" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <ProjectDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/services" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Services />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/services/:id" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <ServiceDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/clients" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Clients />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/case-studies" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <CaseStudies />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/contact" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Contact />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/pricing" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Pricing />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/search" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <SearchResults />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/dashboard" 
                 element={
@@ -138,6 +235,38 @@ function App() {
                 element={
                   <ProtectedRoute requireSuperuser={true}>
                     <AdminUsers />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/clients" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminClients />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/client-projects" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminClientProjects />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/case-studies" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminCaseStudies />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/about" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminAbout />
                   </ProtectedRoute>
                 } 
               />
