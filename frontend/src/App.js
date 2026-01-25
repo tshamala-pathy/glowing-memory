@@ -30,6 +30,8 @@ import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 import AdminAbout from './pages/admin/AdminAbout';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
+import Requirements from './pages/Requirements';
+import QuoteSuccess from './pages/QuoteSuccess';
 import SearchResults from './pages/SearchResults';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogDetail from './pages/BlogDetail';
@@ -46,12 +48,15 @@ function App() {
           <Navbar />
           <main>
             <Routes>
-              {/* Public routes - only homepage and authentication */}
+              {/* Public routes - only homepage, authentication, and quote submission */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/requirements" element={<Requirements />} />
+              <Route path="/request-quote" element={<Quotes />} />
+              <Route path="/quote-success" element={<QuoteSuccess />} />
               
               {/* Protected routes - require authentication */}
               <Route 
@@ -272,14 +277,8 @@ function App() {
               />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/search" element={<SearchResults />} />
-              <Route 
-                path="/quotes" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Quotes />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* Legacy route - redirects to public quote form */}
+              <Route path="/quotes" element={<Quotes />} />
             </Routes>
           </main>
         </div>

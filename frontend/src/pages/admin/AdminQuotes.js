@@ -26,11 +26,14 @@ const AdminQuotes = () => {
     project_title: '',
     project_description: '',
     project_type: '',
+    service_type: '',
     budget_range: '',
     deadline: '',
+    timeline: '',
     estimated_amount: '',
     status: 'Pending',
     notes: '',
+    admin_response: '',
     assigned_to: '',
   });
 
@@ -79,11 +82,14 @@ const AdminQuotes = () => {
       project_title: quote.project_title || '',
       project_description: quote.project_description || '',
       project_type: quote.project_type || '',
+      service_type: quote.service_type || '',
       budget_range: quote.budget_range || '',
       deadline: quote.deadline || '',
+      timeline: quote.timeline || '',
       estimated_amount: quote.estimated_amount || '',
       status: quote.status || 'Pending',
       notes: quote.notes || '',
+      admin_response: quote.admin_response || '',
       assigned_to: quote.assigned_to || '',
     });
     setShowForm(true);
@@ -125,6 +131,29 @@ const AdminQuotes = () => {
     } catch (error) {
       console.error('Error rejecting quote:', error);
       alert('Failed to reject quote');
+    }
+  };
+
+  const handleSendResponse = async (quote) => {
+    if (!quote.admin_response || quote.admin_response.trim() === '') {
+      alert('Please add an admin response before sending the email.');
+      return;
+    }
+    
+    if (!window.confirm(`Send response email to ${quote.client_email}?`)) {
+      return;
+    }
+    
+    try {
+      await api.post(`/quotes/${quote.id}/send_response/`);
+      alert('Response email sent successfully!');
+      fetchQuotes();
+      if (selectedQuote && selectedQuote.id === quote.id) {
+        setSelectedQuote({ ...selectedQuote, status: 'Replied' });
+      }
+    } catch (error) {
+      console.error('Error sending response email:', error);
+      alert(error.response?.data?.error || 'Failed to send response email');
     }
   };
 
@@ -223,6 +252,8 @@ const AdminQuotes = () => {
             >
               <option value="all">All Statuses</option>
               <option value="Pending">Pending</option>
+              <option value="Reviewed">Reviewed</option>
+              <option value="Replied">Replied</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
               <option value="In Progress">In Progress</option>
@@ -270,11 +301,31 @@ const AdminQuotes = () => {
                     <p className="text-gray-900 font-medium">{selectedQuote.project_title}</p>
                     <p className="text-gray-600 text-sm whitespace-pre-wrap">{selectedQuote.project_description}</p>
                   </div>
+                  {selectedQuote.service_type && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Service Type</label>
+                      <p className="text-gray-900">{selectedQuote.service_type}</p>
+                    </div>
+                  )}
+                  {selectedQuote.timeline && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Timeline</label>
+                      <p className="text-gray-900">{selectedQuote.timeline}</p>
+                    </div>
+                  )}
                   {selectedQuote.estimated_amount && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Estimated Amount</label>
                       <p className="text-gray-900 font-bold text-lg">
                         R {parseFloat(selectedQuote.estimated_amount).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  {selectedQuote.admin_response && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Admin Response</label>
+                      <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">
+                        {selectedQuote.admin_response}
                       </p>
                     </div>
                   )}
@@ -294,6 +345,14 @@ const AdminQuotes = () => {
                           Reject
                         </button>
                       </>
+                    )}
+                    {selectedQuote.admin_response && selectedQuote.status !== 'Replied' && (
+                      <button
+                        onClick={() => handleSendResponse(selectedQuote)}
+                        className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        📧 Send Response Email
+                      </button>
                     )}
                     <button
                       onClick={() => handleEdit(selectedQuote)}
@@ -326,6 +385,8 @@ const AdminQuotes = () => {
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="Pending">Pending</option>
+                          <option value="Reviewed">Reviewed</option>
+                          <option value="Replied">Replied</option>
                           <option value="Approved">Approved</option>
                           <option value="Rejected">Rejected</option>
                           <option value="In Progress">In Progress</option>
@@ -361,11 +422,27 @@ const AdminQuotes = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Notes</label>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Admin Response (Sent to Client)
+                      </label>
+                      <textarea
+                        rows={6}
+                        value={formData.admin_response}
+                        onChange={(e) => setFormData({ ...formData, admin_response: e.target.value })}
+                        placeholder="Enter your response to the client. This will be sent via email when status is set to 'Replied' or when you click 'Send Response Email'."
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        This response will be emailed to the client. Set status to "Replied" or use the "Send Response Email" button.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Internal Notes</label>
                       <textarea
                         rows={4}
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        placeholder="Internal notes (not visible to client)"
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
