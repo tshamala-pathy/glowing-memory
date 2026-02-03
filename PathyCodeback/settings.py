@@ -15,14 +15,9 @@ from decouple import config, Csv
 from datetime import timedelta
 import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-# __file__ is PathyCodeback/settings.py
-# .parent = PathyCodeback/ directory
-# .parent.parent = project root directory (where manage.py is located)
+# Build paths: PathyCodeback/settings.py -> parent.parent = project root (manage.py location)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Debug: Log the actual paths (remove in production)
-import os
 if os.environ.get('DJANGO_DEBUG_PATHS', '').lower() == 'true':
     print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
     print(f"[DEBUG] MEDIA_ROOT will be: {BASE_DIR / 'media'}")
@@ -160,7 +155,6 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Ensure media directory and subdirectories exist at startup
-import os
 _media_root = str(MEDIA_ROOT)
 _media_projects = str(MEDIA_ROOT / 'projects')
 os.makedirs(_media_root, exist_ok=True)

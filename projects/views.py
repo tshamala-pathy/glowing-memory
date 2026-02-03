@@ -1,13 +1,11 @@
-from django.shortcuts import render
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Project
-from .serializers import ProjectSerializer
 from rest_framework.permissions import IsAuthenticated
 
-# Create your views here.
+from .models import Project
+from .serializers import ProjectSerializer
 
-# 📌 ViewSet for handling project-related API requests.
+
 class ProjectViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
@@ -45,8 +43,3 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    
-    # Permission notes:
-    # IsAuthenticated requires:
-    # - All users must be authenticated to access projects (read, create, update, delete)
-    # - Unauthenticated requests will receive 401 Unauthorized

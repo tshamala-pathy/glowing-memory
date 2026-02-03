@@ -1,8 +1,8 @@
-from django.shortcuts import render
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.pagination import PageNumberPagination 
+from rest_framework.pagination import PageNumberPagination
+
 from .models import BlogPost
 from .serializers import BlogPostSerializer
 
@@ -33,4 +33,3 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    # Pagination settings can be customized here if needed
