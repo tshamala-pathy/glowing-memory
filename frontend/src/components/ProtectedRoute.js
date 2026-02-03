@@ -36,10 +36,10 @@ const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = fals
     );
   }
 
-  // Redirect to homepage if authentication is required but user is not authenticated
-  // Security: Backend will also enforce authentication, this is just for UX
+  // Redirect to login if authentication is required but user is not authenticated
+  // Security: Backend will also enforce authentication; this avoids exposing protected content
   if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // Redirect to dashboard if superuser access is required but user lacks permissions

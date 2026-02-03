@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from PathyCodeback.permissions import IsSuperuser
 from .models import AboutUs, Value
 from .serializers import AboutUsSerializer, ValueSerializer
 
@@ -32,12 +33,11 @@ class AboutUsView(generics.RetrieveAPIView):
 
 class AboutUsViewSet(viewsets.ModelViewSet):
     """
-    Admin API endpoint for full CRUD operations on About Us.
-    Only accessible to authenticated admin users.
+    Admin API for full CRUD on About Us. Superuser only.
     """
     queryset = AboutUs.objects.all()
     serializer_class = AboutUsSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperuser]
     
     def get_serializer_context(self):
         """Add request to serializer context for building absolute URLs."""
@@ -56,12 +56,11 @@ class AboutUsViewSet(viewsets.ModelViewSet):
 
 class ValueViewSet(viewsets.ModelViewSet):
     """
-    Admin API endpoint for full CRUD operations on Values.
-    Only accessible to authenticated admin users.
+    Admin API for full CRUD on Values. Superuser only.
     """
     queryset = Value.objects.all()
     serializer_class = ValueSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperuser]
     
     def get_queryset(self):
         """Filter values by about_us if provided."""

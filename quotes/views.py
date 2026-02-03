@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
+from PathyCodeback.permissions import IsSuperuser
 from .models import Quote
 from .serializers import QuoteSerializer
 
@@ -161,12 +162,13 @@ class QuoteViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """
-        Allow anyone to create quotes, but require authentication for other actions.
+        Public can submit quote requests (create). List/retrieve/update/delete
+        and admin actions are superuser-only.
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
         else:
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
     
     def create(self, request, *args, **kwargs):

@@ -9,6 +9,7 @@ from django.conf import settings
 from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
+from PathyCodeback.permissions import IsSuperuser
 from .models import Invoice
 from .serializers import InvoiceSerializer
 from .utils import generate_invoice_pdf
@@ -68,18 +69,12 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     """
     queryset = Invoice.objects.all().order_by('-created_at')
     serializer_class = InvoiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_permissions(self):
         """
-        Restrict invoice creation/update to admin users only.
-        Regular authenticated users can view invoices.
+        Invoices are superuser-only: list, retrieve, create, update, delete.
         """
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
+        return [IsSuperuser()]
     
     def perform_create(self, serializer):
         """

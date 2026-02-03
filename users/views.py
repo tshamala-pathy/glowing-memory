@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
+from PathyCodeback.permissions import IsSuperuser
 from .models import CustomUser
 from .serializers import (
     RegisterSerializer,
@@ -96,26 +97,24 @@ class ProfileUpdateView(generics.UpdateAPIView):
         """
         return self.request.user
 
-# ViewSet for listing users (admin only)
+# ViewSet for listing users (superuser only)
 class UserListViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint that allows superusers to view the list of all users.
-    Only accessible to superusers.
     """
     queryset = CustomUser.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]  # Only admin/superuser can access
+    permission_classes = [IsSuperuser]
 
 
-# ViewSet for full CRUD operations on users (admin only)
+# ViewSet for full CRUD operations on users (superuser only)
 class UserAdminViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows superusers to perform full CRUD operations on users.
-    Only accessible to superusers.
     """
     queryset = CustomUser.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]  # Only admin/superuser can access
+    permission_classes = [IsSuperuser]
     
     def get_serializer_class(self):
         """Use AdminUserSerializer for create/update operations."""

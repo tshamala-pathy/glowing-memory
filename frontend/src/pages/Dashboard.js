@@ -20,22 +20,29 @@ const Dashboard = () => {
       return;
     }
     fetchStats();
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user]);
 
   const fetchStats = async () => {
     try {
-      const [projectsRes, blogRes, servicesRes, contactsRes] = await Promise.all([
+      const baseCalls = [
         api.get('/projects/'),
         api.get('/blog/'),
         api.get('/services/'),
-        api.get('/contact/'),
-      ]);
+      ];
+      if (user?.is_superuser === true) {
+        baseCalls.push(api.get('/contact/'));
+      }
+      const results = await Promise.all(baseCalls);
+      const projectsRes = results[0];
+      const blogRes = results[1];
+      const servicesRes = results[2];
+      const contactsRes = user?.is_superuser === true ? results[3] : null;
 
       setStats({
         projects: projectsRes.data.count || projectsRes.data.length || 0,
         blogPosts: blogRes.data.count || blogRes.data.length || 0,
         services: servicesRes.data.count || servicesRes.data.length || 0,
-        contacts: contactsRes.data.count || contactsRes.data.length || 0,
+        contacts: contactsRes ? (contactsRes.data.count || contactsRes.data.length || 0) : 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -66,7 +73,7 @@ const Dashboard = () => {
       ),
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
-      link: '/projects', // view-only
+      link: '/projects',
     },
     {
       title: 'Blog Posts',
@@ -78,7 +85,7 @@ const Dashboard = () => {
       ),
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
-      link: '/blog', // view-only
+      link: '/blog',
     },
     {
       title: 'Services',
@@ -90,20 +97,24 @@ const Dashboard = () => {
       ),
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50',
-      link: '/services', // view-only
+      link: '/services',
     },
-    {
-      title: 'Messages',
-      value: stats.contacts,
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      ),
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50',
-      link: '/contact', // view-only
-    },
+    ...(user?.is_superuser === true
+      ? [
+          {
+            title: 'Messages',
+            value: stats.contacts,
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            ),
+            color: 'from-orange-500 to-orange-600',
+            bgColor: 'bg-orange-50',
+            link: '/admin/contact',
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -3,6 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import models
+from PathyCodeback.permissions import IsSuperuser
 from .models import Client, Project, CaseStudy
 from .serializers import (
     ClientSerializer,
@@ -18,11 +20,14 @@ from .serializers import (
 class ClientViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing clients.
-    
-    Requires authentication for all operations.
+    List/retrieve: authenticated. Create/update/delete: superuser only.
     """
     serializer_class = ClientSerializer
-    permission_classes = [IsAuthenticated]  # Require authentication for all operations
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsSuperuser()]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['industry', 'is_public']
     search_fields = ['name', 'industry', 'description']
@@ -74,22 +79,85 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing client projects.
     
-    Requires authentication for all operations.
+    Access Control:
+    - Public projects: Visible to everyone (including non-authenticated users)
+    - Private projects: Only visible to the project's client and admin users
+    - Clients can only see their own projects
+    - Admins can see all projects
+    
+    Business Rules:
+    - Projects are automatically created when invoices are marked as PAID
+    - Projects are linked to User (client), Quote, and Invoice
     """
-    queryset = Project.objects.all().select_related('client')
+    queryset = Project.objects.all().select_related('client', 'quote', 'invoice')
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated]  # Require authentication for all operations
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['client']
-    search_fields = ['title', 'description', 'tech_stack']
-    ordering_fields = ['created_at', 'title']
+    filterset_fields = ['client', 'status', 'is_public']
+    search_fields = ['name', 'description', 'tech_stack']
+    ordering_fields = ['created_at', 'name', 'status']
     ordering = ['-created_at']
-
+    
+    def get_permissions(self):
+        """
+        List/retrieve: public (filtered by get_queryset). Create/update/delete: superuser only.
+        """
+        if self.action in ['list', 'retrieve', 'public']:
+            from rest_framework.permissions import AllowAny
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsSuperuser]
+        return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        """
+        Filter projects based on user permissions:
+        - Non-authenticated users: Only public projects
+        - Authenticated clients: Their own projects + public projects
+        - Admin users: All projects
+        """
+        queryset = super().get_queryset()
+        
+        # Non-authenticated users: Only public projects
+        if not self.request.user.is_authenticated:
+            return queryset.filter(is_public=True)
+        
+        # Admin users: All projects
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return queryset
+        
+        # Regular users: Their own projects + public projects
+        return queryset.filter(
+            models.Q(client=self.request.user) | models.Q(is_public=True)
+        )
+    
     def get_serializer_context(self):
         """Add request object to serializer context."""
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    @action(detail=False, methods=['get'], permission_classes=[])
+    def public(self, request):
+        """
+        Public endpoint to get all public projects.
+        No authentication required.
+        """
+        public_projects = Project.objects.filter(is_public=True).select_related('client', 'quote', 'invoice')
+        
+        # Apply search and ordering if provided
+        search_query = request.query_params.get('search', None)
+        if search_query:
+            public_projects = public_projects.filter(
+                models.Q(name__icontains=search_query) |
+                models.Q(description__icontains=search_query) |
+                models.Q(tech_stack__icontains=search_query)
+            )
+        
+        ordering = request.query_params.get('ordering', '-created_at')
+        public_projects = public_projects.order_by(ordering)
+        
+        serializer = self.get_serializer(public_projects, many=True)
+        return Response(serializer.data)
 
 
 # ================================
@@ -98,11 +166,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 class CaseStudyViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing case studies.
-    
-    Requires authentication for all operations.
+    List/retrieve: authenticated. Create/update/delete: superuser only.
     """
     serializer_class = CaseStudySerializer
-    permission_classes = [IsAuthenticated]  # Require authentication for all operations
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsSuperuser()]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['client', 'is_public']
     search_fields = ['title', 'problem', 'solution', 'result']
