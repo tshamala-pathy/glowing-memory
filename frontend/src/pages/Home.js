@@ -8,7 +8,6 @@ import StatsSection from "../components/StatsSection";
 
 // Shared container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 const CONTAINER = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
-const CONTAINER_NARROW = "max-w-4xl mx-auto px-4 sm:px-6 lg:px-8";
 const SECTION_HEADING = "text-3xl sm:text-4xl font-bold text-gray-900 mb-4";
 const SECTION_SUB = "text-gray-600 max-w-2xl mx-auto";
 
@@ -159,7 +158,7 @@ const Home = () => {
             </span>
           </h1>
           <p className="text-xl text-gray-200 mb-10">
-            I design and build modern websites, applications, and digital
+            We design and build modern websites, applications, and digital
             solutions that help businesses grow.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -182,11 +181,11 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ——— What I Offer (Features) ——— */}
+      {/* ——— What We Offer (Features) ——— */}
       <section className="py-24 bg-gray-50">
         <div className={CONTAINER}>
           <header className="text-center mb-16">
-            <h2 className={SECTION_HEADING}>What I Offer</h2>
+            <h2 className={SECTION_HEADING}>What We Offer</h2>
             <p className={SECTION_SUB}>
               Everything you need to build a strong and professional online presence.
             </p>

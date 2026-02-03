@@ -21,7 +21,7 @@ const ForgotPassword = () => {
     setSuccess(false);
 
     try {
-      const response = await api.post('/users/forgot-password/', {
+      await api.post('/users/forgot-password/', {
         email: email,
       });
 

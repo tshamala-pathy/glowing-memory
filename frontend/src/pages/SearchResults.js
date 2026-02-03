@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import api, { getMediaUrl } from '../services/api';
+import api from '../services/api';
 
 const SearchResults = () => {
   const [searchParams] = useSearchParams();
@@ -72,18 +72,6 @@ const SearchResults = () => {
     }
   };
 
-  const getCategoryGradient = (category) => {
-    switch (category) {
-      case 'project':
-        return 'from-blue-50 to-blue-100';
-      case 'blog':
-        return 'from-green-50 to-green-100';
-      case 'service':
-        return 'from-purple-50 to-purple-100';
-      default:
-        return 'from-gray-50 to-gray-100';
-    }
-  };
 
   if (loading) {
     return (
