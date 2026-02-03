@@ -57,7 +57,6 @@ const SearchBar = () => {
         const response = await api.get('/search/', {
           params: { q: searchQuery.trim() }
         });
-        console.log('Search response:', response.data); // Debug log
         setResults(response.data);
         setIsOpen(true);
         setSelectedIndex(-1);
@@ -118,8 +117,7 @@ const SearchBar = () => {
       } else {
         // Otherwise navigate to search results page
         e.preventDefault();
-        navigate(`/search?q=${encodeURIComponent(query)}`);
-        setIsOpen(false);
+        handleSearchClick();
       }
       return;
     }

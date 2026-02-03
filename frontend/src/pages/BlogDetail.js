@@ -11,6 +11,7 @@ const BlogDetail = () => {
 
   useEffect(() => {
     fetchPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchPost = async () => {
@@ -19,11 +20,6 @@ const BlogDetail = () => {
       setError(null);
       const response = await api.get(`/blog/${id}/`);
       setPost(response.data);
-      console.log('Blog post data:', response.data);
-      console.log('Featured image:', response.data.featured_image);
-      if (response.data.featured_image) {
-        console.log('Media URL:', getMediaUrl(response.data.featured_image));
-      }
     } catch (err) {
       console.error('Error fetching blog post:', err);
       setError('Blog post not found or failed to load.');

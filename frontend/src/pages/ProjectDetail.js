@@ -11,6 +11,7 @@ const ProjectDetail = () => {
 
   useEffect(() => {
     fetchProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchProject = async () => {
@@ -19,15 +20,6 @@ const ProjectDetail = () => {
       setError(null);
       const response = await api.get(`/projects/${id}/`);
       setProject(response.data);
-      // Debug: Log image information
-      if (response.data.image) {
-        console.log('Project image data:', {
-          rawImage: response.data.image,
-          processedUrl: getMediaUrl(response.data.image)
-        });
-      } else {
-        console.log('Project has no image');
-      }
     } catch (err) {
       console.error('Error fetching project:', err);
       setError('Project not found or failed to load.');
@@ -85,13 +77,7 @@ const ProjectDetail = () => {
               alt={project.title}
               className="w-full h-full object-cover"
               onError={(e) => {
-                console.error('❌ Failed to load project image:', project.title);
-                console.error('Image URL:', project.image);
-                console.error('Processed URL:', getMediaUrl(project.image));
                 e.target.style.display = 'none';
-              }}
-              onLoad={() => {
-                console.log('✅ Project image loaded successfully:', project.title);
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />

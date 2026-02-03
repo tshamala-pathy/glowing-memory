@@ -1,3 +1,9 @@
+/**
+ * Root component: auth context, router, and route definitions.
+ * Public: /, /login, /register, /request-quote, /public-projects, etc.
+ * Protected (auth): /about, /blog, /projects, /dashboard, ...
+ * Admin (superuser): /admin, /admin/projects, ...
+ */
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -38,6 +44,8 @@ import BlogDetail from './pages/BlogDetail';
 import ServiceDetail from './pages/ServiceDetail';
 import Clients from './pages/Clients';
 import CaseStudies from './pages/CaseStudies';
+import PublicProjects from './pages/PublicProjects';
+import ClientProjects from './pages/ClientProjects';
 import './App.css';
 
 function App() {
@@ -57,6 +65,7 @@ function App() {
               <Route path="/requirements" element={<Requirements />} />
               <Route path="/request-quote" element={<Quotes />} />
               <Route path="/quote-success" element={<QuoteSuccess />} />
+              <Route path="/public-projects" element={<PublicProjects />} />
               
               {/* Protected routes - require authentication */}
               <Route 
@@ -128,6 +137,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAuth={true}>
                     <CaseStudies />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/my-projects" 
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <ClientProjects />
                   </ProtectedRoute>
                 } 
               />
@@ -275,9 +292,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/search" element={<SearchResults />} />
-              {/* Legacy route - redirects to public quote form */}
+              {/* Legacy route - same as /request-quote */}
               <Route path="/quotes" element={<Quotes />} />
             </Routes>
           </main>
