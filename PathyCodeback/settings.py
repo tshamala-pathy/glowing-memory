@@ -154,11 +154,9 @@ MEDIA_URL = '/media/'
 # BASE_DIR points to project root (where manage.py is), so media goes at root level
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Ensure media directory and subdirectories exist at startup
-_media_root = str(MEDIA_ROOT)
-_media_projects = str(MEDIA_ROOT / 'projects')
-os.makedirs(_media_root, exist_ok=True)
-os.makedirs(_media_projects, exist_ok=True)
+# Ensure media directory and upload subdirs exist at startup (projects, blog, about, clients, testimonials)
+for subdir in ('', 'projects', 'blog', 'about', 'clients/logos', 'testimonials'):
+    os.makedirs(os.path.join(str(MEDIA_ROOT), subdir), exist_ok=True)
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB - files larger than this will be saved to disk
@@ -236,3 +234,7 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@pathycodes.co
 
 # Frontend URL for password reset links
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# Base URL for API/media when building absolute URLs (e.g. in serializers when request is missing)
+# Used so the frontend receives absolute media URLs even from scripts/celery.
+PROJECT_BASE_URL = config('PROJECT_BASE_URL', default='http://localhost:8000')

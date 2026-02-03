@@ -66,22 +66,49 @@ class ProjectSerializer(serializers.ModelSerializer):
     Features:
     - Converts comma-separated tech_stack to array
     - Includes client information
+    - Includes quote and invoice information
+    - Handles screenshots as JSON array
+    - Filters sensitive data for non-owners
     """
     tech_stack = serializers.SerializerMethodField()
-    client_name = serializers.CharField(source='client.name', read_only=True)
+    client_name = serializers.SerializerMethodField()
     client_id = serializers.IntegerField(source='client.id', read_only=True)
-
+    client_email = serializers.SerializerMethodField()
+    quote_project_title = serializers.CharField(source='quote.project_title', read_only=True)
+    invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
+    
     class Meta:
         model = Project
         fields = [
-            'id', 'title', 'description', 'client', 'client_name', 'client_id',
-            'tech_stack', 'repo_url', 'live_url', 'created_at', 'updated_at'
+            'id', 'name', 'description', 'client', 'client_id', 'client_name', 'client_email',
+            'status', 'quote', 'quote_project_title', 'invoice', 'invoice_number',
+            'tech_stack', 'screenshots', 'repo_url', 'live_url',
+            'is_public', 'created_at', 'updated_at'
         ]
-        read_only_fields = ('created_at', 'updated_at', 'client_name', 'client_id')
+        read_only_fields = (
+            'created_at', 'updated_at', 'client_id', 'client_name', 'client_email',
+            'quote_project_title', 'invoice_number'
+        )
 
     def get_tech_stack(self, obj):
         """Convert comma-separated tech_stack string to a list."""
         return obj.get_tech_stack_list()
+    
+    def get_client_name(self, obj):
+        """Get client's full name or username."""
+        if obj.client:
+            return obj.client.get_full_name() or obj.client.username or obj.client.email
+        return None
+    
+    def get_client_email(self, obj):
+        """Get client email, but only for project owner or admin."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # Show email if user is the project owner or admin
+            if request.user == obj.client or request.user.is_staff or request.user.is_superuser:
+                return obj.client.email
+        # Don't expose email for public projects to non-owners
+        return None
 
     def to_internal_value(self, data):
         """Convert tech_stack list to comma-separated string for storage."""
@@ -89,6 +116,44 @@ class ProjectSerializer(serializers.ModelSerializer):
             data = data.copy()
             data['tech_stack'] = ','.join([str(tech) for tech in data['tech_stack']])
         return super().to_internal_value(data)
+    
+    def _build_absolute_media_url(self, path):
+        """Build absolute URL for a media path (used for screenshots and logos)."""
+        if not path or not isinstance(path, str):
+            return path
+        if path.startswith('http://') or path.startswith('https://'):
+            return path
+        if not path.startswith('/'):
+            path = '/' + path
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(path)
+        from django.conf import settings
+        base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
+        return f'{base}{path}'
+
+    def to_representation(self, instance):
+        """Hide sensitive data for non-owners; convert screenshots to absolute URLs."""
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+
+        # Convert screenshots list to absolute URLs so frontend can display them
+        if representation.get('screenshots') and isinstance(representation['screenshots'], list):
+            representation['screenshots'] = [
+                self._build_absolute_media_url(p) for p in representation['screenshots']
+            ]
+
+        if request and not request.user.is_authenticated:
+            representation.pop('client_email', None)
+            representation.pop('invoice_number', None)
+            representation.pop('invoice', None)
+        elif request and request.user.is_authenticated:
+            if request.user != instance.client and not (request.user.is_staff or request.user.is_superuser):
+                representation.pop('client_email', None)
+                representation.pop('invoice_number', None)
+                representation.pop('invoice', None)
+
+        return representation
 
 
 # ================================

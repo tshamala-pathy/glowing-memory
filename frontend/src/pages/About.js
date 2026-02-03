@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const About = () => {
   const [aboutData, setAboutData] = useState(null);
@@ -108,7 +108,7 @@ const About = () => {
 
           {aboutData.image && (
             <img
-              src={aboutData.image}
+              src={getMediaUrl(aboutData.image)}
               alt="About"
               className="rounded-2xl shadow-lg"
             />

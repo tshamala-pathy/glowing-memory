@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 
 const AdminProjects = () => {
   const { user, isAuthenticated } = useAuth();
@@ -82,7 +82,7 @@ const AdminProjects = () => {
       live_url: project.live_url || '',
       image: null,
     });
-    setImagePreview(project.image ? `http://localhost:8000${project.image}` : null);
+    setImagePreview(project.image ? getMediaUrl(project.image) : null);
     setShowForm(true);
   };
 

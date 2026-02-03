@@ -52,27 +52,21 @@ class ProjectSerializer(serializers.ModelSerializer):
         return obj.get_tags_list()
     
     def to_representation(self, instance):
-        """
-        Convert image field to absolute URL for frontend display.
-        This matches the BlogPostSerializer pattern that works correctly.
-        """
+        """Convert image field to absolute URL so frontend can display it cross-origin."""
         ret = super().to_representation(instance)
         if instance.image:
             try:
+                path = instance.image.url
+                if not path.startswith('/'):
+                    path = '/' + path
                 request = self.context.get('request')
                 if request:
-                    # Use Django's build_absolute_uri method (same as BlogPostSerializer)
-                    ret['image'] = request.build_absolute_uri(instance.image.url)
+                    ret['image'] = request.build_absolute_uri(path)
                 else:
-                    # Fallback when no request context
-                    image_path = instance.image.url
-                    if not image_path.startswith('/'):
-                        image_path = '/' + image_path
                     from django.conf import settings
-                    base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000')
-                    ret['image'] = f"{str(base).rstrip('/')}{image_path}"
+                    base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
+                    ret['image'] = f'{base}{path}'
             except (ValueError, AttributeError):
-                # Image field exists but file doesn't exist on disk
                 ret['image'] = None
         else:
             ret['image'] = None
