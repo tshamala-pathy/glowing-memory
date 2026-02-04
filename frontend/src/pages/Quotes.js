@@ -3,10 +3,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 
+const STEPS = [
+  { id: 1, label: 'Requirements', short: 'Requirements' },
+  { id: 2, label: 'Budget & Timeline', short: 'Budget' },
+  { id: 3, label: 'Terms', short: 'Terms' },
+  { id: 4, label: 'Your Quote', short: 'Quote' },
+];
+
 const Quotes = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-  
+  const [step, setStep] = useState(1);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+
   const [formData, setFormData] = useState({
     client_name: '',
     client_email: '',
@@ -21,7 +30,7 @@ const Quotes = () => {
     timeline: '',
     requirements_accepted: false,
   });
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,31 +39,33 @@ const Quotes = () => {
     if (isAuthenticated && user) {
       setFormData(prev => ({
         ...prev,
-        client_name: user.first_name && user.last_name 
-          ? `${user.first_name} ${user.last_name}` 
+        client_name: user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
           : user.username || '',
         client_email: user.email || '',
       }));
     }
   }, [isAuthenticated, user]);
 
+  const goToStep = (next) => {
+    setError('');
+    if (next === 4) {
+      setFormData(prev => ({ ...prev, requirements_accepted: true }));
+    }
+    setStep(next);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate requirements acceptance
     if (!formData.requirements_accepted) {
-      setError('You must read and accept the requirements before submitting a quote request.');
+      setError('You must complete the requirements and agreement steps before submitting.');
       return;
     }
-    
     setSubmitting(true);
     setError('');
-
     try {
-      // Prepare data for submission
       const submitData = {
         ...formData,
-        // Convert empty strings to null for optional fields
         client_phone: formData.client_phone || null,
         company_name: formData.company_name || null,
         project_type: formData.project_type || null,
@@ -62,22 +73,21 @@ const Quotes = () => {
         budget_range: formData.budget_range || null,
         deadline: formData.deadline || null,
         timeline: formData.timeline || null,
+        requirements_accepted: true,
       };
-      
       await api.post('/quotes/', submitData);
-      
-      // Redirect to success page
-      navigate('/quote-success', { 
-        state: { 
+      navigate('/quote-success', {
+        state: {
           projectTitle: formData.project_title,
-          clientEmail: formData.client_email 
-        } 
+          clientEmail: formData.client_email,
+        },
       });
     } catch (err) {
-      const errorMessage = err.response?.data?.requirements_accepted?.[0] 
-        || err.response?.data?.detail 
-        || err.response?.data?.message
-        || 'Failed to submit quote request. Please try again.';
+      const errorMessage =
+        err.response?.data?.requirements_accepted?.[0] ||
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to submit quote request. Please try again.';
       setError(errorMessage);
     } finally {
       setSubmitting(false);
@@ -86,7 +96,6 @@ const Quotes = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Decorative Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -94,50 +103,198 @@ const Quotes = () => {
       </div>
 
       <div className="max-w-5xl mx-auto relative z-10">
-        {/* Header Section */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl shadow-2xl mb-6 transform hover:scale-110 transition-all duration-300 hover:rotate-3">
-            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-xl mb-4">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2">
             <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Request a Quote
             </span>
           </h1>
-          <p className="text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto font-medium">
-            Tell us about your project and we'll provide you with a detailed, personalized estimate
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            {step < 4 ? 'Complete the steps below, then submit your project details' : 'Submit your project details'}
           </p>
-          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full shadow-md border border-gray-200">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-gray-700">
-              Please read our{' '}
-              <Link to="/requirements" className="text-blue-600 hover:text-blue-700 font-bold underline decoration-2 underline-offset-2 transition-colors">
-                requirements and terms
-              </Link>
-              {' '}before submitting
-            </p>
+        </div>
+
+        {/* Stepper */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between max-w-3xl mx-auto">
+            {STEPS.map((s, i) => (
+              <React.Fragment key={s.id}>
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                      step >= s.id
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {step > s.id ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      s.id
+                    )}
+                  </div>
+                  <span className={`mt-2 text-xs font-medium hidden sm:block ${step >= s.id ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {s.short}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`flex-1 h-1 mx-1 rounded ${step > s.id ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
-        {/* Main Form Card */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
-          {/* Error Message */}
+        {/* Step 1: Requirements */}
+        {step === 1 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Service requirements and expectations</h2>
+              <p className="text-gray-600 mb-4">Please read the following before requesting a quote.</p>
+              <div className="max-h-[50vh] overflow-y-auto space-y-6 pr-2 text-gray-700">
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">Services we offer</h3>
+                  <p className="mb-2">Web development, backend/API, mobile apps, e-commerce, maintenance/support, design, and consulting.</p>
+                </section>
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">What we need from you</h3>
+                  <p>Accurate client and project details: title, description, service type, budget range, and timeline so we can provide a fair estimate.</p>
+                </section>
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">Our expectations</h3>
+                  <p>We respond within 24–48 hours. The more detail you provide, the more accurate the quote. All communications are confidential.</p>
+                </section>
+              </div>
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <Link to="/requirements" className="text-blue-600 hover:text-blue-700 font-medium text-sm mb-4 inline-block">
+                  View full requirements page →
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => goToStep(2)}
+                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg"
+                >
+                  I have read the requirements
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Budget & Timeline */}
+        {step === 2 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Budget and timeline</h2>
+              <div className="space-y-4 text-gray-700">
+                <p>
+                  <strong>Budget:</strong> The amount you indicate is a range for our initial estimate. Final pricing depends on scope, complexity, and any changes during the project. We will give you a clear breakdown before work begins.
+                </p>
+                <p>
+                  <strong>Timeline:</strong> Delivery times are estimates. They can be affected by scope changes, feedback cycles, and dependencies. We will keep you updated and aim to meet agreed milestones.
+                </p>
+                <p className="text-gray-600 text-sm">
+                  By continuing, you confirm that you understand that budget and timeline are estimates and may be refined after we review your full requirements.
+                </p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-gray-200 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToStep(3)}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg"
+                >
+                  I understand
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Terms agreement */}
+        {step === 3 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Terms and conditions</h2>
+              <div className="space-y-3 text-gray-700 mb-6">
+                <p>By submitting a quote request, you agree that:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Quote estimates are valid for 30 days from the date of issue.</li>
+                  <li>Final pricing may vary based on actual requirements and scope changes.</li>
+                  <li>Project details and communications are kept confidential.</li>
+                  <li>We may decline projects outside our expertise or capacity.</li>
+                  <li>Payment terms and milestones will be agreed when the quote is accepted.</li>
+                </ul>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 mb-6">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termsAgreed}
+                    onChange={(e) => setTermsAgreed(e.target.checked)}
+                    className="mt-1 mr-3 h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-800 font-medium">I agree to the terms and conditions above and am ready to submit my quote request.</span>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!termsAgreed}
+                  onClick={() => goToStep(4)}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continue to quote form
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Quote form */}
+        {step === 4 && (
+          <>
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
           {error && (
-            <div className="mx-6 mt-6 p-5 bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 rounded-xl animate-fade-in shadow-md">
+            <div className="mx-6 mt-6 p-5 bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 rounded-xl shadow-md">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
+                <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
                 <p className="ml-3 text-red-800 font-semibold">{error}</p>
               </div>
             </div>
           )}
+
+          <div className="px-8 pt-6 pb-2">
+            <p className="text-sm text-green-700 font-medium flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              You have completed the requirements and agreement steps. Your confirmation will be recorded when you submit.
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="p-8 md:p-12">
             {/* Client Information Section */}
@@ -388,34 +545,19 @@ const Quotes = () => {
               </div>
             </div>
 
-            {/* Requirements Acceptance */}
-            <div className="mb-10">
-              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start">
-                  <input
-                    type="checkbox"
-                    id="requirements_accepted"
-                    checked={formData.requirements_accepted}
-                    onChange={(e) => setFormData({ ...formData, requirements_accepted: e.target.checked })}
-                    className="mt-1 mr-4 h-6 w-6 text-blue-600 focus:ring-blue-500 border-2 border-gray-300 rounded cursor-pointer transition-all hover:scale-110"
-                    required
-                  />
-                  <label htmlFor="requirements_accepted" className="text-sm text-gray-700 flex-1 cursor-pointer">
-                    <span className="font-bold text-gray-900 text-base">I have read and understood the requirements.</span>{' '}
-                    <Link to="/requirements" className="text-blue-600 hover:text-blue-700 font-bold underline decoration-2 underline-offset-2 transition-colors">
-                      View requirements
-                    </Link>
-                  </label>
-                </div>
-              </div>
-            </div>
-
             {/* Submit Button */}
-            <div className="pt-6">
+            <div className="pt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+              >
+                Back
+              </button>
               <button
                 type="submit"
-                disabled={submitting || !formData.requirements_accepted}
-                className="w-full px-8 py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 transition-all duration-300 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-lg flex items-center justify-center space-x-3 group"
+                disabled={submitting}
+                className="flex-1 min-w-[200px] px-8 py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 transition-all duration-300 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-lg flex items-center justify-center space-x-3 group"
               >
                 {submitting ? (
                   <>
@@ -444,7 +586,7 @@ const Quotes = () => {
           </form>
         </div>
 
-        {/* Additional Info Card */}
+        {/* Additional Info Card - only when on quote form step */}
         <div className="mt-10 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-8 hover:shadow-2xl transition-all duration-300">
           <div className="flex items-start space-x-6">
             <div className="flex-shrink-0">
@@ -485,6 +627,8 @@ const Quotes = () => {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Add custom animations */}
