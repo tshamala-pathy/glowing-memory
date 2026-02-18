@@ -6,11 +6,15 @@ from django.contrib.auth.models import AbstractUser
 
 class CustomUser(AbstractUser):
     """
-    Custom user model that extends the default Django AbstractUser.
+    Authentication and authorization only (login, permissions).
 
-    Fields added:
-    - email: Must be unique. Used for login or communication.
-    - bio: Optional text field where users can write a short biography.
+    Use this model for:
+    - Identity and login (email, username, password).
+    - Permissions: is_staff, is_superuser, and role-based access.
+    - Optional profile: email, bio (for the person using the system).
+
+    This model is NOT the business "client" or "customer". The entity that owns
+    quotes, invoices, and projects is the Client (business entity). See docs/RESPONSIBILITIES.md.
     """
     email = models.EmailField(unique=True)  # Ensures each user has a unique email
     bio = models.TextField(blank=True, null=True)  # Optional user bio

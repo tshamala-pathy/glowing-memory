@@ -7,12 +7,11 @@ from .serializers import AboutUsSerializer, ValueSerializer
 
 class AboutUsView(generics.RetrieveAPIView):
     """
-    API endpoint to retrieve About Us content.
-    Requires authentication - only authenticated users can view About Us.
+    Public API: retrieve About Us content. No authentication required.
     Returns the most recent About Us instance.
     """
     serializer_class = AboutUsSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Require authentication
+    permission_classes = [permissions.AllowAny]
 
     def get_object(self):
         """

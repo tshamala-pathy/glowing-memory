@@ -14,6 +14,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 # ================================
 # URL Configuration for User Authentication
 # ================================
+# Note: /api/profile/ (aggregated) is defined in PathyCodeback/urls.py
 
 router = DefaultRouter()
 router.register(r'list', UserListViewSet, basename='user-list')

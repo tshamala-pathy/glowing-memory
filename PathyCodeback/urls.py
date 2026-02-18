@@ -1,7 +1,13 @@
 """
 URL configuration for PathyCodeback project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
+API Endpoints:
+- /api/profile/         — Aggregated profile (user, client, quotes, invoices, projects, messages, testimonials)
+- /api/users/profile/   — User data only (for AuthContext)
+- /api/users/           — Auth, register, token refresh
+- /api/search/          — Full-text search
+- /api/*/               — Projects, services, blog, contact, etc.
+"""
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
 Examples:
 Function views
@@ -19,10 +25,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import search
+from users.views import ProfileAggregateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/search/', search, name='search'),
+    path('api/profile/', ProfileAggregateView.as_view(), name='profile_aggregate'),
     path('api/users/', include('users.urls')),
     path('api/projects/', include('projects.urls')),
     path('api/services/', include('services.urls')),

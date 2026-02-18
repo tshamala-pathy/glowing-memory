@@ -32,7 +32,7 @@ const AdminUsers = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchUsers();

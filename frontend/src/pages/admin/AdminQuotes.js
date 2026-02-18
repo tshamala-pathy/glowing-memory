@@ -11,6 +11,7 @@ const AdminQuotes = () => {
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
   const [users, setUsers] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingQuote, setEditingQuote] = useState(null);
@@ -18,6 +19,7 @@ const AdminQuotes = () => {
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [clientFilter, setClientFilter] = useState('');
   const [formData, setFormData] = useState({
     client_name: '',
     client_email: '',
@@ -43,12 +45,23 @@ const AdminQuotes = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchQuotes();
     fetchUsers();
+    fetchClients();
   }, [isAuthenticated, user, navigate]);
+
+  const fetchClients = async () => {
+    try {
+      const response = await api.get('/clients/clients/');
+      const data = response.data.results || response.data;
+      setClients(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
 
   const fetchQuotes = async () => {
     try {
@@ -183,7 +196,8 @@ const AdminQuotes = () => {
       quote.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quote.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || quote.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesClient = !clientFilter || String(quote.client) === String(clientFilter);
+    return matchesSearch && matchesStatus && matchesClient;
   });
 
   const columns = [
@@ -237,7 +251,7 @@ const AdminQuotes = () => {
 
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               type="text"
               placeholder="Search quotes..."
@@ -245,6 +259,16 @@ const AdminQuotes = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Clients</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}

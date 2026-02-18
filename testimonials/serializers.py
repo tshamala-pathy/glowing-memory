@@ -10,8 +10,8 @@ class TestimonialSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Testimonial
-        fields = ['id', 'name', 'position', 'company', 'testimonial', 'rating', 'image', 'is_featured', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'name', 'position', 'company', 'testimonial', 'rating', 'image', 'is_featured', 'is_approved', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'is_approved', 'is_featured']
     
     def get_image(self, obj):
         """Return absolute image URL for frontend display."""

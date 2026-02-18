@@ -197,10 +197,18 @@ const Services = () => {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
               Our Services
             </h1>
-            <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
+            <p className="text-lg sm:text-xl text-slate-600 leading-relaxed mb-10">
               Professional technology solutions tailored to elevate your business. 
               From web development to backend services, we deliver excellence.
             </p>
+          </div>
+          <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200/80 bg-slate-50/50 max-w-5xl mx-auto">
+            <img
+              src="/backend-hero.png"
+              alt="Backend development, APIs, and server solutions"
+              className="w-full h-auto object-cover object-center"
+              style={{ maxHeight: '320px' }}
+            />
           </div>
         </div>
       </section>

@@ -26,7 +26,7 @@ const AdminDashboard = () => {
     }
     // Check if user is superuser
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/profile');
       return;
     }
     fetchDashboardData();
@@ -93,10 +93,10 @@ const AdminDashboard = () => {
             You don't have permission to access the admin dashboard. Only superusers can access this page.
           </p>
           <Link
-            to="/dashboard"
+            to="/profile"
             className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
           >
-            Go to Dashboard
+            Go to Profile
           </Link>
         </div>
       </div>

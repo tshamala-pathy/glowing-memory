@@ -6,11 +6,13 @@ from .models import Invoice
 class InvoiceSerializer(serializers.ModelSerializer):
     """
     Serializer for Invoice model.
-    
-    Business Rules:
-    - Invoice can only be created from an approved quote
-    - Quote field is required
-    - Invoice data is auto-populated from quote
+
+    Quote-to-Invoice lifecycle:
+    - Invoice can only be created from a quote with status 'Approved'.
+    - On create, only 'quote' (and optionally issue_date, due_date, status) are required.
+    - Client details (name, email, phone, company) and project details (line items from
+      project title, service type, estimated amount; notes from project description) are
+      automatically copied from the quote by the model. One invoice per quote (enforced).
     """
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     quote_project_title = serializers.CharField(source='quote.project_title', read_only=True)
@@ -20,7 +22,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = [
             'id', 'invoice_number', 'quote', 'quote_project_title', 'quote_status',
-            'client_name', 'client_email', 'client_phone', 'client_address',
+            'client', 'client_name', 'client_email', 'client_phone', 'client_address',
             'client_company', 'client_vat_number',
             'provider_name', 'provider_address', 'provider_phone', 'provider_email',
             'provider_vat_number',

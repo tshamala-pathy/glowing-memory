@@ -1,16 +1,20 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
+from PathyCodeback.permissions import IsSuperuser
 from .models import Service
 from .serializers import ServiceSerializer
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for services (CRUD). Requires authentication.
-    Queryset ordered by created_at (newest first). Only standard HTTP methods allowed.
+    Public read: list and retrieve services (no auth). Create/update/delete: superuser only.
     """
     queryset = Service.objects.all().order_by('-created_at')
     serializer_class = ServiceSerializer
-    permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
+        return [IsSuperuser()]

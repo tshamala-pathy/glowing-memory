@@ -75,9 +75,17 @@ const Pricing = () => {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6">
               Transparent Pricing
             </h1>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-10">
               Choose the right package for your project. All prices are starting points and can be customized based on your specific requirements.
             </p>
+          </div>
+          <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200/80 bg-slate-50/50 max-w-5xl mx-auto">
+            <img
+              src="/pricing-hero.png"
+              alt="Transparent pricing — choose the right plan for your project"
+              className="w-full h-auto object-cover object-center"
+              style={{ maxHeight: '320px' }}
+            />
           </div>
         </div>
       </section>

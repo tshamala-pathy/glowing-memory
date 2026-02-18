@@ -4,10 +4,13 @@ from django.conf import settings
 
 class Quote(models.Model):
     """
-    Model for storing client quote/estimate requests.
-    
+    Quote request belonging to a Client (business/customer entity).
+
+    Optional client FK links to Client; client_name, client_email, company_name store
+    contact details for display and for unauthenticated submissions. See docs/RESPONSIBILITIES.md.
+
     Quote Request Flow:
-    1. Client submits quote request (public endpoint)
+    1. Client (customer) submits quote request (public endpoint)
     2. System sends confirmation email to client
     3. System notifies admin of new quote request
     4. Admin reviews and responds (updates status, adds admin_response)
@@ -44,7 +47,16 @@ class Quote(models.Model):
         ('Flexible', 'Flexible'),
     ]
     
-    # Client Information
+    # Client (business entity); optional for public submissions; set when user is authenticated
+    client = models.ForeignKey(
+        'clients.Client',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='quotes',
+        help_text="Client (business entity) this quote belongs to; set when submitted by authenticated user"
+    )
+    # Client Information (contact details; kept for display and for unauthenticated submissions)
     client_name = models.CharField(max_length=255, help_text="Full name of the client requesting the quote")
     client_email = models.EmailField(help_text="Email address for communication and notifications")
     client_phone = models.CharField(max_length=20, blank=True, null=True, help_text="Optional phone number")

@@ -72,7 +72,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     """
     tech_stack = serializers.SerializerMethodField()
     client_name = serializers.SerializerMethodField()
-    client_id = serializers.IntegerField(source='client.id', read_only=True)
+    client_id = serializers.IntegerField(source='client.id', read_only=True, allow_null=True)
     client_email = serializers.SerializerMethodField()
     quote_project_title = serializers.CharField(source='quote.project_title', read_only=True)
     invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
@@ -95,19 +95,17 @@ class ProjectSerializer(serializers.ModelSerializer):
         return obj.get_tech_stack_list()
     
     def get_client_name(self, obj):
-        """Get client's full name or username."""
+        """Get client (business entity) name."""
         if obj.client:
-            return obj.client.get_full_name() or obj.client.username or obj.client.email
+            return obj.client.name
         return None
     
     def get_client_email(self, obj):
-        """Get client email, but only for project owner or admin."""
+        """Get client contact email (from client.user), but only for project owner or admin."""
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            # Show email if user is the project owner or admin
-            if request.user == obj.client or request.user.is_staff or request.user.is_superuser:
-                return obj.client.email
-        # Don't expose email for public projects to non-owners
+        if request and request.user.is_authenticated and obj.client and obj.client.user:
+            if request.user == obj.client.user or request.user.is_staff or request.user.is_superuser:
+                return obj.client.user.email
         return None
 
     def to_internal_value(self, data):
@@ -148,7 +146,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             representation.pop('invoice_number', None)
             representation.pop('invoice', None)
         elif request and request.user.is_authenticated:
-            if request.user != instance.client and not (request.user.is_staff or request.user.is_superuser):
+            is_owner = instance.client and getattr(instance.client, 'user', None) == request.user
+            if not is_owner and not (request.user.is_staff or request.user.is_superuser):
                 representation.pop('client_email', None)
                 representation.pop('invoice_number', None)
                 representation.pop('invoice', None)

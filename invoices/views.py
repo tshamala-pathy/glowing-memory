@@ -6,9 +6,10 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.conf import settings
-from datetime import datetime, timedelta
+from django.db.models import Q
+from datetime import timedelta
 from decimal import Decimal
-import uuid
+from rest_framework.permissions import IsAuthenticated
 from PathyCodeback.permissions import IsSuperuser
 from .models import Invoice
 from .serializers import InvoiceSerializer
@@ -61,52 +62,49 @@ PathyCode Team
 class InvoiceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing invoices.
-    
-    Business Rules:
-    - Only authenticated admin users can create/update invoices
-    - Invoices can only be created from approved quotes
-    - Invoice data is auto-populated from quote
+    Non-superusers see only their Client's invoices. Create/update/delete: superuser only.
     """
     queryset = Invoice.objects.all().order_by('-created_at')
     serializer_class = InvoiceSerializer
 
+    def get_queryset(self):
+        """Non-superusers see only their Client's invoices (by client FK or client_email)."""
+        qs = super().get_queryset()
+        if self.request.user.is_authenticated and not self.request.user.is_superuser:
+            profile = getattr(self.request.user, 'client_profile', None)
+            if profile:
+                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=self.request.user.email))
+            return qs.filter(client_email__iexact=self.request.user.email)
+        return qs
+
     def get_permissions(self):
-        """
-        Invoices are superuser-only: list, retrieve, create, update, delete.
-        """
+        """List, retrieve, pdf: authenticated (own only). Create/update/delete/actions: superuser only."""
+        if self.action in ('list', 'retrieve', 'pdf'):
+            return [IsAuthenticated()]
         return [IsSuperuser()]
     
     def perform_create(self, serializer):
         """
-        Create invoice from approved quote.
-        Validates quote is approved and generates invoice number.
+        Create invoice from an approved quote only.
+        Client and project details are automatically copied from the quote
+        by the Invoice model's _populate_from_quote() during save.
         """
         quote = serializer.validated_data.get('quote')
-        
-        # Validate quote is approved
         if not quote:
             raise ValidationError('Quote is required to create an invoice.')
-        
         if quote.status != 'Approved':
-            raise ValidationError('Invoice can only be created from an approved quote. Please approve the quote first.')
-        
-        # Check if invoice already exists for this quote
+            raise ValidationError(
+                'Invoice can only be created from an approved quote. '
+                f'Current status: {quote.status}. Please approve the quote first.'
+            )
         if Invoice.objects.filter(quote=quote).exists():
             raise ValidationError('An invoice already exists for this quote.')
-        
-        # Generate unique invoice number
-        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        # Ensure invoice number is unique
-        while Invoice.objects.filter(invoice_number=invoice_number).exists():
-            invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        # Set default issue date and due date if not provided
+
         issue_date = serializer.validated_data.get('issue_date', timezone.now().date())
         due_date = serializer.validated_data.get('due_date', issue_date + timedelta(days=30))
-        
+
+        # invoice_number is auto-generated in Invoice.save(); do not pass it here
         invoice = serializer.save(
-            invoice_number=invoice_number,
             created_by=self.request.user,
             issue_date=issue_date,
             due_date=due_date
@@ -160,25 +158,20 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def create_from_quote(self, request):
         """
-        Create an invoice from an approved quote.
-        This is a convenience endpoint for generating invoices.
-        
-        Expected payload:
-        {
-            "quote_id": 123,
-            "issue_date": "2026-01-20",  // optional
-            "due_date": "2026-02-20",    // optional
-            "status": "Draft"            // optional, defaults to Draft
-        }
+        Create an invoice directly from an approved quote (recommended).
+        Client name, email, phone, company and project details (title, service type,
+        description, estimated amount) are automatically copied from the quote.
+        Invoice creation is blocked unless the quote status is 'Approved'.
+
+        Payload:
+            quote_id (required), issue_date, due_date, status (optional).
         """
         quote_id = request.data.get('quote_id')
-        
         if not quote_id:
             return Response(
                 {'error': 'quote_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
         try:
             quote = Quote.objects.get(pk=quote_id)
         except Quote.DoesNotExist:
@@ -186,35 +179,31 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 {'error': 'Quote not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
-        # Validate quote is approved
         if quote.status != 'Approved':
             return Response(
-                {'error': 'Invoice can only be created from an approved quote. Please approve the quote first.'},
+                {
+                    'error': 'Invoice can only be created from an approved quote.',
+                    'quote_status': quote.status,
+                    'quote_id': quote.id,
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Check if invoice already exists
         if Invoice.objects.filter(quote=quote).exists():
             return Response(
                 {'error': 'An invoice already exists for this quote.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Create invoice
         issue_date = request.data.get('issue_date', timezone.now().date())
         due_date = request.data.get('due_date', issue_date + timedelta(days=30))
         invoice_status = request.data.get('status', 'Draft')
-        
-        invoice = Invoice.objects.create(
+        invoice = Invoice(
             quote=quote,
             created_by=request.user,
             issue_date=issue_date,
             due_date=due_date,
-            status=invoice_status
+            status=invoice_status,
         )
-        
-        # Calculate totals (this also populates data from quote)
+        invoice.save()
         invoice.calculate_totals()
         
         # Send email if status is 'Sent'

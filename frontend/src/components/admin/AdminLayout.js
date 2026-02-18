@@ -15,7 +15,7 @@ const AdminLayout = ({ children }) => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/profile');
       return;
     }
   }, [isAuthenticated, user, navigate]);

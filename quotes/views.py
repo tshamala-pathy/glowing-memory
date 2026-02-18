@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
 from PathyCodeback.permissions import IsSuperuser
 from .models import Quote
 from .serializers import QuoteSerializer
@@ -159,14 +161,25 @@ class QuoteViewSet(viewsets.ModelViewSet):
     """
     queryset = Quote.objects.all().order_by('-created_at')
     serializer_class = QuoteSerializer
-    
+
+    def get_queryset(self):
+        """Non-superusers see only their Client's quotes (by client FK or client_email)."""
+        qs = super().get_queryset()
+        if self.request.user.is_authenticated and not self.request.user.is_superuser:
+            profile = getattr(self.request.user, 'client_profile', None)
+            if profile:
+                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=self.request.user.email))
+            return qs.filter(client_email__iexact=self.request.user.email)
+        return qs
+
     def get_permissions(self):
         """
-        Public can submit quote requests (create). List/retrieve/update/delete
-        and admin actions are superuser-only.
+        Create: public. List/retrieve: authenticated (clients see own only). Update/delete/actions: superuser only.
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
+        elif self.action in ('list', 'retrieve'):
+            permission_classes = [IsAuthenticated]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -193,6 +206,11 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         quote = serializer.save()
+        if request.user.is_authenticated:
+            profile = getattr(request.user, 'client_profile', None)
+            if profile:
+                quote.client = profile
+                quote.save(update_fields=['client'])
         
         # Send emails
         send_quote_confirmation_email(quote)

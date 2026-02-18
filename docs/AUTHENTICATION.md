@@ -6,6 +6,8 @@ The application uses JWT (JSON Web Tokens) for authentication. Users authenticat
 
 ## Authentication Flow
 
+**Post-login / post-registration:** Users are redirected to **`/profile`** (the main hub). There is no separate User Dashboard; see `docs/ARCHITECTURE_AND_ACCESS.md` for details.
+
 ### 1. Registration
 
 **Endpoint**: `POST /api/users/register/`
@@ -22,10 +24,11 @@ The application uses JWT (JSON Web Tokens) for authentication. Users authenticat
 
 **Process**:
 1. Backend validates email uniqueness and password strength
-2. Creates new CustomUser instance
+2. Creates new CustomUser instance and linked Client (via signal)
 3. Hashes password using Django's password hasher
 4. Generates username from email (handles duplicates)
 5. Returns JWT tokens and user data
+6. **Frontend redirects to `/profile`**
 
 **Response**:
 ```json
@@ -60,6 +63,7 @@ The application uses JWT (JSON Web Tokens) for authentication. Users authenticat
 2. Checks if user account is active
 3. Generates JWT tokens (access + refresh)
 4. Returns tokens and user data
+5. **Frontend redirects to `/profile`**
 
 **Response**: Same format as registration
 
@@ -126,11 +130,11 @@ All API requests automatically include the JWT token in the Authorization header
 
 ### 1. Unauthenticated (Public)
 - Can view: Home, About, Blog, Projects, Services, Contact
-- Cannot access: Dashboard, Quotes, Admin Panel
+- Cannot access: Profile, Portal, Quotes, Admin Panel
 
 ### 2. Authenticated Users
 - All public access
-- Can access: Dashboard, Quotes (submit requests)
+- Can access: Profile (main hub), Portal, My Projects, Quotes (submit requests)
 - Cannot access: Admin Panel
 
 ### 3. Superusers/Admins
@@ -147,10 +151,10 @@ All API requests automatically include the JWT token in the Authorization header
 **Usage**:
 ```javascript
 <Route 
-  path="/dashboard" 
+  path="/profile" 
   element={
     <ProtectedRoute requireAuth={true}>
-      <Dashboard />
+      <Profile />
     </ProtectedRoute>
   } 
 />
@@ -164,6 +168,8 @@ All API requests automatically include the JWT token in the Authorization header
   } 
 />
 ```
+
+**Note:** `/dashboard` redirects to `/profile`. There is no separate User Dashboard.
 
 **Protection Levels**:
 - `requireAuth={true}`: Requires authentication
@@ -253,7 +259,8 @@ SIMPLE_JWT = {
 | `/api/users/register/` | POST | No | User registration |
 | `/api/users/login/` | POST | No | User login |
 | `/api/users/token/refresh/` | POST | No | Refresh access token |
-| `/api/users/profile/` | GET | Yes | Get current user profile |
+| `/api/users/profile/` | GET | Yes | Get current user (lightweight, for AuthContext) |
+| `/api/profile/` | GET | Yes | Full profile (user, client, quotes, invoices, projects, messages, testimonials) |
 | `/api/users/list/` | GET | Admin | List all users |
 
 ## Common Issues

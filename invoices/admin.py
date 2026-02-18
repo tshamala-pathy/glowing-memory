@@ -20,14 +20,15 @@ class InvoiceAdmin(admin.ModelAdmin):
     - See related quote information
     """
     list_display = [
-        'invoice_number', 'client_name', 'quote_link', 'total_amount',
+        'invoice_number', 'client', 'client_name', 'quote_link', 'total_amount',
         'status', 'issue_date', 'due_date', 'amount_due'
     ]
-    list_filter = ['status', 'issue_date', 'due_date', 'created_at']
+    list_filter = ['status', 'issue_date', 'due_date', 'created_at', 'client']
     search_fields = [
         'invoice_number', 'client_name', 'client_email', 'client_company',
-        'quote__project_title', 'quote__client_name'
+        'quote__project_title', 'quote__client_name', 'client__name'
     ]
+    raw_id_fields = ['client']
     readonly_fields = [
         'invoice_number', 'created_at', 'updated_at', 'quote_link',
         'subtotal', 'vat_amount', 'total_amount', 'amount_due'
@@ -39,8 +40,8 @@ class InvoiceAdmin(admin.ModelAdmin):
             'description': 'Invoice basic information. Quote must be approved before invoice creation.'
         }),
         ('Client Information', {
-            'fields': ('client_name', 'client_email', 'client_phone', 'client_address', 'client_company', 'client_vat_number'),
-            'description': 'Client information (auto-populated from quote)'
+            'fields': ('client', 'client_name', 'client_email', 'client_phone', 'client_address', 'client_company', 'client_vat_number'),
+            'description': 'Client (business entity) and contact info (auto-populated from quote)'
         }),
         ('Provider Information', {
             'fields': ('provider_name', 'provider_address', 'provider_phone', 'provider_email', 'provider_vat_number'),

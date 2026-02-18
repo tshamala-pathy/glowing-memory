@@ -58,6 +58,7 @@ glowing-memory/
    - Backend validates credentials and generates JWT tokens (access + refresh)
    - Tokens are stored in browser localStorage
    - Frontend AuthContext updates user state
+   - **User is redirected to `/profile`** (main hub; there is no separate User Dashboard)
 
 2. **Authenticated Requests**:
    - Axios interceptor adds `Authorization: Bearer <token>` header to requests

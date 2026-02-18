@@ -4,21 +4,16 @@ import { useAuth } from '../contexts/AuthContext';
 
 /**
  * ProtectedRoute Component
- * 
- * A wrapper component that provides route-level access control.
- * Prevents unauthorized users from accessing protected routes by:
- * - Checking authentication status
- * - Verifying user permissions (superuser status)
- * - Redirecting unauthorized users to homepage (not login, to maintain UX)
- * 
- * SECURITY NOTE: This is a UX layer only. Backend APIs enforce authentication
- * and will return 401/403 for unauthenticated requests. This component prevents
- * unnecessary API calls and provides smooth redirects.
- * 
- * @param {React.ReactNode} children - The component(s) to render if access is granted
- * @param {boolean} requireAuth - If true, user must be authenticated to access
- * @param {boolean} requireSuperuser - If true, user must be authenticated AND be a superuser
- * @returns {React.ReactNode} Protected component or redirect
+ *
+ * Route-level access control:
+ * - requireAuth: Unauthenticated users are redirected to /login
+ * - requireSuperuser: Non-superusers are redirected to /profile
+ *
+ * Authenticated users can: view profile, history, private projects, invoices.
+ * Unauthenticated users: see only public pages; redirected to login when
+ * accessing profile routes.
+ *
+ * Backend APIs also enforce auth and return 401/403 for protected endpoints.
  */
 const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = false }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -42,10 +37,10 @@ const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = fals
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to dashboard if superuser access is required but user lacks permissions
+  // Redirect to profile if superuser access is required but user lacks permissions
   // Superuser check requires both authentication AND is_superuser flag to be true
   if (requireSuperuser && (!isAuthenticated || !user || user.is_superuser !== true)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/profile" replace />;
   }
 
   // Access granted - render the protected children

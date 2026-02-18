@@ -2,7 +2,27 @@
 
 ## Overview
 
-This document explains the complete business workflow for Quotes and Invoices in the PathyCode system. The system enforces a professional workflow where **Invoices can only be generated from approved Quotes**, ensuring data integrity and audit trails.
+This document explains the complete business workflow for Quotes and Invoices in the PathyCode system. The system enforces a **strict quote-to-invoice lifecycle**: an invoice can only be created directly from an **approved** quote, and client and project details are automatically copied from the quote into the invoice.
+
+---
+
+## Quote-to-Invoice Lifecycle (Summary)
+
+1. **Quote submitted** → Client submits a quote request (public form).
+2. **Quote reviewed** → Admin reviews, sets estimated amount, and replies to the client.
+3. **Quote approved** → Admin sets quote status to **Approved**. Only then can an invoice be created.
+4. **Invoice created** → Admin creates an invoice from the approved quote (via API or admin). The system:
+   - Validates the quote status is **Approved** (creation is blocked otherwise).
+   - Copies **client details** from the quote: name, email, phone, company.
+   - Copies **project details** into the invoice: project title, service type, estimated amount, and a truncated project description in notes. The default line item is built from the quote’s project title and service type.
+   - Generates a unique invoice number and sets default dates.
+5. **Invoice sent / paid** → Admin sends the invoice to the client and tracks payment.
+
+**Key rules:**
+
+- **An invoice can only be created from an approved quote.** Any attempt to create an invoice from a quote that is not approved (e.g. Pending, Replied, Rejected) is rejected with a clear error.
+- **One invoice per quote.** The relationship is one-to-one; duplicate invoices for the same quote are not allowed.
+- **Client and project data are copied at creation.** The invoice is populated from the quote so the quote is the single source of truth at creation time. Quote data is not modified after an invoice is created.
 
 ---
 
@@ -146,25 +166,25 @@ quote = models.OneToOneField(
 - ✅ Quote must be **approved** before invoice creation
 - ✅ Quote cannot be deleted if it has an invoice (PROTECT)
 
-### Data Flow
+### Data Flow (Auto-Copy from Quote)
 
-When an invoice is created from a quote:
+When an invoice is created from an **approved** quote, the following are copied automatically (in `Invoice._populate_from_quote()`):
 
-1. **Client Information** is copied from quote:
+1. **Client information** (from quote):
    - `client_name` ← `quote.client_name`
    - `client_email` ← `quote.client_email`
    - `client_phone` ← `quote.client_phone`
    - `client_company` ← `quote.company_name`
 
-2. **Financial Information** is populated:
-   - `subtotal` ← `quote.estimated_amount` (if available)
-   - `total_amount` ← `quote.estimated_amount` (if available)
-   - Invoice item created from `quote.project_title`
+2. **Project and financial information**:
+   - Default line item: **description** = `quote.project_title` (and `quote.service_type` if set, e.g. "My Website (Web Development)")
+   - **Quantity** = 1, **price** = `quote.estimated_amount` (or 0.00 if not set)
+   - **subtotal** / **total_amount** from `quote.estimated_amount`
+   - **notes** = truncated `quote.project_description` (first 500 chars) for context, if notes are not already provided
 
-3. **Quote Data Remains Immutable**:
-   - Quote data is **not modified** after invoice creation
-   - This ensures audit trail integrity
-   - Historical quote data is preserved
+3. **Quote data remains immutable**:
+   - The quote record is **not modified** when an invoice is created
+   - This keeps a clear audit trail and preserves historical quote data
 
 ---
 
@@ -339,14 +359,14 @@ Download invoice as PDF.
 2. ✅ Quote must have `requirements_accepted = true`
 3. ✅ Required fields: `client_name`, `client_email`, `project_title`, `project_description`, `service_type`
 
-### Invoice Validation
+### Invoice Validation (Invoice only from approved quote)
 
-1. ✅ Invoice can only be created by admin users
-2. ✅ Invoice **must** be linked to a quote (OneToOneField)
-3. ✅ Quote **must** be approved (`status = 'Approved'`)
-4. ✅ Only **one invoice** per quote (enforced by OneToOneField)
-5. ✅ Invoice data is auto-populated from quote
-6. ✅ Quote data remains immutable after invoice creation
+1. ✅ Invoice can only be created by admin (superuser) users.
+2. ✅ Invoice **must** be linked to a quote (OneToOneField).
+3. ✅ **Quote must be approved** (`status = 'Approved'`). Creation is blocked at the model, serializer, and view layers if the quote is not approved; the API returns a clear error (e.g. `quote_status`, `quote_id`).
+4. ✅ Only **one invoice** per quote (enforced by OneToOneField and explicit checks).
+5. ✅ Client and project details are **automatically copied** from the quote at creation (no need to re-enter).
+6. ✅ Quote data remains immutable after invoice creation.
 
 ### Automatic Behaviors
 
@@ -488,5 +508,7 @@ Potential improvements:
 ---
 
 **Last Updated**: January 2026  
-**Version**: 1.0  
-**Status**: Production Ready
+**Version**: 1.1  
+**Status**: Production Ready  
+
+*Changelog (v1.1):* Strengthened quote-to-invoice relationship; documented lifecycle and validation; invoice now auto-copies project details (service type in line item, project description in notes) and enforces approved-quote-only creation everywhere.

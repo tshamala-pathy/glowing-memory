@@ -17,7 +17,7 @@ class QuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quote
         fields = [
-            'id', 'client_name', 'client_email', 'client_phone', 'company_name',
+            'id', 'client', 'client_name', 'client_email', 'client_phone', 'company_name',
             'project_title', 'project_description', 'project_type', 'service_type',
             'budget_range', 'deadline', 'timeline', 'estimated_amount', 'status',
             'notes', 'admin_response', 'assigned_to', 'assigned_to_name',
@@ -25,7 +25,7 @@ class QuoteSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'approved_at', 'replied_at'
         ]
         read_only_fields = [
-            'id', 'created_at', 'updated_at', 'approved_at', 'replied_at',
+            'id', 'client', 'created_at', 'updated_at', 'approved_at', 'replied_at',
             'requirements_accepted_at', 'assigned_to_name', 'assigned_to_email'
         ]
     
@@ -36,3 +36,10 @@ class QuoteSerializer(serializers.ModelSerializer):
         """
         return value
 
+    def to_representation(self, instance):
+        """Hide internal notes from non-superuser clients."""
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and not request.user.is_superuser:
+            data.pop('notes', None)
+        return data

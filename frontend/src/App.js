@@ -1,11 +1,15 @@
 /**
  * Root component: auth context, router, and route definitions.
- * Public: /, /login, /register, /request-quote, /public-projects, etc.
- * Protected (auth): /about, /blog, /projects, /dashboard, ...
- * Admin (superuser): /admin, /admin/projects, ...
+ *
+ * ACCESS CONTROL:
+ * - Public (no auth): home, login, register, about, projects, services, contact,
+ *   pricing, request-quote, quote-success. Unauthenticated users see only these.
+ * - Profile & history (auth required): /profile, /portal, /my-projects, /blog,
+ *   /clients, /case-studies, /search. Redirect to /login if not authenticated.
+ * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
  */
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -19,7 +23,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProjects from './pages/admin/AdminProjects';
 import AdminBlog from './pages/admin/AdminBlog';
@@ -46,6 +49,8 @@ import Clients from './pages/Clients';
 import CaseStudies from './pages/CaseStudies';
 import PublicProjects from './pages/PublicProjects';
 import ClientProjects from './pages/ClientProjects';
+import ClientPortal from './pages/ClientPortal';
+import Profile from './pages/Profile';
 import './App.css';
 
 function App() {
@@ -56,130 +61,36 @@ function App() {
           <Navbar />
           <main>
             <Routes>
-              {/* Public routes - only homepage, authentication, and quote submission */}
+              {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetail />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/requirements" element={<Requirements />} />
               <Route path="/request-quote" element={<Quotes />} />
               <Route path="/quote-success" element={<QuoteSuccess />} />
               <Route path="/public-projects" element={<PublicProjects />} />
-              
-              {/* Protected routes - require authentication */}
-              <Route 
-                path="/about" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <About />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/blog" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Blog />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/blog/:id" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <BlogDetail />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/projects" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Projects />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/projects/:id" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <ProjectDetail />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/services" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Services />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/services/:id" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <ServiceDetail />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/clients" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Clients />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/case-studies" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <CaseStudies />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/my-projects" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <ClientProjects />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/contact" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Contact />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/pricing" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Pricing />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/search" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <SearchResults />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
+
+              {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
+              <Route path="/profile" element={<ProtectedRoute requireAuth={true}><Profile /></ProtectedRoute>} />
+              <Route path="/portal" element={<ProtectedRoute requireAuth={true}><ClientPortal /></ProtectedRoute>} />
+              <Route path="/my-projects" element={<ProtectedRoute requireAuth={true}><ClientProjects /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />
+              <Route path="/blog/:id" element={<ProtectedRoute requireAuth={true}><BlogDetail /></ProtectedRoute>} />
+              <Route path="/search" element={<ProtectedRoute requireAuth={true}><SearchResults /></ProtectedRoute>} />
+              <Route path="/clients" element={<ProtectedRoute requireAuth={true}><Clients /></ProtectedRoute>} />
+              <Route path="/case-studies" element={<ProtectedRoute requireAuth={true}><CaseStudies /></ProtectedRoute>} />
+
+              {/* ========== ADMIN DASHBOARD (superuser only) ========== */}
               <Route 
                 path="/admin" 
                 element={

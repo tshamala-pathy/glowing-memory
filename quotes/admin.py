@@ -26,20 +26,20 @@ class QuoteAdmin(admin.ModelAdmin):
     """
     # Fields displayed in the list view
     list_display = [
-        'project_title', 'client_name', 'client_email', 'service_type',
+        'project_title', 'client', 'client_name', 'client_email', 'service_type',
         'status', 'estimated_amount', 'requirements_accepted', 'created_at'
     ]
     
     # Filters available in the sidebar for quick filtering
     list_filter = [
         'status', 'service_type', 'requirements_accepted',
-        'created_at', 'replied_at', 'assigned_to'
+        'created_at', 'replied_at', 'assigned_to', 'client'
     ]
     
     # Fields searchable in the admin search bar
     search_fields = [
         'project_title', 'client_name', 'client_email', 'company_name',
-        'project_description', 'admin_response'
+        'project_description', 'admin_response', 'client__name'
     ]
     
     # Fields that cannot be edited (auto-generated timestamps)
@@ -48,11 +48,13 @@ class QuoteAdmin(admin.ModelAdmin):
         'requirements_accepted_at', 'send_response_button'
     ]
     
+    raw_id_fields = ['client']
+    
     # Organize form fields into logical sections for better UX
     fieldsets = (
         ('Client Information', {
-            'fields': ('client_name', 'client_email', 'client_phone', 'company_name'),
-            'description': 'Contact details of the client requesting the quote'
+            'fields': ('client', 'client_name', 'client_email', 'client_phone', 'company_name'),
+            'description': 'Client (business entity) and contact details'
         }),
         ('Project Details', {
             'fields': (

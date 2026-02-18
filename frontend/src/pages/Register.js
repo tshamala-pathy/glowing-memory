@@ -42,9 +42,10 @@ const Register = () => {
 
     const { confirmPassword, ...userData } = formData;
     const result = await register(userData);
-    
+
+    // On signup: User created, Client auto-created by backend, redirect to Profile page
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/profile');
     } else {
       setError(result.error);
     }

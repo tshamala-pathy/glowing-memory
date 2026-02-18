@@ -1,7 +1,7 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
 from PathyCodeback.permissions import IsSuperuser
@@ -35,18 +35,16 @@ class ClientViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        """
-        Filter queryset based on user permissions.
-        - Public users: Only see is_public=True clients
-        - Authenticated users: See all clients
-        """
+        """Non-admin users see only their own Client profile; unauthenticated see public only."""
         queryset = Client.objects.all()
-        
-        # If user is not authenticated, only return public clients
         if not self.request.user.is_authenticated:
-            queryset = queryset.filter(is_public=True)
-        
-        return queryset
+            return queryset.filter(is_public=True)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return queryset
+        profile = getattr(self.request.user, 'client_profile', None)
+        if profile:
+            return queryset.filter(pk=profile.pk)
+        return queryset.none()
 
     def get_serializer_context(self):
         """Add request object to serializer context for absolute URLs."""
@@ -87,7 +85,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     
     Business Rules:
     - Projects are automatically created when invoices are marked as PAID
-    - Projects are linked to User (client), Quote, and Invoice
+    - Projects are linked to Client (business entity), Quote, and Invoice
     """
     queryset = Project.objects.all().select_related('client', 'quote', 'invoice')
     serializer_class = ProjectSerializer
@@ -99,36 +97,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """
-        List/retrieve: public (filtered by get_queryset). Create/update/delete: superuser only.
+        Client Portal: list and retrieve require authentication (own + public projects).
+        Public portfolio: only the 'public' action is AllowAny.
+        Create/update/delete: superuser only.
         """
-        if self.action in ['list', 'retrieve', 'public']:
-            from rest_framework.permissions import AllowAny
-            permission_classes = [AllowAny]
-        else:
-            permission_classes = [IsSuperuser]
-        return [permission() for permission in permission_classes]
+        if self.action == 'public':
+            return [AllowAny()]
+        if self.action in ['list', 'retrieve', 'my_projects']:
+            return [IsAuthenticated()]
+        return [IsSuperuser()]
     
     def get_queryset(self):
-        """
-        Filter projects based on user permissions:
-        - Non-authenticated users: Only public projects
-        - Authenticated clients: Their own projects + public projects
-        - Admin users: All projects
-        """
+        """Non-admin users see only their Client's projects plus public; staff/superuser see all."""
         queryset = super().get_queryset()
         
-        # Non-authenticated users: Only public projects
         if not self.request.user.is_authenticated:
             return queryset.filter(is_public=True)
         
-        # Admin users: All projects
         if self.request.user.is_staff or self.request.user.is_superuser:
             return queryset
         
-        # Regular users: Their own projects + public projects
-        return queryset.filter(
-            models.Q(client=self.request.user) | models.Q(is_public=True)
-        )
+        profile = getattr(self.request.user, 'client_profile', None)
+        if profile:
+            return queryset.filter(models.Q(client=profile) | models.Q(is_public=True))
+        return queryset.filter(is_public=True)
     
     def get_serializer_context(self):
         """Add request object to serializer context."""
@@ -136,13 +128,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
     
-    @action(detail=False, methods=['get'], permission_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_projects(self, request):
+        """
+        Return only the current user's assigned projects (for client portal).
+        Requires authentication; clients see only projects where they are the client.
+        """
+        profile = getattr(request.user, 'client_profile', None)
+        if not profile:
+            return Response([])
+        projects = Project.objects.filter(client=profile).select_related(
+            'client', 'quote', 'invoice'
+        ).order_by('-created_at')
+        serializer = self.get_serializer(projects, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def public(self, request):
         """
-        Public endpoint to get all public projects.
-        No authentication required.
+        Public endpoint to get all public projects (portfolio).
+        No authentication required. Use this for the public-facing projects page.
         """
-        public_projects = Project.objects.filter(is_public=True).select_related('client', 'quote', 'invoice')
+        public_projects = Project.objects.filter(is_public=True).select_related(
+            'client', 'client__user', 'quote', 'invoice'
+        )
         
         # Apply search and ordering if provided
         search_query = request.query_params.get('search', None)
