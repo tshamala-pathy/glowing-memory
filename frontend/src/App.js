@@ -1,5 +1,15 @@
+/**
+ * Root component: auth context, router, and route definitions.
+ *
+ * ACCESS CONTROL:
+ * - Public (no auth): home, login, register, about, projects, services, contact,
+ *   pricing, request-quote, quote-success. Unauthenticated users see only these.
+ * - Profile & history (auth required): /profile, /portal, /my-projects, /blog,
+ *   /clients, /case-studies, /search. Redirect to /login if not authenticated.
+ * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
+ */
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -13,7 +23,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProjects from './pages/admin/AdminProjects';
 import AdminBlog from './pages/admin/AdminBlog';
@@ -24,8 +33,24 @@ import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminQuotes from './pages/admin/AdminQuotes';
 import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminClients from './pages/admin/AdminClients';
+import AdminClientProjects from './pages/admin/AdminClientProjects';
+import AdminCaseStudies from './pages/admin/AdminCaseStudies';
+import AdminAbout from './pages/admin/AdminAbout';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
+import Requirements from './pages/Requirements';
+import QuoteSuccess from './pages/QuoteSuccess';
+import SearchResults from './pages/SearchResults';
+import ProjectDetail from './pages/ProjectDetail';
+import BlogDetail from './pages/BlogDetail';
+import ServiceDetail from './pages/ServiceDetail';
+import Clients from './pages/Clients';
+import CaseStudies from './pages/CaseStudies';
+import PublicProjects from './pages/PublicProjects';
+import ClientProjects from './pages/ClientProjects';
+import ClientPortal from './pages/ClientPortal';
+import Profile from './pages/Profile';
 import './App.css';
 
 function App() {
@@ -36,24 +61,36 @@ function App() {
           <Navbar />
           <main>
             <Routes>
+              {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
+              <Route path="/about" element={<About />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetail />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/requirements" element={<Requirements />} />
+              <Route path="/request-quote" element={<Quotes />} />
+              <Route path="/quote-success" element={<QuoteSuccess />} />
+              <Route path="/public-projects" element={<PublicProjects />} />
+
+              {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
+              <Route path="/profile" element={<ProtectedRoute requireAuth={true}><Profile /></ProtectedRoute>} />
+              <Route path="/portal" element={<ProtectedRoute requireAuth={true}><ClientPortal /></ProtectedRoute>} />
+              <Route path="/my-projects" element={<ProtectedRoute requireAuth={true}><ClientProjects /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />
+              <Route path="/blog/:id" element={<ProtectedRoute requireAuth={true}><BlogDetail /></ProtectedRoute>} />
+              <Route path="/search" element={<ProtectedRoute requireAuth={true}><SearchResults /></ProtectedRoute>} />
+              <Route path="/clients" element={<ProtectedRoute requireAuth={true}><Clients /></ProtectedRoute>} />
+              <Route path="/case-studies" element={<ProtectedRoute requireAuth={true}><CaseStudies /></ProtectedRoute>} />
+
+              {/* ========== ADMIN DASHBOARD (superuser only) ========== */}
               <Route 
                 path="/admin" 
                 element={
@@ -134,15 +171,40 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              <Route path="/pricing" element={<Pricing />} />
               <Route 
-                path="/quotes" 
+                path="/admin/clients" 
                 element={
-                  <ProtectedRoute requireAuth={true}>
-                    <Quotes />
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminClients />
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/admin/client-projects" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminClientProjects />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/case-studies" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminCaseStudies />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/about" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminAbout />
+                  </ProtectedRoute>
+                } 
+              />
+              {/* Legacy route - same as /request-quote */}
+              <Route path="/quotes" element={<Quotes />} />
             </Routes>
           </main>
         </div>

@@ -1,20 +1,10 @@
 from django.db import models
 
-# Testimonials Model
+
 class Testimonial(models.Model):
     """
     Model for storing client testimonials.
-    
-    Fields:
-        name (str): Client's name
-        position (str): Client's position/role
-        company (str): Client's company name (optional)
-        testimonial (str): The testimonial text
-        rating (int): Rating from 1 to 5
-        image (ImageField): Optional client photo
-        is_featured (bool): Whether to feature this testimonial
-        is_approved (bool): Whether the testimonial is approved for display
-        created_at (datetime): When the testimonial was created
+    Linked to Client when submitted by authenticated user for identity & history.
     """
     RATING_CHOICES = [
         (1, '1 Star'),
@@ -23,7 +13,7 @@ class Testimonial(models.Model):
         (4, '4 Stars'),
         (5, '5 Stars'),
     ]
-    
+
     name = models.CharField(max_length=255)
     position = models.CharField(max_length=255, blank=True, null=True)
     company = models.CharField(max_length=255, blank=True, null=True)
@@ -32,6 +22,15 @@ class Testimonial(models.Model):
     image = models.ImageField(upload_to='testimonials/', blank=True, null=True)
     is_featured = models.BooleanField(default=False)
     is_approved = models.BooleanField(default=False)
+    # Link to Client when submitted by authenticated user
+    client = models.ForeignKey(
+        'clients.Client',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='testimonials',
+        help_text="Client (business entity) when submitted by authenticated user"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

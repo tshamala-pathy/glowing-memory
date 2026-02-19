@@ -42,9 +42,10 @@ const Register = () => {
 
     const { confirmPassword, ...userData } = formData;
     const result = await register(userData);
-    
+
+    // On signup: User created, Client auto-created by backend, redirect to Profile page
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/profile');
     } else {
       setError(result.error);
     }
@@ -207,13 +208,13 @@ const Register = () => {
 
         <p className="mt-8 text-center text-sm text-gray-600">
           By creating an account, you agree to our{' '}
-          <a href="/terms" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/terms" className="font-medium text-blue-600 hover:text-blue-500">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="/privacy" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/privacy" className="font-medium text-blue-600 hover:text-blue-500">
             Privacy Policy
-          </a>
+          </Link>
         </p>
       </div>
     </div>

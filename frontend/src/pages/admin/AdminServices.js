@@ -17,6 +17,7 @@ const AdminServices = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
+    title: '', // Legacy field for backward compatibility
     description: '',
     price: '',
     features: '',
@@ -30,7 +31,7 @@ const AdminServices = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchServices();
@@ -50,7 +51,7 @@ const AdminServices = () => {
 
   const handleCreate = () => {
     setEditingService(null);
-    setFormData({ name: '', description: '', price: '', features: '', categories: '', icon: '' });
+    setFormData({ name: '', title: '', description: '', price: '', features: '', categories: '', icon: '' });
     setShowForm(true);
   };
 
@@ -58,6 +59,7 @@ const AdminServices = () => {
     setEditingService(service);
     setFormData({
       name: service.name || '',
+      title: service.title || '', // Legacy field
       description: service.description || '',
       price: service.price || '',
       features: Array.isArray(service.features) ? service.features.join(', ') : (service.features || ''),
@@ -187,6 +189,16 @@ const AdminServices = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Title (Legacy - optional)</label>
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Legacy field for backward compatibility"
                       />
                     </div>
                     <div>

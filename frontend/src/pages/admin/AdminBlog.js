@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 
 const AdminBlog = () => {
   const { user, isAuthenticated } = useAuth();
@@ -20,7 +20,9 @@ const AdminBlog = () => {
     body: '',
     category: '',
     tags: '',
+    featured_image: null,
   });
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -28,7 +30,7 @@ const AdminBlog = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchPosts();
@@ -48,7 +50,8 @@ const AdminBlog = () => {
 
   const handleCreate = () => {
     setEditingPost(null);
-    setFormData({ title: '', body: '', category: '', tags: '' });
+    setFormData({ title: '', body: '', category: '', tags: '', featured_image: null });
+    setImagePreview(null);
     setShowForm(true);
   };
 
@@ -58,8 +61,10 @@ const AdminBlog = () => {
       title: post.title || '',
       body: post.body || '',
       category: post.category || '',
-      tags: post.tags || '',
+      tags: Array.isArray(post.tags) ? post.tags.join(', ') : (post.tags || ''),
+      featured_image: null,
     });
+    setImagePreview(post.featured_image ? getMediaUrl(post.featured_image) : null);
     setShowForm(true);
   };
 
@@ -81,10 +86,29 @@ const AdminBlog = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const submitData = new FormData();
+      Object.keys(formData).forEach((key) => {
+        if (key !== 'featured_image' && formData[key] !== null && formData[key] !== '') {
+          if (key === 'tags' && typeof formData[key] === 'string') {
+            // Convert comma-separated tags to array for API
+            submitData.append(key, formData[key]);
+          } else {
+            submitData.append(key, formData[key]);
+          }
+        }
+      });
+      if (formData.featured_image) {
+        submitData.append('featured_image', formData.featured_image);
+      }
+
       if (editingPost) {
-        await api.put(`/blog/${editingPost.id}/`, formData);
+        await api.put(`/blog/${editingPost.id}/`, submitData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       } else {
-        await api.post('/blog/', formData);
+        await api.post('/blog/', submitData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
       fetchPosts();
       setShowForm(false);
@@ -95,12 +119,41 @@ const AdminBlog = () => {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, featured_image: file });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const filteredPosts = posts.filter((post) =>
     post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     post.body?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
+    {
+      header: 'Image',
+      accessor: 'featured_image',
+      render: (value) => (
+        value ? (
+          <img
+            src={getMediaUrl(value)}
+            alt="Featured"
+            className="w-12 h-12 object-cover rounded"
+          />
+        ) : (
+          <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
+            No image
+          </div>
+        )
+      ),
+    },
     { header: 'Title', accessor: 'title' },
     { header: 'Category', accessor: 'category' },
     {
@@ -207,6 +260,18 @@ const AdminBlog = () => {
                         onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Featured Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {imagePreview && (
+                        <img src={imagePreview} alt="Preview" className="mt-2 h-32 w-32 object-cover rounded" />
+                      )}
                     </div>
                   </div>
                   <div className="mt-6 flex justify-end space-x-3">

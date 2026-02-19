@@ -11,8 +11,7 @@ class ValueSerializer(serializers.ModelSerializer):
 
 class AboutUsSerializer(serializers.ModelSerializer):
     """
-    Serializer for About Us model.
-    Includes related values.
+    Serializer for About Us model. Includes related values and absolute image URL.
     """
     values = ValueSerializer(many=True, read_only=True)
     image = serializers.SerializerMethodField()
@@ -28,13 +27,21 @@ class AboutUsSerializer(serializers.ModelSerializer):
             'image', 'values', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
-    
+
     def get_image(self, obj):
-        """Return full image URL."""
-        if obj.image:
+        """Return absolute image URL so frontend can load it from API origin."""
+        if not obj.image:
+            return None
+        try:
+            path = obj.image.url
+            if not path.startswith('/'):
+                path = '/' + path
             request = self.context.get('request')
             if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
-        return None
+                return request.build_absolute_uri(path)
+            from django.conf import settings
+            base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
+            return f'{base}{path}'
+        except (ValueError, AttributeError):
+            return None
 

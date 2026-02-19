@@ -21,7 +21,7 @@ const AdminNewsletter = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchSubscriptions();
@@ -82,6 +82,11 @@ const AdminNewsletter = () => {
           {value ? 'Active' : 'Inactive'}
         </span>
       ),
+    },
+    {
+      header: 'IP Address',
+      accessor: 'subscribed_ip',
+      render: (value) => value || 'N/A',
     },
     {
       header: 'Subscribed',

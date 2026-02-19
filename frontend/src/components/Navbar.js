@@ -35,6 +35,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1 flex-1 mx-4">
+            {/* Public navigation - visible to everyone (anonymous and authenticated) */}
             <Link
               to="/"
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -76,16 +77,6 @@ const Navbar = () => {
               Pricing
             </Link>
             <Link
-              to="/blog"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/blog')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Blog
-            </Link>
-            <Link
               to="/about"
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive('/about')
@@ -105,6 +96,51 @@ const Navbar = () => {
             >
               Contact
             </Link>
+            {/* Client portal navigation - only for authenticated users */}
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/blog"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/blog')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Blog
+                </Link>
+                <Link
+                  to="/clients"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/clients')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Clients
+                </Link>
+                <Link
+                  to="/case-studies"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/case-studies')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Case Studies
+                </Link>
+                <Link
+                  to="/my-projects"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/my-projects')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  My Projects
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Search Bar */}
@@ -117,14 +153,14 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/dashboard"
+                  to="/profile"
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/dashboard')
+                    isActive('/profile')
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Dashboard
+                  Profile
                 </Link>
                 {user?.is_superuser === true && (
                   <Link
@@ -211,7 +247,12 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4 fade-in">
+            {/* Mobile Search Bar */}
+            <div className="px-4 mb-4">
+              <SearchBar />
+            </div>
             <div className="space-y-1">
+              {/* Public navigation - visible to everyone */}
               <Link
                 to="/"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
@@ -257,17 +298,6 @@ const Navbar = () => {
                 Pricing
               </Link>
               <Link
-                to="/blog"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/blog')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Blog
-              </Link>
-              <Link
                 to="/about"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
                   isActive('/about')
@@ -289,19 +319,68 @@ const Navbar = () => {
               >
                 Contact
               </Link>
-
-              {isAuthenticated ? (
+              {/* Client portal navigation - only for authenticated users */}
+              {isAuthenticated && (
                 <>
                   <Link
-                    to="/dashboard"
+                    to="/blog"
                     className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/dashboard')
+                      isActive('/blog')
                         ? 'bg-blue-50 text-blue-600'
                         : 'text-gray-700 hover:bg-gray-50'
                     }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Dashboard
+                    Blog
+                  </Link>
+                  <Link
+                    to="/clients"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/clients')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Clients
+                  </Link>
+                  <Link
+                    to="/case-studies"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/case-studies')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Case Studies
+                  </Link>
+                  <Link
+                    to="/my-projects"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/my-projects')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    My Projects
+                  </Link>
+                </>
+              )}
+
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/profile"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/profile')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Profile
                   </Link>
                   {user?.is_superuser === true && (
                     <Link

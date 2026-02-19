@@ -1,3 +1,7 @@
+/**
+ * API client — Axios instance with auth token, token refresh, and error handling.
+ * Base URL: http://localhost:8000/api
+ */
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -9,12 +13,20 @@ const API_BASE_URL = 'http://localhost:8000/api';
  *   when the frontend is served from a different origin (e.g. localhost:3000).
  */
 export const getMediaUrl = (url) => {
-  if (!url || typeof url !== 'string') return null;
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+  
+  // If already a full URL, just fix 0.0.0.0 if present
   if (url.startsWith('http://') || url.startsWith('https://')) {
     // Browsers often cannot load http://0.0.0.0:8000; replace with localhost
-    if (url.includes('0.0.0.0')) return url.replace(/0\.0\.0\.0/g, 'localhost');
+    if (url.includes('0.0.0.0')) {
+      return url.replace(/0\.0\.0\.0/g, 'localhost');
+    }
     return url;
   }
+  
+  // If relative URL, prepend base URL
   const base = API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:8000';
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 };

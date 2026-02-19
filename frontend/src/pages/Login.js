@@ -26,9 +26,10 @@ const Login = () => {
     setError('');
 
     const result = await login(formData.email, formData.password);
-    
+
+    // On login: redirect to Profile page (loads all related client data)
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/profile');
     } else {
       setError(result.error);
     }

@@ -1,3 +1,7 @@
+/**
+ * AuthContext — Manages authentication state (user, login, register, logout).
+ * Uses GET /api/users/profile/ for lightweight user data (not /api/profile/).
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
@@ -28,12 +32,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get('/users/profile/');
       const userData = response.data;
-      // Store user data in context for use throughout the application
       setUser(userData);
+      return userData;
     } catch (error) {
       console.error('Error fetching user:', error);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -47,10 +52,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       
-      // Fetch fresh user data to ensure we have all fields including is_superuser
-      await fetchUser();
-      
-      return { success: true };
+      const userData = await fetchUser();
+      return { success: true, user: userData };
     } catch (error) {
       // Handle different error formats
       const errorMessage = error.response?.data?.detail || 
@@ -73,10 +76,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       
-      // Fetch fresh user data to ensure we have all fields including is_superuser
-      await fetchUser();
-      
-      return { success: true };
+      const fetchedUser = await fetchUser();
+      return { success: true, user: fetchedUser };
     } catch (error) {
       // Handle different error formats from Django
       const errorMessage = error.response?.data?.detail || 

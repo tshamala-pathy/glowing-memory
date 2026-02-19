@@ -1,5 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import Newsletter from "../components/Newsletter";
 import Testimonials from "../components/Testimonials";
 import AboutSection from "../components/AboutSection";
@@ -7,7 +8,6 @@ import StatsSection from "../components/StatsSection";
 
 // Shared container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 const CONTAINER = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
-const CONTAINER_NARROW = "max-w-4xl mx-auto px-4 sm:px-6 lg:px-8";
 const SECTION_HEADING = "text-3xl sm:text-4xl font-bold text-gray-900 mb-4";
 const SECTION_SUB = "text-gray-600 max-w-2xl mx-auto";
 
@@ -92,9 +92,42 @@ const features = [
       </svg>
     ),
   },
+  {
+    title: "Clients",
+    description: "Meet the businesses and organizations we've had the privilege to work with.",
+    color: "from-indigo-500 to-indigo-600",
+    link: "/clients",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Case Studies",
+    description: "Real-world solutions, measurable results, and success stories from our projects.",
+    color: "from-pink-500 to-pink-600",
+    link: "/case-studies",
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
 ];
 
 const Home = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Handle protected link clicks - redirect to login if not authenticated
+  const handleProtectedLink = (e, path) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="bg-white text-gray-800">
 
@@ -125,7 +158,7 @@ const Home = () => {
             </span>
           </h1>
           <p className="text-xl text-gray-200 mb-10">
-            I design and build modern websites, applications, and digital
+            We design and build modern websites, applications, and digital
             solutions that help businesses grow.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -148,11 +181,11 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ——— What I Offer (Features) ——— */}
+      {/* ——— What We Offer (Features) ——— */}
       <section className="py-24 bg-gray-50">
         <div className={CONTAINER}>
           <header className="text-center mb-16">
-            <h2 className={SECTION_HEADING}>What I Offer</h2>
+            <h2 className={SECTION_HEADING}>What We Offer</h2>
             <p className={SECTION_SUB}>
               Everything you need to build a strong and professional online presence.
             </p>
@@ -177,12 +210,42 @@ const Home = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, i) => (
-              <Link
-                key={i}
-                to={feature.link}
-                className="group bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300"
-              >
+            {features.map((feature, i) => {
+              // Home link is always accessible, others require authentication
+              const isHomeLink = feature.link === '/';
+              const isProtected = !isHomeLink;
+              
+              return isProtected && !isAuthenticated ? (
+                // Show disabled state for protected features when not authenticated
+                <div
+                  key={i}
+                  onClick={(e) => handleProtectedLink(e, feature.link)}
+                  className="group bg-white p-8 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-xl hover:-translate-y-1 transition duration-300 opacity-75"
+                >
+                  <div
+                    className={`w-14 h-14 flex items-center justify-center rounded-xl text-white mb-5 bg-gradient-to-br ${feature.color}`}
+                  >
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {feature.description}
+                  </p>
+                  <span className="inline-flex items-center mt-4 text-blue-600 font-medium text-sm">
+                    Sign in to access
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </span>
+                </div>
+              ) : (
+                <Link
+                  key={i}
+                  to={feature.link}
+                  className="group bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300"
+                >
                 <div
                   className={`w-14 h-14 flex items-center justify-center rounded-xl text-white mb-5 bg-gradient-to-br ${feature.color}`}
                 >
@@ -201,7 +264,8 @@ const Home = () => {
                   </svg>
                 </span>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -250,12 +314,21 @@ const Home = () => {
           <p className="text-white mb-10 text-xl font-semibold [text-shadow:0_2px_12px_rgba(0,0,0,0.9),0_0_24px_rgba(0,0,0,0.5)]">
             Let’s build something amazing for your business or personal brand.
           </p>
-          <Link
-            to="/contact"
-            className="inline-block px-12 py-4 bg-white text-blue-600 rounded-full font-semibold text-lg shadow-xl hover:scale-105 transition"
-          >
-            Contact Me →
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              to="/contact"
+              className="inline-block px-12 py-4 bg-white text-blue-600 rounded-full font-semibold text-lg shadow-xl hover:scale-105 transition"
+            >
+              Contact Me →
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-block px-12 py-4 bg-white text-blue-600 rounded-full font-semibold text-lg shadow-xl hover:scale-105 transition"
+            >
+              Sign In to Contact →
+            </Link>
+          )}
         </div>
       </section>
     </div>

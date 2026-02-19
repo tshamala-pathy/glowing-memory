@@ -36,14 +36,22 @@ class BlogPostSerializer(serializers.ModelSerializer):
         }
 
     def to_representation(self, instance):
-        """Output featured_image as absolute URL for frontend."""
+        """Output featured_image as absolute URL so frontend can display it cross-origin."""
         ret = super().to_representation(instance)
         if instance.featured_image:
-            request = self.context.get('request')
-            if request:
-                ret['featured_image'] = request.build_absolute_uri(instance.featured_image.url)
-            else:
-                ret['featured_image'] = instance.featured_image.url
+            try:
+                request = self.context.get('request')
+                path = instance.featured_image.url
+                if not path.startswith('/'):
+                    path = '/' + path
+                if request:
+                    ret['featured_image'] = request.build_absolute_uri(path)
+                else:
+                    from django.conf import settings
+                    base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
+                    ret['featured_image'] = f'{base}{path}'
+            except (ValueError, AttributeError):
+                ret['featured_image'] = None
         else:
             ret['featured_image'] = None
         return ret

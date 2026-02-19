@@ -199,6 +199,27 @@ python manage.py migrate
 - Newsletter subscription form
 - Testimonial submission and display
 
+## 📖 Documentation
+
+- **`docs/ARCHITECTURE_AND_ACCESS.md`** — Why there is no User Dashboard, Profile as main hub, data visibility rules, authentication flow
+
+## 📡 API & Data Fetching
+
+### Profile API (`GET /api/profile/`)
+Single endpoint returning all profile data for authenticated users:
+- `user` — User info (id, email, first_name, etc.)
+- `client` — Client profile (or null)
+- `quotes`, `invoices`, `projects`, `messages`, `testimonials` — Arrays
+
+Used by Profile page and Client Portal to avoid duplicate API calls.
+
+### Auth API (`GET /api/users/profile/`)
+Lightweight user-only endpoint for AuthContext (login state).
+
+### Shared Utilities (`frontend/src/utils/formatters.js`)
+- `formatDate`, `formatDateTime`, `formatCurrency` — Used by Profile, ClientPortal
+- `getQuoteStatusClass`, `getInvoiceStatusClass`, `getProjectStatusClass` — Status badge styling
+
 ## 🚀 Deployment Notes
 
 1. Ensure all migrations are applied

@@ -1,249 +1,674 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+
+const STEPS = [
+  { id: 1, label: 'Requirements', short: 'Requirements' },
+  { id: 2, label: 'Budget & Timeline', short: 'Budget' },
+  { id: 3, label: 'Terms', short: 'Terms' },
+  { id: 4, label: 'Your Quote', short: 'Quote' },
+];
 
 const Quotes = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
   const [formData, setFormData] = useState({
-    client_name: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : '',
-    client_email: user?.email || '',
+    client_name: '',
+    client_email: '',
     client_phone: '',
     company_name: '',
     project_title: '',
     project_description: '',
     project_type: '',
+    service_type: '',
     budget_range: '',
     deadline: '',
+    timeline: '',
+    requirements_accepted: false,
   });
+
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+
+  // Pre-fill user data if authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setFormData(prev => ({
+        ...prev,
+        client_name: user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.username || '',
+        client_email: user.email || '',
+      }));
+    }
+  }, [isAuthenticated, user]);
+
+  const goToStep = (next) => {
+    setError('');
+    if (next === 4) {
+      setFormData(prev => ({ ...prev, requirements_accepted: true }));
+    }
+    setStep(next);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.requirements_accepted) {
+      setError('You must complete the requirements and agreement steps before submitting.');
+      return;
+    }
     setSubmitting(true);
     setError('');
-
     try {
-      await api.post('/quotes/', formData);
-      setSubmitted(true);
-      // Reset form
-      setFormData({
-        client_name: '',
-        client_email: '',
-        client_phone: '',
-        company_name: '',
-        project_title: '',
-        project_description: '',
-        project_type: '',
-        budget_range: '',
-        deadline: '',
+      const submitData = {
+        ...formData,
+        client_phone: formData.client_phone || null,
+        company_name: formData.company_name || null,
+        project_type: formData.project_type || null,
+        service_type: formData.service_type || null,
+        budget_range: formData.budget_range || null,
+        deadline: formData.deadline || null,
+        timeline: formData.timeline || null,
+        requirements_accepted: true,
+      };
+      await api.post('/quotes/', submitData);
+      navigate('/quote-success', {
+        state: {
+          projectTitle: formData.project_title,
+          clientEmail: formData.client_email,
+        },
       });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit quote request. Please try again.');
+      const errorMessage =
+        err.response?.data?.requirements_accepted?.[0] ||
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to submit quote request. Please try again.';
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="max-w-5xl mx-auto relative z-10">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-xl mb-4">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Request Submitted!</h2>
-          <p className="text-gray-600 mb-6">
-            Thank you for your interest. We'll review your project requirements and get back to you within 24-48 hours with a detailed estimate.
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2">
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Request a Quote
+            </span>
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            {step < 4 ? 'Complete the steps below, then submit your project details' : 'Submit your project details'}
           </p>
-          <button
-            onClick={() => setSubmitted(false)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Submit Another Request
-          </button>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Request a Quote</h1>
-            <p className="text-gray-600 text-lg">
-              Tell us about your project and we'll provide you with a detailed estimate
-            </p>
+        {/* Stepper */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between max-w-3xl mx-auto">
+            {STEPS.map((s, i) => (
+              <React.Fragment key={s.id}>
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                      step >= s.id
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {step > s.id ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      s.id
+                    )}
+                  </div>
+                  <span className={`mt-2 text-xs font-medium hidden sm:block ${step >= s.id ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {s.short}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`flex-1 h-1 mx-1 rounded ${step > s.id ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
+        </div>
 
+        {/* Step 1: Requirements */}
+        {step === 1 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Service requirements and expectations</h2>
+              <p className="text-gray-600 mb-4">Please read the following before requesting a quote.</p>
+              <div className="max-h-[50vh] overflow-y-auto space-y-6 pr-2 text-gray-700">
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">Services we offer</h3>
+                  <p className="mb-2">Web development, backend/API, mobile apps, e-commerce, maintenance/support, design, and consulting.</p>
+                </section>
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">What we need from you</h3>
+                  <p>Accurate client and project details: title, description, service type, budget range, and timeline so we can provide a fair estimate.</p>
+                </section>
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-2">Our expectations</h3>
+                  <p>We respond within 24–48 hours. The more detail you provide, the more accurate the quote. All communications are confidential.</p>
+                </section>
+              </div>
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <Link to="/requirements" className="text-blue-600 hover:text-blue-700 font-medium text-sm mb-4 inline-block">
+                  View full requirements page →
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => goToStep(2)}
+                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg"
+                >
+                  I have read the requirements
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Budget & Timeline */}
+        {step === 2 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Budget and timeline</h2>
+              <div className="space-y-4 text-gray-700">
+                <p>
+                  <strong>Budget:</strong> The amount you indicate is a range for our initial estimate. Final pricing depends on scope, complexity, and any changes during the project. We will give you a clear breakdown before work begins.
+                </p>
+                <p>
+                  <strong>Timeline:</strong> Delivery times are estimates. They can be affected by scope changes, feedback cycles, and dependencies. We will keep you updated and aim to meet agreed milestones.
+                </p>
+                <p className="text-gray-600 text-sm">
+                  By continuing, you confirm that you understand that budget and timeline are estimates and may be refined after we review your full requirements.
+                </p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-gray-200 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToStep(3)}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg"
+                >
+                  I understand
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Terms agreement */}
+        {step === 3 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
+            <div className="p-8 md:p-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Terms and conditions</h2>
+              <div className="space-y-3 text-gray-700 mb-6">
+                <p>By submitting a quote request, you agree that:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Quote estimates are valid for 30 days from the date of issue.</li>
+                  <li>Final pricing may vary based on actual requirements and scope changes.</li>
+                  <li>Project details and communications are kept confidential.</li>
+                  <li>We may decline projects outside our expertise or capacity.</li>
+                  <li>Payment terms and milestones will be agreed when the quote is accepted.</li>
+                </ul>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 mb-6">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termsAgreed}
+                    onChange={(e) => setTermsAgreed(e.target.checked)}
+                    className="mt-1 mr-3 h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-800 font-medium">I agree to the terms and conditions above and am ready to submit my quote request.</span>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!termsAgreed}
+                  onClick={() => goToStep(4)}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continue to quote form
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Quote form */}
+        {step === 4 && (
+          <>
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-100/50 overflow-hidden">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800">{error}</p>
+            <div className="mx-6 mt-6 p-5 bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 rounded-xl shadow-md">
+              <div className="flex items-center">
+                <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <p className="ml-3 text-red-800 font-semibold">{error}</p>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Client Information */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Information</h2>
+          <div className="px-8 pt-6 pb-2">
+            <p className="text-sm text-green-700 font-medium flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              You have completed the requirements and agreement steps. Your confirmation will be recorded when you submit.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8 md:p-12">
+            {/* Client Information Section */}
+            <div className="mb-12">
+              <div className="flex items-center mb-8 pb-4 border-b-2 border-gray-100">
+                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Your Information</h2>
+                  <p className="text-sm text-gray-500 mt-1">We'll use this to contact you about your project</p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name *
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700 flex items-center">
+                    <span>Full Name</span>
+                    <span className="ml-2 text-red-500 text-lg">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.client_name}
-                    onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={formData.client_name}
+                      onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
+                      placeholder="John Doe"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700 flex items-center">
+                    <span>Email Address</span>
+                    <span className="ml-2 text-red-500 text-lg">*</span>
                   </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.client_email}
-                    onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      value={formData.client_email}
+                      onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
+                      placeholder="john@example.com"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.client_phone}
-                    onChange={(e) => setFormData({ ...formData, client_phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700">Phone Number</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={formData.client_phone}
+                      onChange={(e) => setFormData({ ...formData, client_phone: e.target.value })}
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
+                      placeholder="+27 12 345 6789"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700">Company Name</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.company_name}
+                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
+                      placeholder="Your Company"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Project Details */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Project Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.project_title}
-                    onChange={(e) => setFormData({ ...formData, project_title: e.target.value })}
-                    placeholder="e.g., E-commerce Website Development"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+            {/* Divider with Icon */}
+            <div className="relative my-12">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <div className="bg-white px-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Project Details Section */}
+            <div className="mb-12">
+              <div className="flex items-center mb-8 pb-4 border-b-2 border-gray-100">
+                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Project Description *
+                  <h2 className="text-3xl font-bold text-gray-900">Project Details</h2>
+                  <p className="text-sm text-gray-500 mt-1">Help us understand your project requirements</p>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700 flex items-center">
+                    <span>Project Title</span>
+                    <span className="ml-2 text-red-500 text-lg">*</span>
                   </label>
-                  <textarea
-                    required
-                    rows={6}
-                    value={formData.project_description}
-                    onChange={(e) => setFormData({ ...formData, project_description: e.target.value })}
-                    placeholder="Please describe your project in detail, including features, functionality, and any specific requirements..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={formData.project_title}
+                      onChange={(e) => setFormData({ ...formData, project_title: e.target.value })}
+                      placeholder="e.g., E-commerce Website Development"
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
+                </div>
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700 flex items-center">
+                    <span>Project Description</span>
+                    <span className="ml-2 text-red-500 text-lg">*</span>
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      required
+                      rows={6}
+                      value={formData.project_description}
+                      onChange={(e) => setFormData({ ...formData, project_description: e.target.value })}
+                      placeholder="Please describe your project in detail, including features, functionality, and any specific requirements..."
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white resize-none"
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Project Type
+                  <div className="space-y-2 group">
+                    <label className="block text-sm font-bold text-gray-700 flex items-center">
+                      <span>Service Type</span>
+                      <span className="ml-2 text-red-500 text-lg">*</span>
                     </label>
-                    <select
-                      value={formData.project_type}
-                      onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select type</option>
-                      <option value="Web Development">Web Development</option>
-                      <option value="Mobile App">Mobile App</option>
-                      <option value="E-commerce">E-commerce</option>
-                      <option value="API Development">API Development</option>
-                      <option value="Design">Design</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        required
+                        value={formData.service_type}
+                        onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
+                        className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white appearance-none cursor-pointer font-medium"
+                      >
+                        <option value="" className="text-gray-400">Select service type</option>
+                        <option value="Web Development">Web Development</option>
+                        <option value="Backend/API Development">Backend/API Development</option>
+                        <option value="Mobile App Development">Mobile App Development</option>
+                        <option value="E-commerce Development">E-commerce Development</option>
+                        <option value="Maintenance/Support">Maintenance/Support</option>
+                        <option value="Design">Design</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Budget Range
-                    </label>
-                    <select
-                      value={formData.budget_range}
-                      onChange={(e) => setFormData({ ...formData, budget_range: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select range</option>
-                      <option value="R 5,000 - R 15,000">R 5,000 - R 15,000</option>
-                      <option value="R 15,000 - R 50,000">R 15,000 - R 50,000</option>
-                      <option value="R 50,000 - R 100,000">R 50,000 - R 100,000</option>
-                      <option value="R 100,000+">R 100,000+</option>
-                    </select>
+                  <div className="space-y-2 group">
+                    <label className="block text-sm font-bold text-gray-700">Budget Range</label>
+                    <div className="relative">
+                      <select
+                        value={formData.budget_range}
+                        onChange={(e) => setFormData({ ...formData, budget_range: e.target.value })}
+                        className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white appearance-none cursor-pointer font-medium"
+                      >
+                        <option value="" className="text-gray-400">Select range</option>
+                        <option value="R 5,000 - R 15,000">R 5,000 - R 15,000</option>
+                        <option value="R 15,000 - R 50,000">R 15,000 - R 50,000</option>
+                        <option value="R 50,000 - R 100,000">R 50,000 - R 100,000</option>
+                        <option value="R 100,000+">R 100,000+</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Desired Deadline
-                    </label>
+                  <div className="space-y-2 group">
+                    <label className="block text-sm font-bold text-gray-700">Timeline</label>
+                    <div className="relative">
+                      <select
+                        value={formData.timeline}
+                        onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                        className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white appearance-none cursor-pointer font-medium"
+                      >
+                        <option value="" className="text-gray-400">Select timeline</option>
+                        <option value="1-2 weeks">1-2 weeks</option>
+                        <option value="2-4 weeks">2-4 weeks</option>
+                        <option value="1-2 months">1-2 months</option>
+                        <option value="2-3 months">2-3 months</option>
+                        <option value="3-6 months">3-6 months</option>
+                        <option value="6+ months">6+ months</option>
+                        <option value="Flexible">Flexible</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 group">
+                  <label className="block text-sm font-bold text-gray-700">Desired Deadline (Optional)</label>
+                  <div className="relative">
                     <input
                       type="date"
                       value={formData.deadline}
                       onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 hover:bg-white hover:border-gray-300 focus:bg-white"
                     />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 transition-all duration-300 pointer-events-none"></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-6">
+            {/* Divider with Icon */}
+            <div className="relative my-12">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <div className="bg-white px-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+              >
+                Back
+              </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 min-w-[200px] px-8 py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 transition-all duration-300 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-lg flex items-center justify-center space-x-3 group"
               >
-                {submitting ? 'Submitting...' : 'Submit Quote Request'}
+                {submitting ? (
+                  <>
+                    <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Quote Request</span>
+                    <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
               </button>
+              <p className="text-center text-sm text-gray-500 mt-5 font-medium">
+                <svg className="w-4 h-4 inline-block mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                We'll review your request and get back to you within 24-48 hours
+              </p>
             </div>
           </form>
         </div>
+
+        {/* Additional Info Card - only when on quote form step */}
+        <div className="mt-10 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-8 hover:shadow-2xl transition-all duration-300">
+          <div className="flex items-start space-x-6">
+            <div className="flex-shrink-0">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">What happens next?</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start group">
+                  <div className="flex-shrink-0 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5 group-hover:bg-green-200 transition-colors">
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700 font-medium">You'll receive a confirmation email immediately</span>
+                </li>
+                <li className="flex items-start group">
+                  <div className="flex-shrink-0 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5 group-hover:bg-green-200 transition-colors">
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700 font-medium">Our team will review your requirements within 24-48 hours</span>
+                </li>
+                <li className="flex items-start group">
+                  <div className="flex-shrink-0 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5 group-hover:bg-green-200 transition-colors">
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700 font-medium">We'll send you a detailed estimate and next steps</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+          </>
+        )}
       </div>
+
+      {/* Add custom animations */}
+      <style>{`
+        @keyframes blob {
+          0%, 100% {
+            transform: translate(0, 0) scale(1);
+          }
+          33% {
+            transform: translate(30px, -50px) scale(1.1);
+          }
+          66% {
+            transform: translate(-20px, 20px) scale(0.9);
+          }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
 
 export default Quotes;
-

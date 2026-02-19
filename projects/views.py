@@ -1,36 +1,28 @@
-from django.shortcuts import render
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
 from .models import Project
 from .serializers import ProjectSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-# Create your views here.
 
-# 📌 ViewSet for handling project-related API requests.
 class ProjectViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows projects to be viewed or edited.
-    Supports filtering by status, category, and tags.
-    Supports search by title, description, and technologies.
-
-    Attributes:
-        queryset (QuerySet): Retrieves all Project instances ordered by creation date descending.
-        serializer_class (Serializer): Specifies the serializer to use for Project objects.
-        permission_classes (list): Permissions to allow authenticated users to edit and others read-only access.
-        filter_backends: Enables filtering and searching capabilities.
-        filterset_fields: Fields that can be used for filtering.
-        search_fields: Fields that can be searched.
+    Public read: list and retrieve portfolio projects (no auth). Create/update/delete: authenticated.
     """
     queryset = Project.objects.all().order_by('-created_at')
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'category']
     search_fields = ['title', 'description', 'technologies', 'tags']
     ordering_fields = ['created_at', 'title']
     ordering = ['-created_at']
-    
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
     def get_serializer_context(self):
         """
         Add request object to serializer context.
@@ -45,8 +37,3 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    
-    # Permission notes:
-    # IsAuthenticatedOrReadOnly allows:
-    # - Unauthenticated users: READ access (view projects)
-    # - Authenticated users: FULL access (create, update, delete projects)

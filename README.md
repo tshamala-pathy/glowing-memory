@@ -124,9 +124,12 @@ glowing-memory/
 
 ## Key Documentation
 
+- **[User and Client Guide](docs/USER_AND_CLIENT_GUIDE.md)**: Difference between User and Client, how they are linked, Client Portal data flow, and why this architecture is used (start here for portal/auth work)
 - **[Architecture Guide](docs/ARCHITECTURE.md)**: Complete system architecture and data flow
 - **[Authentication Guide](docs/AUTHENTICATION.md)**: Authentication flow and security
 - **[Quotes Workflow](docs/QUOTES_WORKFLOW.md)**: Quote request and management process
+- **[Client Projects Workflow](CLIENT_PROJECTS_WORKFLOW.md)**: End-to-end business workflow (quotes → invoices → projects) and portal steps
+- **[Public, Client Portal, and Admin Access](docs/PUBLIC_CLIENT_ADMIN_ACCESS.md)**: Which pages and APIs are public, which require login (Client Portal), and which require superuser (Admin)
 
 ## API Endpoints
 
@@ -154,12 +157,15 @@ See [Architecture Documentation](docs/ARCHITECTURE.md) for complete API referenc
 - Home, About, Blog, Projects (view), Services, Contact pages
 
 ### Authenticated Users
-- Dashboard, Quotes (submit requests)
+- Profile (main hub), Client Portal, My Projects, Quotes (submit requests)
+- **Note:** There is no separate User Dashboard; the Profile page (`/profile`) is the main hub after login.
 
 ### Superusers/Admins
 - All authenticated user access
 - Admin Panel (`/admin/*`)
 - Full CRUD access to all models
+
+See [Architecture & Access Guide](docs/ARCHITECTURE_AND_ACCESS.md) for data visibility rules and authentication flow.
 
 ## Media Files
 

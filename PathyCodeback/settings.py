@@ -15,8 +15,12 @@ from decouple import config, Csv
 from datetime import timedelta
 import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths: PathyCodeback/settings.py -> parent.parent = project root (manage.py location)
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+if os.environ.get('DJANGO_DEBUG_PATHS', '').lower() == 'true':
+    print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
+    print(f"[DEBUG] MEDIA_ROOT will be: {BASE_DIR / 'media'}")
 
 
 # Quick-start development settings - unsuitable for production
@@ -54,6 +58,7 @@ INSTALLED_APPS = [
     'about',  # About Us app
     'quotes',  # Quotes/Estimates app
     'invoices',  # Invoices app
+    'clients',  # Clients and case studies app
 ]
 
 MIDDLEWARE = [
@@ -146,7 +151,19 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files (User uploaded files)
 MEDIA_URL = '/media/'
+# BASE_DIR points to project root (where manage.py is), so media goes at root level
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Ensure media directory and upload subdirs exist at startup (projects, blog, about, clients, testimonials)
+for subdir in ('', 'projects', 'blog', 'about', 'clients/logos', 'testimonials'):
+    os.makedirs(os.path.join(str(MEDIA_ROOT), subdir), exist_ok=True)
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB - files larger than this will be saved to disk
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -188,6 +205,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
+    'EXCEPTION_HANDLER': 'PathyCodeback.exceptions.custom_exception_handler',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
@@ -203,3 +221,21 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
 }
+
+# Email Configuration
+# In development, emails are printed to console
+# In production, configure SMTP settings
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@pathycodes.com')
+
+# Frontend URL for password reset links
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# Base URL for API/media when building absolute URLs (e.g. in serializers when request is missing)
+# Used so the frontend receives absolute media URLs even from scripts/celery.
+PROJECT_BASE_URL = config('PROJECT_BASE_URL', default='http://localhost:8000')

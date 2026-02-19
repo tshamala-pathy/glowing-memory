@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const About = () => {
   const [aboutData, setAboutData] = useState(null);
@@ -108,7 +108,7 @@ const About = () => {
 
           {aboutData.image && (
             <img
-              src={aboutData.image}
+              src={getMediaUrl(aboutData.image)}
               alt="About"
               className="rounded-2xl shadow-lg"
             />
@@ -169,7 +169,7 @@ const About = () => {
 </section>
 
       {/* MISSION & VISION */}
-      <section className="py-28 bg-gradient-to-b from-slate-100 to-slate-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           {/* Section Header */}
           <div className="text-center mb-16">
@@ -181,37 +181,58 @@ const About = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Mission */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-10 shadow-sm hover:shadow-lg transition duration-300">
-              <div className="w-14 h-14 mb-6 rounded-xl bg-blue-700 text-white flex items-center justify-center text-xl font-semibold">
-                M
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
+              <div className="absolute inset-0">
+                <img
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=80"
+                  alt="Mission"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-blue-800/85 to-blue-900/90"></div>
               </div>
-
-              <h3 className="text-2xl font-semibold text-slate-800 mb-4">
-                {aboutData.mission_title || 'Our Mission'}
-              </h3>
-
-              <p className="text-slate-600 leading-relaxed whitespace-pre-line">
-                {aboutData.mission_content ||
-                  'To deliver innovative, high-quality solutions that drive long-term success for our clients through clarity, reliability, and technical excellence.'}
-              </p>
+              <div className="relative z-10 p-10 text-white">
+                <div className="w-16 h-16 mb-6 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-bold mb-6">
+                  {aboutData.mission_title || 'Our Mission'}
+                </h3>
+                <p className="text-lg leading-relaxed whitespace-pre-line text-white/95">
+                  {aboutData.mission_content ||
+                    'To deliver innovative, high-quality solutions that drive long-term success for our clients through clarity, reliability, and technical excellence.'}
+                </p>
+              </div>
             </div>
 
             {/* Vision */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-10 shadow-sm hover:shadow-lg transition duration-300">
-              <div className="w-14 h-14 mb-6 rounded-xl bg-blue-700 text-white flex items-center justify-center text-xl font-semibold">
-                V
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
+              <div className="absolute inset-0">
+                <img
+                  src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80"
+                  alt="Vision"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 via-purple-800/85 to-purple-900/90"></div>
               </div>
-
-              <h3 className="text-2xl font-semibold text-slate-800 mb-4">
-                {aboutData.vision_title || 'Our Vision'}
-              </h3>
-
-              <p className="text-slate-600 leading-relaxed whitespace-pre-line">
-                {aboutData.vision_content ||
-                  'To become a trusted technology partner, known for thoughtful solutions, sustainable growth, and meaningful impact.'}
-              </p>
+              <div className="relative z-10 p-10 text-white">
+                <div className="w-16 h-16 mb-6 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-bold mb-6">
+                  {aboutData.vision_title || 'Our Vision'}
+                </h3>
+                <p className="text-lg leading-relaxed whitespace-pre-line text-white/95">
+                  {aboutData.vision_content ||
+                    'To become a trusted technology partner, known for thoughtful solutions, sustainable growth, and meaningful impact.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

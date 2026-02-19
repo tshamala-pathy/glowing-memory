@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
@@ -8,11 +8,11 @@ from blog.models import BlogPost
 from services.models import Service
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def search(request):
     """
-    Global search endpoint that searches across projects, blog posts, and services.
-    Query parameter: 'q' - search query string
+    Global search across portfolio projects, blog posts, and services.
+    Query param: q (required). Returns matches with id, title, description, type, url.
     """
     query = request.GET.get('q', '').strip()
     

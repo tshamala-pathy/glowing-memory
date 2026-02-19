@@ -2,6 +2,11 @@ from rest_framework import serializers
 from .models import CustomUser
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
 
 User = get_user_model()
 
@@ -73,8 +78,65 @@ class UserSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = CustomUser
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'is_superuser', 'is_staff', 'is_active', 'date_joined')
-        read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined')  # Make these fields read-only
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login')
+        read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login')
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for admin CRUD operations on users.
+    Allows editing more fields including is_active, is_staff, is_superuser.
+    """
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, validators=[validate_password])
+    
+    class Meta:
+        model = CustomUser
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'password')
+        read_only_fields = ('id', 'date_joined')  # Only id and date_joined are read-only
+    
+    def validate_email(self, value):
+        """Validate email uniqueness (excluding current user on update)."""
+        user = self.instance
+        if user and user.email == value:
+            return value
+        if CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+    
+    def validate_username(self, value):
+        """Validate username uniqueness (excluding current user on update)."""
+        user = self.instance
+        if user and user.username == value:
+            return value
+        if CustomUser.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        return value
+    
+    def create(self, validated_data):
+        """Create a new user with hashed password."""
+        password = validated_data.pop('password', None)
+        if not password:
+            raise serializers.ValidationError({'password': ['Password is required when creating a user.']})
+        
+        user = CustomUser.objects.create(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+    
+    def update(self, instance, validated_data):
+        """Update user, handling password separately."""
+        password = validated_data.pop('password', None)
+        
+        # Update all other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Update password if provided
+        if password:
+            instance.set_password(password)
+        
+        instance.save()
+        return instance
 
 
 # ================================
@@ -129,3 +191,126 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
+
+
+# ================================
+# Password Recovery Serializers
+# ================================
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for password reset request (forgot password).
+    Sends email with password reset link.
+    """
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        """Validate that email exists in the system."""
+        if not User.objects.filter(email=value, is_active=True).exists():
+            # Don't reveal if email exists for security
+            # Still return success to prevent email enumeration
+            return value
+        return value
+
+    def save(self):
+        """
+        Generate password reset token and send email.
+        """
+        email = self.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email, is_active=True)
+        except User.DoesNotExist:
+            # Return success even if user doesn't exist (security best practice)
+            return {'message': 'If an account exists with this email, a password reset link has been sent.'}
+        
+        # Generate token using Django's default token generator
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Build reset URL
+        # In production, this should be your frontend URL
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        reset_url = f"{frontend_url}/reset-password/{uid}/{token}/"
+        
+        # Send email
+        subject = 'Password Reset Request'
+        message = f"""
+Hello {user.first_name or user.email},
+
+You requested a password reset for your account.
+
+Click the following link to reset your password:
+{reset_url}
+
+This link will expire in 24 hours.
+
+If you did not request this password reset, please ignore this email.
+
+Best regards,
+PathyCode Team
+"""
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log error but don't reveal to user
+            print(f"Error sending password reset email: {e}")
+        
+        return {'message': 'If an account exists with this email, a password reset link has been sent.'}
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for password reset confirmation.
+    Validates token and sets new password.
+    """
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        validators=[validate_password],
+        help_text="New password must meet Django's validation rules."
+    )
+
+    def validate(self, attrs):
+        """
+        Validate token and user.
+        """
+        uid = attrs.get('uid')
+        token = attrs.get('token')
+        
+        try:
+            # Decode user ID
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id, is_active=True)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError({
+                'token': ['Invalid or expired reset token.']
+            })
+        
+        # Validate token
+        if not default_token_generator.check_token(user, token):
+            raise serializers.ValidationError({
+                'token': ['Invalid or expired reset token.']
+            })
+        
+        attrs['user'] = user
+        return attrs
+
+    def save(self):
+        """
+        Set new password for user.
+        """
+        user = self.validated_data['user']
+        new_password = self.validated_data['new_password']
+        user.set_password(new_password)
+        user.save()
+        return {'message': 'Password has been reset successfully.'}

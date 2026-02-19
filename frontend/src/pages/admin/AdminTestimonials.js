@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 
 const AdminTestimonials = () => {
   const { user, isAuthenticated } = useAuth();
@@ -32,7 +32,7 @@ const AdminTestimonials = () => {
       return;
     }
     if (user && user.is_superuser !== true) {
-      navigate('/dashboard');
+      navigate('/admin');
       return;
     }
     fetchTestimonials();
@@ -78,7 +78,7 @@ const AdminTestimonials = () => {
       is_approved: testimonial.is_approved || false,
       image: null,
     });
-    setImagePreview(testimonial.image ? `http://localhost:8000${testimonial.image}` : null);
+    setImagePreview(testimonial.image ? getMediaUrl(testimonial.image) : null);
     setShowForm(true);
   };
 

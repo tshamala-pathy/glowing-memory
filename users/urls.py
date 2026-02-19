@@ -1,14 +1,24 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, ProfileView, CustomTokenObtainPairView, UserListViewSet
+from .views import (
+    RegisterView,
+    ProfileView,
+    CustomTokenObtainPairView,
+    UserListViewSet,
+    UserAdminViewSet,
+    ForgotPasswordView,
+    ResetPasswordView
+)
 from rest_framework_simplejwt.views import TokenRefreshView
 
 # ================================
 # URL Configuration for User Authentication
 # ================================
+# Note: /api/profile/ (aggregated) is defined in PathyCodeback/urls.py
 
 router = DefaultRouter()
 router.register(r'list', UserListViewSet, basename='user-list')
+router.register(r'admin', UserAdminViewSet, basename='user-admin')
 
 urlpatterns = [
     # Endpoint for user registration
@@ -24,6 +34,10 @@ urlpatterns = [
 
     # Endpoint to refresh the JWT access token using a refresh token
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Password recovery endpoints
+    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset_password'),
     
     # Include router URLs for user list (admin only)
     path('', include(router.urls)),
