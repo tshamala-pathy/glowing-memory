@@ -13,6 +13,7 @@ const AdminContact = () => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, message: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -60,11 +61,27 @@ const AdminContact = () => {
     }
   };
 
-  const filteredMessages = messages.filter((message) =>
-    message.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.subject?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleStatusUpdate = async (message, newStatus) => {
+    try {
+      await api.patch(`/contact/${message.id}/`, { status: newStatus });
+      fetchMessages();
+      if (selectedMessage?.id === message.id) {
+        setSelectedMessage({ ...selectedMessage, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status');
+    }
+  };
+
+  const filteredMessages = messages.filter((message) => {
+    const matchesSearch =
+      message.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.subject?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const columns = [
     { header: 'Name', accessor: 'name' },
@@ -73,6 +90,20 @@ const AdminContact = () => {
       header: 'Subject',
       accessor: 'subject',
       render: (value) => <div className="max-w-md truncate">{value}</div>,
+    },
+    {
+      header: 'Status',
+      accessor: 'status',
+      render: (value) => (
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          value === 'Replied' ? 'bg-green-100 text-green-800' :
+          value === 'Read' ? 'bg-blue-100 text-blue-800' :
+          value === 'Archived' ? 'bg-gray-100 text-gray-800' :
+          'bg-amber-100 text-amber-800'
+        }`}>
+          {value || 'New'}
+        </span>
+      ),
     },
     {
       header: 'Created',
@@ -100,13 +131,26 @@ const AdminContact = () => {
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <input
-            type="text"
-            placeholder="Search messages..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Search messages..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="New">New</option>
+              <option value="Read">Read</option>
+              <option value="Replied">Replied</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -205,12 +249,25 @@ const AdminContact = () => {
                     <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <select
+                      value={selectedMessage.status || 'New'}
+                      onChange={(e) => handleStatusUpdate(selectedMessage, e.target.value)}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="New">New</option>
+                      <option value="Read">Read</option>
+                      <option value="Replied">Replied</option>
+                      <option value="Archived">Archived</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-gray-500">Received</label>
                     <p className="text-gray-900">
                       {new Date(selectedMessage.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 space-y-2">
                     <a
                       href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
                       className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

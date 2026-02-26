@@ -95,7 +95,7 @@ class InvoiceAdmin(admin.ModelAdmin):
                 obj.created_by = request.user
             
             # Validate quote is approved
-            if obj.quote and obj.quote.status != 'Approved':
+            if obj.quote and obj.quote.status != 'approved':
                 messages.error(request, 'Invoice can only be created from an approved quote. Please approve the quote first.')
                 return
         

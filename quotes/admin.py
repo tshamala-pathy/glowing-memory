@@ -3,16 +3,46 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.contrib import messages
 from django.utils import timezone
+from django import forms
+from django.core.exceptions import ValidationError
 from datetime import timedelta
 from .models import Quote
-from .views import send_quote_response_email
+from .views import send_quote_response_email, get_quote_payment_url
 
 # ================================
 # Quotes Admin Configuration
 # ================================
 
+
+class QuoteAdminForm(forms.ModelForm):
+    """Enforce quote status transitions in admin: pending→replied (admin). paid is system-only."""
+    class Meta:
+        model = Quote
+        fields = '__all__'
+
+    def clean_status(self):
+        status = self.cleaned_data.get('status')
+        if not self.instance or not self.instance.pk:
+            return status
+        old_status = Quote.objects.filter(pk=self.instance.pk).values_list('status', flat=True).first()
+        if old_status is None or old_status == status:
+            return status
+        try:
+            Quote.validate_status_transition(old_status, status)
+        except ValidationError as e:
+            if e.message_dict and 'status' in e.message_dict:
+                raise ValidationError(e.message_dict['status'])
+            raise
+        if status == 'paid':
+            raise ValidationError(
+                'Status "paid" is set by the system when the invoice is marked paid, not in admin.'
+            )
+        return status
+
+
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
+    form = QuoteAdminForm
     """
     Admin interface configuration for Quote model.
     
@@ -33,7 +63,7 @@ class QuoteAdmin(admin.ModelAdmin):
     # Filters available in the sidebar for quick filtering
     list_filter = [
         'status', 'service_type', 'requirements_accepted',
-        'created_at', 'replied_at', 'assigned_to', 'client'
+        'created_at', 'responded_at', 'assigned_to', 'client'
     ]
     
     # Fields searchable in the admin search bar
@@ -44,8 +74,8 @@ class QuoteAdmin(admin.ModelAdmin):
     
     # Fields that cannot be edited (auto-generated timestamps)
     readonly_fields = [
-        'created_at', 'updated_at', 'approved_at', 'replied_at',
-        'requirements_accepted_at', 'send_response_button'
+        'created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at',
+        'requirements_accepted_at', 'send_response_button', 'payment_url'
     ]
     
     raw_id_fields = ['client']
@@ -69,16 +99,16 @@ class QuoteAdmin(admin.ModelAdmin):
         }),
         ('Quote Response', {
             'fields': (
-                'status', 'estimated_amount', 'admin_response', 'send_response_button',
+                'status', 'estimated_amount', 'admin_response', 'payment_url', 'send_response_button',
                 'assigned_to', 'notes'
             ),
             'description': (
                 'Quote response information. Fill in admin_response and click "Send Response" '
-                'to email the client. Status will automatically change to "Replied" when email is sent.'
+                'to email the client. Status will automatically change to "replied" when email is sent.'
             )
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at', 'approved_at', 'replied_at'),
+            'fields': ('created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at'),
             'classes': ('collapse',),  # Collapsed by default to save space
             'description': 'Automatically tracked timestamps'
         }),
@@ -133,10 +163,19 @@ class QuoteAdmin(admin.ModelAdmin):
             return redirect('admin:quotes_quote_change', quote.id)
         
         try:
+            Quote.validate_status_transition(quote.status, 'replied')
+        except ValidationError as e:
+            messages.error(request, e.messages[0] if e.messages else str(e))
+            return redirect('admin:quotes_quote_change', quote.id)
+        try:
             send_quote_response_email(quote)
-            if quote.status != 'Replied':
-                quote.status = 'Replied'
-                quote.save(update_fields=['status'])
+            if quote.status != 'replied':
+                quote.status = 'replied'
+                quote.payment_url = get_quote_payment_url(quote)
+                quote.save(update_fields=['status', 'payment_url'])
+            elif not quote.payment_url:
+                quote.payment_url = get_quote_payment_url(quote)
+                quote.save(update_fields=['payment_url'])
             messages.success(request, f'Response email sent successfully to {quote.client_email}')
         except Exception as e:
             messages.error(request, f'Error sending email: {str(e)}')
@@ -147,16 +186,18 @@ class QuoteAdmin(admin.ModelAdmin):
         """
         Override save to handle status changes and email sending.
         """
-        # If status is being changed to 'Replied' and admin_response exists, send email
+        # If status is being changed to 'replied' and admin_response exists, send email and set payment_url
         if change:
             old_obj = Quote.objects.get(pk=obj.pk)
-            if (obj.status == 'Replied' and obj.admin_response and 
-                (old_obj.status != 'Replied' or old_obj.admin_response != obj.admin_response)):
+            if (obj.status == 'replied' and obj.admin_response and 
+                (old_obj.status != 'replied' or old_obj.admin_response != obj.admin_response)):
                 try:
                     send_quote_response_email(obj)
                 except Exception as e:
                     # Log error but don't fail the save
                     print(f"Error sending quote response email: {e}")
+            if obj.status == 'replied' and not obj.payment_url:
+                obj.payment_url = get_quote_payment_url(obj)
         
         super().save_model(request, obj, form, change)
     
@@ -177,9 +218,9 @@ class QuoteAdmin(admin.ModelAdmin):
         
         for quote in queryset:
             # Validate quote is approved
-            if quote.status != 'Approved':
+            if quote.status != 'approved':
                 error_count += 1
-                messages.error(request, f'Quote "{quote.project_title}" is not approved. Status: {quote.status}')
+                messages.error(request, f'Quote "{quote.project_title}" is not approved. Status: {quote.status}.')
                 continue
             
             # Check if invoice already exists
@@ -200,7 +241,7 @@ class QuoteAdmin(admin.ModelAdmin):
                     created_by=request.user,
                     issue_date=timezone.now().date(),
                     due_date=timezone.now().date() + timedelta(days=30),
-                    status='Draft'
+                    status='draft'
                 )
                 
                 # Calculate totals (this also populates data from quote)

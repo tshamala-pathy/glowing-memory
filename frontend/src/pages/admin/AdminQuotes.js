@@ -6,6 +6,14 @@ import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api from '../../services/api';
 
+// Backend uses lowercase status; display labels in UI
+const QUOTE_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'replied', label: 'Replied' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'declined', label: 'Declined' },
+];
+
 const AdminQuotes = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +41,7 @@ const AdminQuotes = () => {
     deadline: '',
     timeline: '',
     estimated_amount: '',
-    status: 'Pending',
+    status: 'pending',
     notes: '',
     admin_response: '',
     assigned_to: '',
@@ -100,7 +108,7 @@ const AdminQuotes = () => {
       deadline: quote.deadline || '',
       timeline: quote.timeline || '',
       estimated_amount: quote.estimated_amount || '',
-      status: quote.status || 'Pending',
+      status: quote.status || 'pending',
       notes: quote.notes || '',
       admin_response: quote.admin_response || '',
       assigned_to: quote.assigned_to || '',
@@ -162,7 +170,7 @@ const AdminQuotes = () => {
       alert('Response email sent successfully!');
       fetchQuotes();
       if (selectedQuote && selectedQuote.id === quote.id) {
-        setSelectedQuote({ ...selectedQuote, status: 'Replied' });
+        setSelectedQuote({ ...selectedQuote, status: 'replied' });
       }
     } catch (error) {
       console.error('Error sending response email:', error);
@@ -179,7 +187,10 @@ const AdminQuotes = () => {
         submitData.assigned_to = null;
       }
       if (editingQuote) {
-        await api.put(`/quotes/${editingQuote.id}/`, submitData);
+        const { data } = await api.put(`/quotes/${editingQuote.id}/`, submitData);
+        if (selectedQuote && selectedQuote.id === editingQuote.id) {
+          setSelectedQuote(data);
+        }
       }
       fetchQuotes();
       setShowForm(false);
@@ -207,17 +218,15 @@ const AdminQuotes = () => {
     {
       header: 'Status',
       accessor: 'status',
-      render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          value === 'Approved' ? 'bg-green-100 text-green-800' :
-          value === 'Rejected' ? 'bg-red-100 text-red-800' :
-          value === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-          value === 'Completed' ? 'bg-purple-100 text-purple-800' :
-          'bg-yellow-100 text-yellow-800'
-        }`}>
-          {value}
-        </span>
-      ),
+      render: (value) => {
+        const opt = QUOTE_STATUS_OPTIONS.find((o) => o.value === value);
+        const label = opt ? opt.label : value;
+        const style = value === 'approved' || value === 'paid' ? 'bg-green-100 text-green-800' :
+          value === 'declined' ? 'bg-red-100 text-red-800' :
+          value === 'replied' ? 'bg-blue-100 text-blue-800' :
+          'bg-yellow-100 text-yellow-800';
+        return <span className={`px-2 py-1 text-xs rounded-full ${style}`}>{label}</span>;
+      },
     },
     {
       header: 'Estimated',
@@ -275,13 +284,9 @@ const AdminQuotes = () => {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Reviewed">Reviewed</option>
-              <option value="Replied">Replied</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
+              {QUOTE_STATUS_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -348,13 +353,18 @@ const AdminQuotes = () => {
                   {selectedQuote.admin_response && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Admin Response</label>
+                      {selectedQuote.responded_at && (
+                        <p className="text-xs text-gray-500 mb-1">
+                          Replied at {new Date(selectedQuote.responded_at).toLocaleString()}
+                        </p>
+                      )}
                       <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">
                         {selectedQuote.admin_response}
                       </p>
                     </div>
                   )}
                   <div className="pt-4 border-t border-gray-200 space-y-2">
-                    {selectedQuote.status === 'Pending' && (
+                    {selectedQuote.status === 'pending' && (
                       <>
                         <button
                           onClick={() => handleApprove(selectedQuote)}
@@ -370,7 +380,7 @@ const AdminQuotes = () => {
                         </button>
                       </>
                     )}
-                    {selectedQuote.admin_response && selectedQuote.status !== 'Replied' && (
+                    {selectedQuote.admin_response && selectedQuote.status !== 'replied' && (
                       <button
                         onClick={() => handleSendResponse(selectedQuote)}
                         className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -408,13 +418,9 @@ const AdminQuotes = () => {
                           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
-                          <option value="Pending">Pending</option>
-                          <option value="Reviewed">Reviewed</option>
-                          <option value="Replied">Replied</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Rejected">Rejected</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
+                          {QUOTE_STATUS_OPTIONS.map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
                         </select>
                       </div>
                       <div>
@@ -453,7 +459,7 @@ const AdminQuotes = () => {
                         rows={6}
                         value={formData.admin_response}
                         onChange={(e) => setFormData({ ...formData, admin_response: e.target.value })}
-                        placeholder="Enter your response to the client. This will be sent via email when status is set to 'Replied' or when you click 'Send Response Email'."
+                        placeholder="Enter your response to the client. Saving with status 'Replied' will set the reply and send the email."
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
                       <p className="mt-1 text-xs text-gray-500">

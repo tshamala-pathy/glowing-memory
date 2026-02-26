@@ -33,8 +33,9 @@ class ProjectAPITest(APITestCase):
         )
 
     def test_list_projects(self):
-        url = reverse('project-list')
+        url = reverse('portfolio-list')  # projects app public list (not clients' project-list)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['title'], 'API Test Project')
+        results = response.data.get('results', response.data)  # paginated vs list
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], 'API Test Project')

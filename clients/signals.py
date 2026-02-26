@@ -10,8 +10,10 @@ from django.contrib.auth import get_user_model
 from invoices.models import Invoice
 from quotes.models import Quote
 from .models import Client, Project
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=User)
@@ -57,12 +59,15 @@ def create_project_on_invoice_paid(sender, instance, **kwargs):
             new_status = instance.status
             
             # Only create project if status is changing TO "Paid"
-            if old_status != 'Paid' and new_status == 'Paid':
+            if old_status != 'paid' and new_status == 'paid':
                 # Get the quote from the invoice
                 quote = instance.quote
                 
                 if not quote:
-                    print(f"Warning: Invoice {instance.invoice_number} has no quote, cannot create project")
+                    logger.warning(
+                        "Invoice %s has no quote, cannot create project",
+                        instance.invoice_number,
+                    )
                     return
                 
                 # Resolve Client: use quote.client, or find by quote.client_email (User -> client_profile)
@@ -74,7 +79,11 @@ def create_project_on_invoice_paid(sender, instance, **kwargs):
                     except User.DoesNotExist:
                         pass
                 if not client:
-                    print(f"Warning: No Client for quote {quote.client_email}. Cannot create project for invoice {instance.invoice_number}")
+                    logger.warning(
+                        "No Client for quote %s. Cannot create project for invoice %s",
+                        quote.client_email,
+                        instance.invoice_number,
+                    )
                     return
                 if Project.objects.filter(invoice=instance).exists():
                     return
@@ -94,4 +103,4 @@ def create_project_on_invoice_paid(sender, instance, **kwargs):
             pass
         except Exception as e:
             # Log error but don't fail the invoice save
-            print(f"Error creating project from invoice: {e}")
+            logger.error("Error creating project from invoice: %s", e, exc_info=True)

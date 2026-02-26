@@ -3,7 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from datetime import timedelta
+from datetime import timedelta, date
 from django.utils import timezone
 
 
@@ -16,7 +16,7 @@ class Invoice(models.Model):
 
     Business Rules:
     - An Invoice MUST be linked to an approved Quote (OneToOne relationship)
-    - Invoice cannot be created unless Quote status is 'Approved'
+    - Invoice cannot be created unless Quote status is 'approved'
     - Invoice data is auto-populated from the linked Quote
     - Quote data remains immutable after invoice generation for audit purposes
 
@@ -28,11 +28,11 @@ class Invoice(models.Model):
     5. Payment is tracked via Invoice status
     """
     STATUS_CHOICES = [
-        ('Draft', 'Draft'),
-        ('Sent', 'Sent'),
-        ('Paid', 'Paid'),
-        ('Overdue', 'Overdue'),
-        ('Cancelled', 'Cancelled'),
+        ('draft', 'Draft'),
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
     ]
     
     PAYMENT_METHOD_CHOICES = [
@@ -162,11 +162,16 @@ class Invoice(models.Model):
     paid_date = models.DateField(
         blank=True,
         null=True,
-        help_text="Date payment was received"
+        help_text="Date payment was received (use paid_at for exact timestamp)"
     )
-    
+    paid_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Timestamp when invoice was marked paid (by admin)"
+    )
+
     # Status and Payment
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
     payment_reference = models.CharField(max_length=100, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
@@ -191,7 +196,7 @@ class Invoice(models.Model):
         Validate that the quote is approved before allowing invoice creation.
         This is called by Django's model validation.
         """
-        if self.quote and self.quote.status != 'Approved':
+        if self.quote and self.quote.status != 'approved':
             raise ValidationError({
                 'quote': 'Invoice can only be created from an approved quote. Please approve the quote first.'
             })
@@ -217,7 +222,7 @@ class Invoice(models.Model):
         5. Calculate totals
         """
         # Validate quote is approved
-        if self.quote and self.quote.status != 'Approved':
+        if self.quote and self.quote.status != 'approved':
             raise ValidationError('Invoice can only be created from an approved quote.')
 
         # Auto-generate unique invoice_number if blank/empty (prevents duplicate or blank)
@@ -228,9 +233,12 @@ class Invoice(models.Model):
         if self.pk is None and self.quote:
             self._populate_from_quote()
 
-        # Set default due date if not provided
+        # Set default due date if not provided (issue_date may be date or datetime from default=timezone.now)
         if not self.due_date:
-            self.due_date = self.issue_date + timedelta(days=30)
+            issue = self.issue_date
+            if hasattr(issue, 'date') and callable(getattr(issue, 'date')):
+                issue = issue.date()
+            self.due_date = issue + timedelta(days=30)
 
         # Calculate totals
         self.calculate_totals()
@@ -309,14 +317,12 @@ class Invoice(models.Model):
         
         # Calculate amount due
         self.amount_due = self.total_amount - self.amount_paid
-        
-        # Auto-update status based on payment
-        if self.amount_due <= Decimal('0.00') and self.status != 'Paid':
-            self.status = 'Paid'
-            if not self.paid_date:
-                self.paid_date = timezone.now().date()
-        elif self.due_date and timezone.now().date() > self.due_date and self.status not in ['Paid', 'Cancelled']:
-            self.status = 'Overdue'
+
+        # Auto-set overdue: today > due_date and not paid/cancelled (paid is set only by admin via mark_paid)
+        if self.due_date and self.status not in ('paid', 'cancelled'):
+            due_as_date = self.due_date.date() if hasattr(self.due_date, 'date') else self.due_date
+            if due_as_date and timezone.now().date() > due_as_date:
+                self.status = 'overdue'
     
     class Meta:
         ordering = ['-created_at']

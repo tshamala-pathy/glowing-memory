@@ -1,6 +1,7 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
@@ -10,8 +11,49 @@ from rest_framework.permissions import IsAuthenticated
 from PathyCodeback.permissions import IsSuperuser
 from .models import Quote
 from .serializers import QuoteSerializer
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+def _auto_create_invoice_for_quote(quote, created_by=None):
+    """
+    When client approves a quote, automatically create an Invoice.
+    Copies quote details, links to client, sets status to Draft (unpaid).
+    Idempotent: no-op if an invoice already exists for this quote.
+    Does not raise: approval always succeeds even if invoice creation fails.
+    """
+    try:
+        from invoices.models import Invoice
+        if quote.status != 'approved':
+            return
+        if Invoice.objects.filter(quote=quote).exists():
+            return
+        invoice = Invoice(
+            quote=quote,
+            status='draft',
+            created_by=created_by,
+        )
+        invoice.save()
+    except Exception as e:
+        logger.warning(
+            "Auto-create invoice for quote %s failed: %s",
+            getattr(quote, "id", None),
+            e,
+            exc_info=True,
+        )
+
+
+def get_quote_payment_url(quote):
+    """
+    Generate payment link for a quote (placeholder: frontend portal with quote id).
+    Used when admin marks quote as replied.
+    """
+    base = getattr(settings, 'FRONTEND_URL', '').strip().rstrip('/')
+    if base:
+        return f"{base}/portal?quote={quote.id}"
+    return f"/portal?quote={quote.id}"
 
 
 def send_quote_confirmation_email(quote):
@@ -21,7 +63,7 @@ def send_quote_confirmation_email(quote):
     Args:
         quote: Quote instance that was just created
     """
-    subject = 'Quote Request Received - PathyCode'
+    subject = "Quote Request Received - PathyCode"
     message = f"""
 Hello {quote.client_name},
 
@@ -45,13 +87,15 @@ PathyCode Team
         send_mail(
             subject=subject,
             message=message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+            from_email=getattr(
+                settings, "DEFAULT_FROM_EMAIL", "noreply@pathycodes.com"
+            ),
             recipient_list=[quote.client_email],
             fail_silently=False,
         )
     except Exception as e:
         # Log error but don't fail the quote creation
-        print(f"Error sending quote confirmation email: {e}")
+        logger.error("Error sending quote confirmation email: %s", e, exc_info=True)
 
 
 def send_admin_notification_email(quote):
@@ -69,10 +113,10 @@ def send_admin_notification_email(quote):
         admin_users = User.objects.filter(is_staff=True, is_active=True)
     
     if not admin_users.exists():
-        print("Warning: No admin users found to notify about new quote request")
+        logger.warning("No admin users found to notify about new quote request")
         return
     
-    subject = f'New Quote Request: {quote.project_title}'
+    subject = f"New Quote Request: {quote.project_title}"
     message = f"""
 A new quote request has been submitted:
 
@@ -97,12 +141,16 @@ Quote ID: {quote.id}
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+                from_email=getattr(
+                    settings, "DEFAULT_FROM_EMAIL", "noreply@pathycodes.com"
+                ),
                 recipient_list=admin_emails,
                 fail_silently=False,
             )
         except Exception as e:
-            print(f"Error sending admin notification email: {e}")
+            logger.error(
+                "Error sending admin notification email: %s", e, exc_info=True
+            )
 
 
 def send_quote_response_email(quote):
@@ -115,7 +163,7 @@ def send_quote_response_email(quote):
     if not quote.admin_response:
         return
     
-    subject = f'Response to Your Quote Request: {quote.project_title}'
+    subject = f"Response to Your Quote Request: {quote.project_title}"
     message = f"""
 Hello {quote.client_name},
 
@@ -134,36 +182,48 @@ PathyCode Team
         send_mail(
             subject=subject,
             message=message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+            from_email=getattr(
+                settings, "DEFAULT_FROM_EMAIL", "noreply@pathycodes.com"
+            ),
             recipient_list=[quote.client_email],
             fail_silently=False,
         )
-        # Update replied_at timestamp
-        quote.replied_at = timezone.now()
-        quote.save(update_fields=['replied_at'])
+        # Update responded_at timestamp
+        quote.responded_at = timezone.now()
+        quote.save(update_fields=["responded_at"])
     except Exception as e:
-        print(f"Error sending quote response email: {e}")
+        logger.error("Error sending quote response email: %s", e, exc_info=True)
 
 
 class QuoteViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing quotes/estimates.
-    
-    Quote Request Workflow:
-    1. Client submits quote (public POST) → Email confirmation sent to client, admin notified
-    2. Admin reviews quote → Updates status, adds admin_response
-    3. Admin marks as "Replied" → Response email sent to client
-    
-    Permissions:
-    - Anyone can create a quote (public submission)
-    - Only authenticated users can view/list quotes
-    - Only authenticated users can update/delete quotes
+
+    Access control:
+    - Clients never see other clients' quotes. get_queryset() restricts non-superusers
+      to quotes where request.user is the owner (client FK or client_email match).
+    - Superuser (admin) has full control: list all, retrieve any, update, delete,
+      send_response, approve, reject.
+
+    Quote workflow:
+    1. Client submits quote (public POST) → confirmation email, admin notified
+    2. Admin reviews → updates status, admin_response; marks "Replied" → response email
+    3. Client approves/declines via decision action (owner-only)
     """
     queryset = Quote.objects.all().order_by('-created_at')
     serializer_class = QuoteSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['client', 'status']
+    search_fields = ['project_title', 'client_name', 'client_email', 'company_name']
+    ordering_fields = ['created_at', 'status']
+    ordering = ['-created_at']
 
     def get_queryset(self):
-        """Non-superusers see only their Client's quotes (by client FK or client_email)."""
+        """
+        Restrict so clients never access other clients' quotes.
+        Non-superusers: only quotes where client=request.user's client_profile, or
+        client is null and client_email matches request.user.email. Superusers: all.
+        """
         qs = super().get_queryset()
         if self.request.user.is_authenticated and not self.request.user.is_superuser:
             profile = getattr(self.request.user, 'client_profile', None)
@@ -174,11 +234,13 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Create: public. List/retrieve: authenticated (clients see own only). Update/delete/actions: superuser only.
+        Create: public. List/retrieve: authenticated (clients see own only).
+        decision: authenticated, owner-only (enforced by get_queryset).
+        Update/delete/other actions: superuser only.
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        elif self.action in ('list', 'retrieve'):
+        elif self.action in ('list', 'retrieve', 'decision'):
             permission_classes = [IsAuthenticated]
         else:
             permission_classes = [IsSuperuser]
@@ -222,49 +284,68 @@ class QuoteViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """
         Update a quote (admin only).
-        
-        If status is changed to 'Replied' and admin_response is provided,
-        automatically sends response email to client.
+        Enforces state machine: only pending → replied is allowed for admin.
+        Status 'paid' is system-only (set when invoice is marked paid).
         """
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        
-        # Check if status is being changed to 'Replied' and admin_response exists
         old_status = instance.status
         new_status = request.data.get('status', old_status)
+
+        if new_status == 'paid':
+            return Response(
+                {'status': ['Quote status "paid" is set by the system after payment success, not by admin.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if old_status != new_status:
+            try:
+                Quote.validate_status_transition(old_status, new_status)
+            except Exception as e:
+                if hasattr(e, 'message_dict'):
+                    return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         admin_response = request.data.get('admin_response', instance.admin_response)
-        
         quote = serializer.save()
-        
-        # Send response email if status changed to 'Replied' and response exists
-        if new_status == 'Replied' and admin_response and old_status != 'Replied':
+
+        if new_status == 'replied' and admin_response and old_status != 'replied':
+            quote.responded_at = timezone.now()
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['responded_at', 'payment_url'])
             send_quote_response_email(quote)
-        
+
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def send_response(self, request, pk=None):
         """
-        Manually trigger sending of admin response email to client.
-        Requires admin_response to be set.
+        Manually trigger sending of admin response email to client (admin only).
+        Enforces pending → replied. Requires admin_response to be set.
         """
         quote = self.get_object()
-        
         if not quote.admin_response:
             return Response(
                 {'error': 'Admin response must be set before sending email.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+        try:
+            Quote.validate_status_transition(quote.status, 'replied')
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+
         send_quote_response_email(quote)
-        
-        # Update status to 'Replied' if not already
-        if quote.status != 'Replied':
-            quote.status = 'Replied'
-            quote.save(update_fields=['status'])
-        
+        if quote.status != 'replied':
+            quote.status = 'replied'
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['status', 'payment_url'])
+        elif not quote.payment_url:
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['payment_url'])
+
         serializer = self.get_serializer(quote)
         return Response({
             'message': 'Response email sent successfully.',
@@ -272,22 +353,80 @@ class QuoteViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=True, methods=['post'])
-    def approve(self, request, pk=None):
-        """Approve a quote."""
+    def decision(self, request, pk=None):
+        """
+        Client decision endpoint: approve or decline a quote.
+
+        Permission: Authenticated users only. Access is owner-only: get_object() uses
+        get_queryset(), which restricts to quotes where request.user is the client
+        (by client FK or client_email). Clients cannot access other clients' quotes;
+        404 is returned for non-owner access.
+        POST body: { "decision": "approve" } or { "decision": "decline" }
+        """
         quote = self.get_object()
-        quote.status = 'Approved'
-        quote.approved_at = timezone.now()
-        quote.assigned_to = request.user
-        quote.save()
+        decision = (request.data.get('decision') or '').strip().lower()
+        if decision not in ('approve', 'decline'):
+            return Response(
+                {'decision': ['Must be "approve" or "decline".']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Client can only approve/decline from 'replied'
+        try:
+            Quote.validate_status_transition(quote.status, 'approved' if decision == 'approve' else 'declined')
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        quote.client_decision_at = now
+        if decision == 'approve':
+            quote.status = 'approved'
+            quote.approved_at = now
+            quote.assigned_to = request.user
+            quote.save(update_fields=['status', 'client_decision_at', 'approved_at', 'assigned_to'])
+            # Ensure payment_url exists so frontend can redirect to payment (set when admin replied; fallback here)
+            if not quote.payment_url:
+                quote.payment_url = get_quote_payment_url(quote)
+                quote.save(update_fields=['payment_url'])
+            _auto_create_invoice_for_quote(quote, created_by=request.user)
+        else:
+            quote.status = 'declined'
+            quote.save(update_fields=['status', 'client_decision_at'])
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
-    def reject(self, request, pk=None):
-        """Reject a quote."""
+    def approve(self, request, pk=None):
+        """Approve a quote (admin only). Enforces replied → approved."""
         quote = self.get_object()
-        quote.status = 'Rejected'
-        quote.save()
+        try:
+            Quote.validate_status_transition(quote.status, 'approved')
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+        quote.status = 'approved'
+        quote.approved_at = timezone.now()
+        quote.client_decision_at = timezone.now()
+        quote.assigned_to = request.user
+        quote.save(update_fields=['status', 'approved_at', 'client_decision_at', 'assigned_to'])
+        serializer = self.get_serializer(quote)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Decline a quote (admin only). Enforces replied → declined."""
+        quote = self.get_object()
+        try:
+            Quote.validate_status_transition(quote.status, 'declined')
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+        quote.status = 'declined'
+        quote.client_decision_at = timezone.now()
+        quote.save(update_fields=['status', 'client_decision_at'])
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 

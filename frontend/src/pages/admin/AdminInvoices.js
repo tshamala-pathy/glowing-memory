@@ -5,6 +5,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api from '../../services/api';
+import { getInvoiceStatusClass, getInvoiceStatusLabel } from '../../utils/formatters';
 
 const AdminInvoices = () => {
   const { user, isAuthenticated } = useAuth();
@@ -44,13 +45,20 @@ const AdminInvoices = () => {
     issue_date: new Date().toISOString().split('T')[0],
     due_date: '',
     paid_date: '',
-    status: 'Draft',
+    status: 'draft',
     payment_method: '',
     payment_reference: '',
     notes: '',
     created_by: '',
   });
   const [currentItem, setCurrentItem] = useState({ description: '', quantity: '1', price: '0.00' });
+  const [createFromQuoteModal, setCreateFromQuoteModal] = useState(false);
+  const [createFromQuoteData, setCreateFromQuoteData] = useState({
+    quote_id: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    status: 'draft',
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -135,7 +143,7 @@ const AdminInvoices = () => {
       issue_date: new Date().toISOString().split('T')[0],
       due_date: '',
       paid_date: '',
-      status: 'Draft',
+      status: 'draft',
       payment_method: '',
       payment_reference: '',
       notes: '',
@@ -171,7 +179,7 @@ const AdminInvoices = () => {
       issue_date: invoice.issue_date || new Date().toISOString().split('T')[0],
       due_date: invoice.due_date || '',
       paid_date: invoice.paid_date || '',
-      status: invoice.status || 'Draft',
+      status: invoice.status || 'draft',
       payment_method: invoice.payment_method || '',
       payment_reference: invoice.payment_reference || '',
       notes: invoice.notes || '',
@@ -217,6 +225,46 @@ const AdminInvoices = () => {
       alert('Failed to download PDF');
     }
   };
+
+  const handleCreateFromQuote = () => {
+    const due = new Date();
+    due.setDate(due.getDate() + 30);
+    setCreateFromQuoteData({
+      quote_id: '',
+      issue_date: new Date().toISOString().split('T')[0],
+      due_date: due.toISOString().split('T')[0],
+      status: 'draft',
+    });
+    setCreateFromQuoteModal(true);
+  };
+
+  const handleSubmitCreateFromQuote = async (e) => {
+    e.preventDefault();
+    if (!createFromQuoteData.quote_id) {
+      alert('Please select a quote');
+      return;
+    }
+    try {
+      await api.post('/invoices/create_from_quote/', {
+        quote_id: parseInt(createFromQuoteData.quote_id, 10),
+        issue_date: createFromQuoteData.issue_date,
+        due_date: createFromQuoteData.due_date || undefined,
+        status: createFromQuoteData.status,
+      });
+      fetchInvoices();
+      setCreateFromQuoteModal(false);
+    } catch (error) {
+      const msg = error.response?.data?.error || 
+        Object.values(error.response?.data || {}).flat().join(', ') ||
+        'Failed to create invoice from quote';
+      alert(msg);
+    }
+  };
+
+  const approvedQuotesWithoutInvoice = quotes.filter((q) => {
+    if (q.status !== 'Approved') return false;
+    return !invoices.some((inv) => inv.quote === q.id || inv.quote?.id === q.id);
+  });
 
   const handleMarkPaid = async (invoice) => {
     try {
@@ -331,14 +379,8 @@ const AdminInvoices = () => {
       header: 'Status',
       accessor: 'status',
       render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          value === 'Paid' ? 'bg-green-100 text-green-800' :
-          value === 'Sent' ? 'bg-blue-100 text-blue-800' :
-          value === 'Overdue' ? 'bg-red-100 text-red-800' :
-          value === 'Draft' ? 'bg-gray-100 text-gray-800' :
-          'bg-yellow-100 text-yellow-800'
-        }`}>
-          {value}
+        <span className={`px-2 py-1 text-xs rounded-full ${getInvoiceStatusClass(value)}`}>
+          {getInvoiceStatusLabel(value)}
         </span>
       ),
     },
@@ -401,10 +443,11 @@ const AdminInvoices = () => {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Statuses</option>
-              <option value="Draft">Draft</option>
-              <option value="Sent">Sent</option>
-              <option value="Paid">Paid</option>
-              <option value="Overdue">Overdue</option>
+              <option value="draft">Draft</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="cancelled">Cancelled</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -460,7 +503,7 @@ const AdminInvoices = () => {
                     >
                       Download PDF
                     </button>
-                    {selectedInvoice.status !== 'Paid' && (
+                    {selectedInvoice.status !== 'paid' && (
                       <button
                         onClick={() => handleMarkPaid(selectedInvoice)}
                         className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -519,10 +562,11 @@ const AdminInvoices = () => {
                             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           >
-                            <option value="Draft">Draft</option>
-                            <option value="Sent">Sent</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Overdue">Overdue</option>
+                            <option value="draft">Draft</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="paid">Paid</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="cancelled">Cancelled</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
                         </div>
@@ -872,6 +916,93 @@ const AdminInvoices = () => {
                       className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
                     >
                       {editingInvoice ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create from Quote Modal */}
+        {createFromQuoteModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setCreateFromQuoteModal(false)}></div>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <form onSubmit={handleSubmitCreateFromQuote} className="p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Create Invoice from Approved Quote</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Select an approved quote that does not yet have an invoice. Client and project details will be copied automatically.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Quote *</label>
+                      <select
+                        required
+                        value={createFromQuoteData.quote_id}
+                        onChange={(e) => setCreateFromQuoteData({ ...createFromQuoteData, quote_id: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">-- Select Quote --</option>
+                        {approvedQuotesWithoutInvoice.map((q) => (
+                          <option key={q.id} value={q.id}>
+                            {q.project_title} - {q.client_name} (Approved)
+                          </option>
+                        ))}
+                      </select>
+                      {approvedQuotesWithoutInvoice.length === 0 && (
+                        <p className="mt-1 text-sm text-amber-600">No approved quotes without an invoice.</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Issue Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={createFromQuoteData.issue_date}
+                        onChange={(e) => setCreateFromQuoteData({ ...createFromQuoteData, issue_date: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                      <input
+                        type="date"
+                        value={createFromQuoteData.due_date}
+                        onChange={(e) => setCreateFromQuoteData({ ...createFromQuoteData, due_date: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status</label>
+                      <select
+                        value={createFromQuoteData.status}
+                        onChange={(e) => setCreateFromQuoteData({ ...createFromQuoteData, status: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="unpaid">Unpaid</option>
+                        <option value="paid">Paid</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setCreateFromQuoteModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={approvedQuotesWithoutInvoice.length === 0}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Create Invoice
                     </button>
                   </div>
                 </form>

@@ -2,6 +2,53 @@ from rest_framework import serializers
 from .models import Quote
 
 
+class ProfileQuoteSerializer(serializers.ModelSerializer):
+    """
+    Serializer for quote data in the profile API (/api/profile/).
+    Returns only fields needed for the client profile: id, title, description,
+    item_breakdown, total_price, status, admin_response, created_at, responded_at.
+    """
+    title = serializers.CharField(source='project_title', read_only=True)
+    description = serializers.CharField(source='project_description', read_only=True)
+    total_price = serializers.DecimalField(
+        source='estimated_amount',
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True
+    )
+    item_breakdown = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Quote
+        fields = [
+            'id',
+            'title',
+            'description',
+            'item_breakdown',
+            'total_price',
+            'status',
+            'admin_response',
+            'payment_url',
+            'created_at',
+            'responded_at',
+        ]
+
+    def get_item_breakdown(self, obj):
+        """
+        Quote has no line items; return a single summary item when estimated_amount exists,
+        otherwise empty list. Enables future extension (e.g. quote line items).
+        """
+        if obj.estimated_amount is not None:
+            return [
+                {
+                    'description': obj.project_title or 'Project estimate',
+                    'amount': str(obj.estimated_amount),
+                }
+            ]
+        return []
+
+
 class QuoteSerializer(serializers.ModelSerializer):
     """
     Serializer for Quote model.
@@ -20,12 +67,12 @@ class QuoteSerializer(serializers.ModelSerializer):
             'id', 'client', 'client_name', 'client_email', 'client_phone', 'company_name',
             'project_title', 'project_description', 'project_type', 'service_type',
             'budget_range', 'deadline', 'timeline', 'estimated_amount', 'status',
-            'notes', 'admin_response', 'assigned_to', 'assigned_to_name',
+            'notes', 'admin_response', 'payment_url', 'assigned_to', 'assigned_to_name',
             'assigned_to_email', 'requirements_accepted', 'requirements_accepted_at',
-            'created_at', 'updated_at', 'approved_at', 'replied_at'
+            'created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at'
         ]
         read_only_fields = [
-            'id', 'client', 'created_at', 'updated_at', 'approved_at', 'replied_at',
+            'id', 'client', 'created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at',
             'requirements_accepted_at', 'assigned_to_name', 'assigned_to_email'
         ]
     

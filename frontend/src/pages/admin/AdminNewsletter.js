@@ -11,8 +11,12 @@ const AdminNewsletter = () => {
   const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, subscription: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [formData, setFormData] = useState({ email: '', name: '', is_active: true });
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -46,6 +50,42 @@ const AdminNewsletter = () => {
     }
   };
 
+  const handleCreate = () => {
+    setEditingSubscription(null);
+    setFormData({ email: '', name: '', is_active: true });
+    setShowForm(true);
+  };
+
+  const handleEdit = (subscription) => {
+    setEditingSubscription(subscription);
+    setFormData({
+      email: subscription.email || '',
+      name: subscription.name || '',
+      is_active: subscription.is_active !== false,
+    });
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingSubscription) {
+        await api.patch(`/newsletter/subscriptions/${editingSubscription.id}/`, formData);
+      } else {
+        await api.post('/newsletter/subscriptions/', formData);
+      }
+      fetchSubscriptions();
+      setShowForm(false);
+      setEditingSubscription(null);
+    } catch (err) {
+      const msg = err.response?.data?.email?.[0] ||
+        err.response?.data?.detail ||
+        Object.values(err.response?.data || {}).flat().join(', ') ||
+        'Failed to save subscription';
+      alert(msg);
+    }
+  };
+
   const handleDelete = (subscription) => {
     setDeleteDialog({ open: true, subscription });
   };
@@ -64,10 +104,16 @@ const AdminNewsletter = () => {
     }
   };
 
-  const filteredSubscriptions = subscriptions.filter((subscription) =>
-    subscription.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    subscription.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSubscriptions = subscriptions.filter((subscription) => {
+    const matchesSearch =
+      subscription.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      subscription.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && subscription.is_active) ||
+      (statusFilter === 'inactive' && !subscription.is_active);
+    return matchesSearch && matchesStatus;
+  });
 
   const columns = [
     { header: 'Email', accessor: 'email' },
@@ -108,9 +154,17 @@ const AdminNewsletter = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Newsletter Subscriptions</h1>
-          <p className="text-gray-600 mt-1">Manage newsletter subscribers</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Newsletter Subscriptions</h1>
+            <p className="text-gray-600 mt-1">Manage newsletter subscribers</p>
+          </div>
+          <button
+            onClick={handleCreate}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + Add Subscription
+          </button>
         </div>
 
         {error && (
@@ -132,21 +186,95 @@ const AdminNewsletter = () => {
         )}
 
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <input
-            type="text"
-            placeholder="Search subscriptions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Search subscriptions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
 
         <DataTable
           columns={columns}
           data={filteredSubscriptions}
+          onEdit={handleEdit}
           onDelete={subscriptions.length > 0 ? handleDelete : undefined}
           emptyMessage={error ? "Endpoint not available" : "No newsletter subscriptions found"}
         />
+
+        {showForm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowForm(false)}></div>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <form onSubmit={handleSubmit} className="p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {editingSubscription ? 'Edit Subscription' : 'Add Subscription'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        disabled={!!editingSubscription}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Name</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="is_active"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">Active</label>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
+                    >
+                      {editingSubscription ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Statistics</h3>

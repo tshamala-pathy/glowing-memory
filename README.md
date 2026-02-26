@@ -2,6 +2,8 @@
 
 A comprehensive full-stack web application built with Django REST Framework and React for managing a digital portfolio, blog, services, client quotes, and more.
 
+![PathyCode UI Screenshot](docs/pathycode-ui-screenshot.png)
+
 ## Features
 
 - **Project Portfolio**: Showcase projects with images, descriptions, and technologies

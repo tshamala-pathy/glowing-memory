@@ -2,31 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AdminLayout = ({ children }) => {
+const AdminLayout = ({ children, allowStaff = false }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    // Ensure user is authenticated and is superuser
+    // Ensure user is authenticated and is superuser (or staff if allowStaff)
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    if (user && user.is_superuser !== true) {
+    const hasAccess = user?.is_superuser === true || (allowStaff && user?.is_staff === true);
+    if (user && !hasAccess) {
       navigate('/profile');
       return;
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, allowStaff]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // Don't render if not superuser
-  if (!isAuthenticated || !user || user.is_superuser !== true) {
+  // Don't render if not authorized
+  const hasAccess = user?.is_superuser === true || (allowStaff && user?.is_staff === true);
+  if (!isAuthenticated || !user || !hasAccess) {
     return null;
   }
 
@@ -109,6 +111,15 @@ const AdminLayout = ({ children }) => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Financial Dashboard',
+      path: '/admin/financial',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },

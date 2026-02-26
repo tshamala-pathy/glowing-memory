@@ -197,7 +197,7 @@ class Project(models.Model):
         """
         Validate that if invoice is provided, it must be paid.
         """
-        if self.invoice and self.invoice.status != 'Paid':
+        if self.invoice and self.invoice.status != 'paid':
             raise ValidationError({
                 'invoice': 'Project can only be created from a paid invoice.'
             })

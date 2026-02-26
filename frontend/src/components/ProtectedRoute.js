@@ -15,7 +15,13 @@ import { useAuth } from '../contexts/AuthContext';
  *
  * Backend APIs also enforce auth and return 401/403 for protected endpoints.
  */
-const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = false }) => {
+const ProtectedRoute = ({
+  children,
+  requireAuth = false,
+  requireSuperuser = false,
+  requireStaffOrSuperuser = false,
+  forbidSuperuser = false,
+}) => {
   const { user, isAuthenticated, loading } = useAuth();
 
   // Show loading state while authentication status is being determined
@@ -38,9 +44,19 @@ const ProtectedRoute = ({ children, requireAuth = false, requireSuperuser = fals
   }
 
   // Redirect to profile if superuser access is required but user lacks permissions
-  // Superuser check requires both authentication AND is_superuser flag to be true
   if (requireSuperuser && (!isAuthenticated || !user || user.is_superuser !== true)) {
     return <Navigate to="/profile" replace />;
+  }
+
+  // Redirect if staff/superuser access is required (for Financial Dashboard, etc.)
+  if (requireStaffOrSuperuser && (!isAuthenticated || !user || (user.is_superuser !== true && user.is_staff !== true))) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  // For client-only routes (profile, portal, etc.), prevent superusers from accessing
+  // and send them to the admin dashboard instead.
+  if (forbidSuperuser && isAuthenticated && user && user.is_superuser === true) {
+    return <Navigate to="/admin" replace />;
   }
 
   // Access granted - render the protected children

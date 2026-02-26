@@ -1,6 +1,6 @@
 import React from 'react';
 
-const DataTable = ({ columns, data, onEdit, onDelete, emptyMessage = 'No data available' }) => {
+const DataTable = ({ columns, data, onEdit, onDelete, onView, emptyMessage = 'No data available' }) => {
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -15,7 +15,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, emptyMessage = 'No data av
                   {column.header}
                 </th>
               ))}
-              {(onEdit || onDelete) && (
+              {(onEdit || onDelete || onView) && (
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -25,7 +25,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, emptyMessage = 'No data av
           <tbody className="bg-white divide-y divide-gray-200">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (onEdit || onDelete ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={columns.length + (onEdit || onDelete || onView ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
                   {emptyMessage}
                 </td>
               </tr>

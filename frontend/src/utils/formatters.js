@@ -25,8 +25,13 @@ export const formatCurrency = (amount) => {
   return isNaN(n) ? amount : `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
 };
 
-/** Tailwind classes for quote status badges */
+/** Tailwind classes for quote status badges (lowercase to match API) */
 export const quoteStatusColors = {
+  pending: 'bg-amber-100 text-amber-800',
+  replied: 'bg-blue-100 text-blue-800',
+  approved: 'bg-green-100 text-green-800',
+  declined: 'bg-red-100 text-red-800',
+  paid: 'bg-green-100 text-green-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
   Pending: 'bg-yellow-100 text-yellow-800',
@@ -34,13 +39,25 @@ export const quoteStatusColors = {
   Reviewed: 'bg-gray-100 text-gray-800',
 };
 
-/** Tailwind classes for invoice status badges */
+/** Tailwind classes for invoice status badges (backend uses lowercase: draft, unpaid, paid, overdue, cancelled) */
 export const invoiceStatusColors = {
+  paid: 'bg-green-100 text-green-800',
+  unpaid: 'bg-blue-100 text-blue-800',
+  draft: 'bg-gray-100 text-gray-800',
+  overdue: 'bg-red-100 text-red-800',
+  cancelled: 'bg-gray-100 text-gray-800',
+  // legacy (backend now uses lowercase)
   Paid: 'bg-green-100 text-green-800',
   Sent: 'bg-blue-100 text-blue-800',
   Draft: 'bg-gray-100 text-gray-800',
   Overdue: 'bg-red-100 text-red-800',
   Cancelled: 'bg-gray-100 text-gray-800',
+};
+
+/** Display label for invoice status */
+export const getInvoiceStatusLabel = (status) => {
+  const labels = { draft: 'Draft', unpaid: 'Unpaid', paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled' };
+  return labels[status] || (status && status.charAt(0).toUpperCase() + status.slice(1)) || status;
 };
 
 /** Tailwind classes for project status badges */

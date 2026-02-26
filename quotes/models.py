@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
 class Quote(models.Model):
@@ -9,22 +10,28 @@ class Quote(models.Model):
     Optional client FK links to Client; client_name, client_email, company_name store
     contact details for display and for unauthenticated submissions. See docs/RESPONSIBILITIES.md.
 
-    Quote Request Flow:
-    1. Client (customer) submits quote request (public endpoint)
-    2. System sends confirmation email to client
-    3. System notifies admin of new quote request
-    4. Admin reviews and responds (updates status, adds admin_response)
-    5. System sends response email to client when admin replies
+    Status flow (state machine):
+    - pending → replied (admin only)
+    - replied → approved | declined (client only)
+    - approved → paid (system only, after payment success)
+    Use validate_status_transition() before changing status.
     """
     STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Reviewed', 'Reviewed'),
-        ('Replied', 'Replied'),
-        ('Approved', 'Approved'),
-        ('Rejected', 'Rejected'),
-        ('In Progress', 'In Progress'),
-        ('Completed', 'Completed'),
+        ('pending', 'Pending'),
+        ('replied', 'Replied'),
+        ('approved', 'Approved'),
+        ('declined', 'Declined'),
+        ('paid', 'Paid'),
     ]
+
+    # Valid status transitions: from_status -> list of allowed to_status
+    VALID_TRANSITIONS = {
+        'pending': ['replied'],
+        'replied': ['approved', 'declined'],
+        'approved': ['paid'],
+        'declined': [],
+        'paid': [],
+    }
     
     SERVICE_TYPE_CHOICES = [
         ('Web Development', 'Web Development'),
@@ -105,7 +112,7 @@ class Quote(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='Pending',
+        default='pending',
         help_text="Current status of the quote request"
     )
     notes = models.TextField(
@@ -116,12 +123,23 @@ class Quote(models.Model):
     admin_response = models.TextField(
         blank=True,
         null=True,
-        help_text="Admin's response to the client (sent via email when status changes to 'Replied')"
+        help_text="Admin's response to the client (sent via email when status changes to 'replied')"
     )
-    replied_at = models.DateTimeField(
+    responded_at = models.DateTimeField(
         blank=True,
         null=True,
         help_text="Timestamp when admin sent response to client"
+    )
+    client_decision_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Timestamp when client approved or declined the quote"
+    )
+    payment_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Payment link for the client; set when admin marks quote as replied"
     )
     
     # Admin Assignment
@@ -137,11 +155,28 @@ class Quote(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, help_text="When the quote request was submitted")
     updated_at = models.DateTimeField(auto_now=True, help_text="Last update timestamp")
-    approved_at = models.DateTimeField(blank=True, null=True, help_text="When the quote was approved")
+    approved_at = models.DateTimeField(blank=True, null=True, help_text="When the quote was approved (legacy; use client_decision_at for client decision)")
     
     def __str__(self):
         return f"{self.project_title} - {self.client_name} ({self.status})"
-    
+
+    @classmethod
+    def validate_status_transition(cls, old_status, new_status):
+        """
+        Enforce strict status flow. Raises ValidationError if transition is invalid.
+        - pending → replied (admin only)
+        - replied → approved | declined (client only)
+        - approved → paid (system only)
+        """
+        if old_status == new_status:
+            return
+        allowed = cls.VALID_TRANSITIONS.get(old_status, [])
+        if new_status not in allowed:
+            raise ValidationError(
+                {'status': [f'Invalid transition from "{old_status}" to "{new_status}". '
+                            f'Allowed: {allowed or "none"}']}
+            )
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = "Quote"
