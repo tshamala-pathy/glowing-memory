@@ -3,6 +3,15 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+# -- Path setup --------------------------------------------------------------
+# Add project root to sys.path so autodoc can import Django/utility modules
+
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath('..'))
+
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -18,8 +27,12 @@ release = '1.0'
 
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
 ]
+
+autosummary_generate = True
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
