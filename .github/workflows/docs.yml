@@ -7,7 +7,7 @@ on:
       - master
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-deploy:
@@ -29,6 +29,9 @@ jobs:
 
       - name: Build Sphinx HTML documentation
         working-directory: docs
+        env:
+          DJANGO_SETTINGS_MODULE: PathyCodeback.settings
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           python -m sphinx -b html . build/html
 
