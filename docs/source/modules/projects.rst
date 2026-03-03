@@ -1,13 +1,30 @@
 Projects Module
 ===============
 
-The projects module represents active and completed client work that is created
-automatically when an invoice is marked as paid.
+The ``clients`` app contains the ``Project`` model that represents active and
+completed client work created when an invoice is paid.
 
-Topics to cover here:
+Models
+------
 
-- Project data model (status: pending, in_progress, completed)
-- Links to clients, quotes, invoices, and tasks
-- Client-facing views vs admin-only views
-- How project completion and testimonials are handled
+.. automodule:: clients.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Views / API
+-----------
+
+.. automodule:: clients.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Signals & Utilities
+-------------------
+
+.. automodule:: clients.signals
+   :members:
+   :undoc-members:
+   :show-inheritance:
 

@@ -1,16 +1,18 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
+from django.http import HttpResponse
 from PathyCodeback.permissions import IsSuperuser
-from .models import Client, Project, CaseStudy
+from .models import Client, Project, CaseStudy, Task
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
     CaseStudySerializer,
-    CaseStudyDetailSerializer
+    CaseStudyDetailSerializer,
+    TaskSerializer,
 )
 
 
@@ -51,6 +53,43 @@ class ClientViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        """
+        Export all clients as CSV.
+        Admin/staff only.
+        """
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="clients.csv"'
+
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "ID",
+                "Name",
+                "Industry",
+                "Email",
+                "User ID",
+                "Is Public",
+                "Created At",
+            ]
+        )
+        for client in Client.objects.select_related("user").all().order_by("id"):
+            writer.writerow(
+                [
+                    client.id,
+                    client.name,
+                    client.industry,
+                    getattr(client.user, "email", ""),
+                    getattr(client.user, "id", ""),
+                    client.is_public,
+                    client.created_at.isoformat() if client.created_at else "",
+                ]
+            )
+        return response
 
     @action(detail=True, methods=['get'])
     def projects(self, request, pk=None):
@@ -128,6 +167,45 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
     
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        """
+        Export all projects as CSV.
+        Admin/staff only.
+        """
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="projects.csv"'
+
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "ID",
+                "Name",
+                "Client Name",
+                "Status",
+                "Quote ID",
+                "Invoice ID",
+                "Is Public",
+                "Created At",
+            ]
+        )
+        for project in Project.objects.select_related("client", "quote", "invoice").all().order_by("id"):
+            writer.writerow(
+                [
+                    project.id,
+                    project.name,
+                    project.client.name if project.client else "",
+                    project.status,
+                    project.quote_id or "",
+                    project.invoice_id or "",
+                    project.is_public,
+                    project.created_at.isoformat() if project.created_at else "",
+                ]
+            )
+        return response
+    
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_projects(self, request):
         """
@@ -167,6 +245,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(public_projects, many=True)
         return Response(serializer.data)
+
+
+# ================================
+# Task ViewSet (admin-only; not visible to clients)
+# ================================
+class TaskViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing project tasks.
+    Admin-only: only staff/superuser can list, create, update, delete.
+    Tasks are not exposed to clients (not included in Project serializer).
+    """
+    queryset = Task.objects.all().select_related("project").order_by("-created_at")
+    serializer_class = TaskSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["project", "status", "priority"]
+    search_fields = ["title", "description", "internal_notes"]
+    ordering_fields = ["created_at", "due_date", "priority", "status"]
+    ordering = ["-created_at"]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 
 # ================================

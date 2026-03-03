@@ -1,13 +1,38 @@
 Quotes Module
 =============
 
-The quotes module handles incoming quote requests from clients, admin review
+The ``quotes`` app handles incoming quote requests from clients, admin review
 and responses, and the transition from *pending* to *approved* or *declined*.
 
-Topics to cover here:
 
-- Quote data model and key fields
-- Status state machine (pending → replied → approved/declined → paid)
-- API endpoints for creating, listing, and managing quotes
-- How automatic invoice creation is triggered after approval
+Models
+------
+
+.. automodule:: quotes.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Views / API
+-----------
+
+.. automodule:: quotes.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Signals & Utilities
+-------------------
+
+.. automodule:: quotes.signals
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: quotes.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
 

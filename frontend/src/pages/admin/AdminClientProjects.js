@@ -19,6 +19,7 @@ const AdminClientProjects = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, project: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [clientFilter, setClientFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [clients, setClients] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -156,11 +157,12 @@ const AdminClientProjects = () => {
 
   const filteredProjects = projects.filter((project) => {
     const matchesClient = !clientFilter || String(project.client) === String(clientFilter);
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     const matchesSearch =
       project.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesClient && matchesSearch;
+    return matchesClient && matchesStatus && matchesSearch;
   });
 
   const columns = [
@@ -239,10 +241,10 @@ const AdminClientProjects = () => {
 
         {/* Search & filters */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               type="text"
-              placeholder="Search projects..."
+              placeholder="Search by project or client name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -256,6 +258,16 @@ const AdminClientProjects = () => {
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
         </div>

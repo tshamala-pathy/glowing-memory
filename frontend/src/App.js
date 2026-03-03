@@ -38,6 +38,7 @@ import AdminClientProjects from './pages/admin/AdminClientProjects';
 import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 import AdminAbout from './pages/admin/AdminAbout';
 import AdminFinancialDashboard from './pages/admin/AdminFinancialDashboard';
+import AdminTasks from './pages/admin/AdminTasks';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import Requirements from './pages/Requirements';
@@ -192,6 +193,14 @@ function App() {
                 element={
                   <ProtectedRoute requireStaffOrSuperuser={true}>
                     <AdminFinancialDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/tasks" 
+                element={
+                  <ProtectedRoute requireStaffOrSuperuser={true}>
+                    <AdminTasks />
                   </ProtectedRoute>
                 } 
               />

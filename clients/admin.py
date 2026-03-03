@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Client, Project, CaseStudy
+from .models import Client, Project, CaseStudy, Task
 from quotes.models import Quote
 from invoices.models import Invoice
 
@@ -48,6 +48,19 @@ class ProjectInline(admin.TabularInline):
     verbose_name_plural = 'Projects'
 
 
+class TaskInline(admin.TabularInline):
+    """Show tasks for this project on the Project change page (admin-only)."""
+    model = Task
+    fk_name = 'project'
+    extra = 0
+    show_change_link = True
+    fields = ('title', 'status', 'priority', 'due_date', 'created_at')
+    readonly_fields = ('created_at',)
+    ordering = ['-created_at']
+    verbose_name = 'Task'
+    verbose_name_plural = 'Tasks'
+
+
 # ================================
 # Client Admin
 # ================================
@@ -58,7 +71,7 @@ class ClientAdmin(admin.ModelAdmin):
     """
     list_display = ['name', 'user', 'industry', 'is_public', 'created_at']
     list_filter = ['is_public', 'industry', 'created_at']
-    search_fields = ['name', 'industry', 'description', 'user__email', 'user__username']
+    search_fields = ['name', 'industry', 'description', 'internal_notes', 'user__email', 'user__username']
     list_editable = ['is_public']
     raw_id_fields = ['user']
     inlines = [QuoteInline, InvoiceInline, ProjectInline]
@@ -87,9 +100,11 @@ class ProjectAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at', 'quote_link', 'invoice_link']
     autocomplete_fields = ['client', 'quote', 'invoice']
     
+    inlines = [TaskInline]
+
     fieldsets = (
         ('Project Information', {
-            'fields': ('name', 'description', 'status', 'is_public'),
+            'fields': ('name', 'description', 'status', 'is_public', 'internal_notes'),
             'description': 'Basic project information'
         }),
         ('Client & Relationships', {
@@ -101,7 +116,7 @@ class ProjectAdmin(admin.ModelAdmin):
             'description': 'Technical information and links'
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+            'fields': ('created_at', 'updated_at', 'completed_at'),
             'classes': ('collapse',),
             'description': 'Automatically tracked timestamps'
         }),
@@ -134,6 +149,31 @@ class ProjectAdmin(admin.ModelAdmin):
         """Optimize queryset with select_related."""
         qs = super().get_queryset(request)
         return qs.select_related('client', 'client__user', 'quote', 'invoice')
+
+
+# ================================
+# Task Admin (admin-only; not visible to clients)
+# ================================
+@admin.register(Task)
+class TaskAdmin(admin.ModelAdmin):
+    """Tasks are internal to projects; only staff/superuser can view and edit."""
+    list_display = ['title', 'project', 'status', 'priority', 'due_date', 'created_at']
+    list_filter = ['status', 'priority', 'created_at', 'project']
+    search_fields = ['title', 'description', 'internal_notes', 'project__name']
+    list_editable = ['status', 'priority']
+    autocomplete_fields = ['project']
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'due_date'
+
+    fieldsets = (
+        (None, {
+            'fields': ('project', 'title', 'description', 'status', 'priority', 'due_date', 'internal_notes'),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
 
 
 # ================================

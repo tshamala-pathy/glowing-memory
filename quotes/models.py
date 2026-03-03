@@ -13,13 +13,15 @@ class Quote(models.Model):
     Status flow (state machine):
     - pending → replied (admin only)
     - replied → approved | declined (client only)
-    - approved → paid (system only, after payment success)
+    - approved → invoiced (system only, when draft invoice is created)
+    - invoiced → paid (system only, after payment success)
     Use validate_status_transition() before changing status.
     """
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('replied', 'Replied'),
         ('approved', 'Approved'),
+        ('invoiced', 'Invoiced'),
         ('declined', 'Declined'),
         ('paid', 'Paid'),
     ]
@@ -28,7 +30,8 @@ class Quote(models.Model):
     VALID_TRANSITIONS = {
         'pending': ['replied'],
         'replied': ['approved', 'declined'],
-        'approved': ['paid'],
+        'approved': ['invoiced', 'paid'],
+        'invoiced': ['paid'],
         'declined': [],
         'paid': [],
     }
@@ -166,7 +169,8 @@ class Quote(models.Model):
         Enforce strict status flow. Raises ValidationError if transition is invalid.
         - pending → replied (admin only)
         - replied → approved | declined (client only)
-        - approved → paid (system only)
+        - approved → invoiced | paid (system only)
+        - invoiced → paid (system only)
         """
         if old_status == new_status:
             return

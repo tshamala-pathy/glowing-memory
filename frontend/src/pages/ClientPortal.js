@@ -69,6 +69,24 @@ const ClientPortal = () => {
     }
   };
 
+  const handleDownloadQuote = async (quote) => {
+    if (downloadingId) return;
+    setDownloadingId(`quote-${quote.id}`);
+    try {
+      const res = await api.get(`/quotes/${quote.id}/pdf/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quote_${quote.id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to download quote.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-12 px-4 sm:px-6 lg:px-8">
@@ -154,6 +172,7 @@ const ClientPortal = () => {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estimated</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -165,6 +184,16 @@ const ClientPortal = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(q.total_price)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(q.created_at)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadQuote(q)}
+                            disabled={downloadingId === `quote-${q.id}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          >
+                            {downloadingId === `quote-${q.id}` ? 'Downloading...' : 'Download PDF'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

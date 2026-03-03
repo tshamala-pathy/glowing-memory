@@ -84,9 +84,12 @@ class QuoteSerializer(serializers.ModelSerializer):
         return value
 
     def to_representation(self, instance):
-        """Hide internal notes from non-superuser clients."""
+        """Hide internal notes from non-admin/staff clients."""
         data = super().to_representation(instance)
         request = self.context.get('request')
-        if request and request.user.is_authenticated and not request.user.is_superuser:
+        if request and request.user.is_authenticated:
+            if not (request.user.is_staff or request.user.is_superuser):
+                data.pop('notes', None)
+        else:
             data.pop('notes', None)
         return data

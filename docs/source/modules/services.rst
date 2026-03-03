@@ -1,12 +1,42 @@
 Services Module
 ===============
 
-The services module documents the catalog of services offered in the PathyCode
-Internal Business System (e.g., web development, backend APIs, maintenance).
+In this project, "services" are mostly implemented as utilities and view-layer
+logic rather than a dedicated ``services`` Django app.
 
-Topics to cover here:
+Quote & Invoice Services
+------------------------
 
-- Service definitions and categories
-- How services relate to quotes and projects
-- Any pricing or configuration rules tied to service types
+.. automodule:: quotes.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: quotes.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: invoices.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: invoices.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Client & Project Services
+-------------------------
+
+.. automodule:: clients.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: clients.signals
+   :members:
+   :undoc-members:
+   :show-inheritance:
 

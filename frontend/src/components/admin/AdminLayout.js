@@ -124,6 +124,15 @@ const AdminLayout = ({ children, allowStaff = false }) => {
       ),
     },
     {
+      name: 'Tasks',
+      path: '/admin/tasks',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m-9 9h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
       name: 'Users',
       path: '/admin/users',
       icon: (

@@ -1,13 +1,35 @@
 Invoices Module
 ===============
 
-The invoices module is responsible for generating, sending, and tracking
-invoices derived from approved quotes.
+The ``invoices`` app is responsible for generating, sending, and tracking invoices
+derived from approved quotes.
 
-Topics to cover here:
+Models
+------
 
-- Invoice data model (totals, VAT, due dates, paid/overdue status)
-- Relationship to quotes and projects
-- Admin actions: create, mark as paid, PDF export
-- Client portal behavior: viewing and downloading invoices
+.. automodule:: invoices.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Views / API
+-----------
+
+.. automodule:: invoices.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Signals & Utilities
+-------------------
+
+.. automodule:: invoices.signals
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: invoices.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
 

@@ -2,15 +2,53 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from django.conf import settings
+import os
+
+
+def _get_company_logo():
+    """
+    Resolve a company logo path for invoice branding.
+
+    The lookup strategy is:
+
+    * Use ``settings.COMPANY_LOGO_PATH`` if defined and the file exists.
+    * Otherwise, fall back to ``MEDIA_ROOT/clients/logos/logo.png`` if present.
+
+    Returns:
+        str | None: Absolute filesystem path to the logo file, or ``None`` if
+        no suitable file can be found.
+    """
+    logo_path = getattr(settings, "COMPANY_LOGO_PATH", None)
+    if logo_path and os.path.exists(logo_path):
+        return logo_path
+    # Fallback: common logo location under MEDIA_ROOT
+    candidate = os.path.join(settings.MEDIA_ROOT, "clients", "logos", "logo.png")
+    if os.path.exists(candidate):
+        return candidate
+    return None
 
 
 def generate_invoice_pdf(invoice):
     """
-    Generate a PDF invoice using ReportLab.
+    Generate a branded PDF representation of an invoice.
+
+    The PDF includes:
+
+    * Invoice metadata (number, issue/due dates, status).
+    * Provider and client details.
+    * Line items and monetary totals.
+    * Optional notes and payment information.
+
+    Args:
+        invoice (Invoice): Invoice instance to render.
+
+    Returns:
+        bytes: Binary PDF content suitable for returning in an HTTP response or
+        writing to disk.
     """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
@@ -29,9 +67,47 @@ def generate_invoice_pdf(invoice):
         alignment=TA_LEFT
     )
     
+    # Optional logo + brand header
+    logo_path = _get_company_logo()
+    if logo_path:
+        try:
+            logo_img = Image(logo_path, width=1.0 * inch, height=1.0 * inch)
+            brand_table = Table(
+                [
+                    [
+                        logo_img,
+                        Paragraph(
+                            getattr(settings, "BRAND_NAME", "PathyCode"),
+                            ParagraphStyle(
+                                "BrandName",
+                                parent=styles["Heading2"],
+                                fontSize=18,
+                                textColor=colors.HexColor("#111827"),
+                                alignment=TA_RIGHT,
+                            ),
+                        ),
+                    ]
+                ],
+                colWidths=[1.2 * inch, 3.8 * inch],
+            )
+            brand_table.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                        ("BOX", (0, 0), (-1, -1), 0, colors.white),
+                    ]
+                )
+            )
+            elements.append(brand_table)
+            elements.append(Spacer(1, 0.2 * inch))
+        except Exception:
+            # If logo fails to load, just continue without it
+            pass
+
     # Title
     elements.append(Paragraph("INVOICE", title_style))
-    elements.append(Spacer(1, 0.2*inch))
+    elements.append(Spacer(1, 0.2 * inch))
     
     # Invoice details table
     invoice_data = [

@@ -1,13 +1,30 @@
 Payments Module
 ===============
 
-The payments module covers how invoice payments are recorded and how they drive
-state changes across quotes, invoices, and projects.
+Payments in this project are primarily modelled through fields and logic on the
+``Invoice`` model (in the ``invoices`` app) and the side effects they trigger.
 
-Topics to cover here:
+Invoice Payment API / Views
+---------------------------
 
-- Payment-related fields on invoices (status, paid_date, paid_at)
-- Rules for marking invoices as paid and updating quote status
-- How payment success triggers project creation
-- Integration points with external payment providers (if any)
+.. automodule:: invoices.views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Payment-related Models
+----------------------
+
+.. automodule:: invoices.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Payment Signals & Automation
+----------------------------
+
+.. automodule:: clients.signals
+   :members:
+   :undoc-members:
+   :show-inheritance:
 

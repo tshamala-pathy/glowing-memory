@@ -107,6 +107,11 @@ class InvoiceWorkflowTests(TestCase):
 
         self.assertTrue(Project.objects.filter(invoice=self.invoice).exists())
 
+        project = Project.objects.get(invoice=self.invoice)
+        self.assertEqual(project.client, self.client_profile)
+        self.assertEqual(project.quote, self.quote)
+        self.assertEqual(project.status, "in_progress")
+
 
 class FinancialDashboardTests(TestCase):
     def setUp(self):
@@ -217,7 +222,7 @@ class FinancialDashboardTests(TestCase):
             client=self.client_profile,
             quote=self.paid_invoice_current.quote,
             invoice=self.paid_invoice_current,
-            status="pending",
+            status="in_progress",
         )
         Project.objects.create(
             name="Completed Project",

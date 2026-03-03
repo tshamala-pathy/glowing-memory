@@ -7,11 +7,14 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.http import HttpResponse
 from PathyCodeback.permissions import IsSuperuser
 from .models import Quote
 from .serializers import QuoteSerializer
+from .utils import generate_quote_pdf
 import logging
+import csv
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -19,23 +22,58 @@ logger = logging.getLogger(__name__)
 
 def _auto_create_invoice_for_quote(quote, created_by=None):
     """
-    When client approves a quote, automatically create an Invoice.
-    Copies quote details, links to client, sets status to Draft (unpaid).
-    Idempotent: no-op if an invoice already exists for this quote.
-    Does not raise: approval always succeeds even if invoice creation fails.
+    Automatically create a draft invoice for an approved quote.
+
+    This function is idempotent and safe to call multiple times. It only creates
+    a new invoice when the quote is in the ``approved`` state and no invoice
+    exists yet. After successful invoice creation it attempts to move the quote
+    status to ``invoiced``, but failures there are logged and do not abort the
+    overall approval flow.
+
+    Args:
+        quote (Quote): Quote instance that has just been approved.
+        created_by (User | None): Admin user responsible for the invoice, used
+            to populate ``Invoice.created_by``. Optional.
+
+    Returns:
+        Invoice | None: The created invoice instance, or ``None`` if no invoice
+        was created (for example because the quote was not approved or an
+        invoice already exists).
     """
     try:
         from invoices.models import Invoice
+
+        # Only run when quote is approved
         if quote.status != 'approved':
-            return
+            return None
+
+        # Idempotency: do nothing if an invoice already exists
         if Invoice.objects.filter(quote=quote).exists():
-            return
+            return None
+
+        # Create draft invoice; Invoice.save() will copy items, totals, and client
         invoice = Invoice(
             quote=quote,
             status='draft',
             created_by=created_by,
         )
         invoice.save()
+
+        # Move quote to "invoiced" after successful invoice creation
+        try:
+            from .models import Quote as QuoteModel
+
+            QuoteModel.validate_status_transition(quote.status, 'invoiced')
+            quote.status = 'invoiced'
+            quote.save(update_fields=['status'])
+        except Exception as e:
+            logger.warning(
+                "Auto-create invoice: failed to set quote %s status to 'invoiced': %s",
+                getattr(quote, "id", None),
+                e,
+                exc_info=True,
+            )
+        return invoice
     except Exception as e:
         logger.warning(
             "Auto-create invoice for quote %s failed: %s",
@@ -43,12 +81,23 @@ def _auto_create_invoice_for_quote(quote, created_by=None):
             e,
             exc_info=True,
         )
+        return None
 
 
 def get_quote_payment_url(quote):
     """
-    Generate payment link for a quote (placeholder: frontend portal with quote id).
-    Used when admin marks quote as replied.
+    Build a payment URL for a quote.
+
+    The URL is used by the frontend to redirect the client from the quote
+    approval step to the payment experience.
+
+    Args:
+        quote (Quote): Quote instance for which a payment link is needed.
+
+    Returns:
+        str: Absolute URL using ``settings.FRONTEND_URL`` if configured,
+        otherwise a relative ``/portal`` path with the quote id as a query
+        parameter.
     """
     base = getattr(settings, 'FRONTEND_URL', '').strip().rstrip('/')
     if base:
@@ -240,8 +289,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        elif self.action in ('list', 'retrieve', 'decision'):
+        elif self.action in ('list', 'retrieve', 'decision', 'pdf'):
             permission_classes = [IsAuthenticated]
+        elif self.action == 'export_csv':
+            permission_classes = [IsAdminUser]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -398,7 +449,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """Approve a quote (admin only). Enforces replied → approved."""
+        """Approve a quote (admin only). Enforces replied → approved and auto-creates invoice."""
         quote = self.get_object()
         try:
             Quote.validate_status_transition(quote.status, 'approved')
@@ -411,6 +462,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote.client_decision_at = timezone.now()
         quote.assigned_to = request.user
         quote.save(update_fields=['status', 'approved_at', 'client_decision_at', 'assigned_to'])
+
+        # Auto-create draft invoice and move quote to "invoiced" if possible
+        _auto_create_invoice_for_quote(quote, created_by=request.user)
+
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 
@@ -429,4 +484,57 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote.save(update_fields=['status', 'client_decision_at'])
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def pdf(self, request, pk=None):
+        """
+        Generate and download a branded PDF for this quote.
+        Permissions: same as retrieve; clients can only access their own quotes.
+        """
+        quote = self.get_object()
+        pdf_content = generate_quote_pdf(quote)
+
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="quote_{quote.id}.pdf"'
+        return response
+
+    @action(detail=False, methods=['get'])
+    def export_csv(self, request):
+        """
+        Export all quotes as CSV.
+        Admin/staff only.
+        """
+        if not (request.user and (request.user.is_staff or request.user.is_superuser)):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="quotes.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "ID",
+                "Client Name",
+                "Client Email",
+                "Project Title",
+                "Service Type",
+                "Status",
+                "Estimated Amount",
+                "Created At",
+            ]
+        )
+        for quote in Quote.objects.all().order_by("id"):
+            writer.writerow(
+                [
+                    quote.id,
+                    quote.client_name,
+                    quote.client_email,
+                    quote.project_title,
+                    quote.service_type,
+                    quote.status,
+                    float(quote.estimated_amount) if quote.estimated_amount else "",
+                    quote.created_at.isoformat() if quote.created_at else "",
+                ]
+            )
+        return response
 

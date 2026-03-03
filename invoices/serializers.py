@@ -36,6 +36,19 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'created_by_name', 'quote_project_title', 'quote_status',
             'subtotal', 'vat_amount', 'total_amount', 'amount_due'
         ]
+
+    def to_representation(self, instance):
+        """
+        Hide internal notes from non-admin/staff clients.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            if not (request.user.is_staff or request.user.is_superuser):
+                data.pop('notes', None)
+        else:
+            data.pop('notes', None)
+        return data
     
     def validate_quote(self, value):
         """

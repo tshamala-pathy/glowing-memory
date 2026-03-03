@@ -20,6 +20,7 @@ from .utils import generate_invoice_pdf
 from quotes.models import Quote
 from clients.models import Project
 import logging
+import csv
 
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,14 @@ logger = logging.getLogger(__name__)
 
 def send_invoice_email(invoice):
     """
-    Send invoice email to client.
-    
+    Send an invoice notification email to the client.
+
+    The email summarises key invoice details (project title, amount, due date)
+    and is typically called after an invoice is created or its status changes
+    to ``unpaid``.
+
     Args:
-        invoice: Invoice instance to send
+        invoice (Invoice): Invoice instance to send to the client.
     """
     subject = f'Invoice {invoice.invoice_number} - PathyCode'
     message = f"""
@@ -251,11 +256,72 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = f'attachment; filename="invoice_{invoice.invoice_number}.pdf"'
         return response
     
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        """
+        Export all invoices as CSV.
+        Admin/staff only.
+        """
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="invoices.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "ID",
+                "Invoice Number",
+                "Client Name",
+                "Client Email",
+                "Status",
+                "Issue Date",
+                "Due Date",
+                "Subtotal",
+                "VAT Rate",
+                "VAT Amount",
+                "Total Amount",
+                "Amount Paid",
+                "Amount Due",
+            ]
+        )
+        for inv in Invoice.objects.all().order_by("id"):
+            writer.writerow(
+                [
+                    inv.id,
+                    inv.invoice_number,
+                    inv.client_name,
+                    inv.client_email,
+                    inv.status,
+                    inv.issue_date.isoformat() if inv.issue_date else "",
+                    inv.due_date.isoformat() if inv.due_date else "",
+                    float(inv.subtotal),
+                    float(inv.vat_rate),
+                    float(inv.vat_amount),
+                    float(inv.total_amount),
+                    float(inv.amount_paid),
+                    float(inv.amount_due),
+                ]
+            )
+        return response
+    
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         """
-        Mark invoice as paid (superuser only).
-        System transition: also sets linked quote status to 'paid' (approved → paid).
+        Mark an invoice as fully paid and trigger follow-up workflow.
+
+        This action:
+
+        * Sets invoice status to ``paid`` and updates payment timestamps/amounts.
+        * Attempts to move the linked quote status from ``approved``/``invoiced``
+          to ``paid`` using the quote state machine.
+        * Relies on signals in ``clients.signals`` to auto-create a corresponding
+          project for the paid invoice.
+
+        Args:
+            request (Request): DRF request instance.
+            pk (int | str): Primary key of the invoice being marked as paid.
+
+        Returns:
+            Response: Serialized invoice data after the update.
         """
         invoice = self.get_object()
         invoice.status = 'paid'
@@ -265,12 +331,24 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.paid_at = timezone.now()
         invoice.save()
 
-        # Quote state machine: approved → paid (system only)
-        if invoice.quote_id and getattr(invoice.quote, 'status', None) == 'approved':
+        # Quote state machine: invoiced → paid (system only)
+        if invoice.quote_id and getattr(invoice.quote, 'status', None) in ('approved', 'invoiced'):
             from quotes.models import Quote
-            Quote.validate_status_transition('approved', 'paid')
-            invoice.quote.status = 'paid'
-            invoice.quote.save(update_fields=['status'])
+
+            old_status = invoice.quote.status
+            try:
+                Quote.validate_status_transition(old_status, 'paid')
+                invoice.quote.status = 'paid'
+                invoice.quote.save(update_fields=['status'])
+            except Exception as e:
+                logger.warning(
+                    "Failed to move quote %s from %s to 'paid' when marking invoice %s as paid: %s",
+                    getattr(invoice.quote, "id", None),
+                    old_status,
+                    getattr(invoice, "id", None),
+                    e,
+                    exc_info=True,
+                )
 
         serializer = self.get_serializer(invoice)
         return Response(serializer.data)

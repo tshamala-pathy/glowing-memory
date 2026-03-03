@@ -57,7 +57,7 @@ class QuoteAdmin(admin.ModelAdmin):
     # Fields displayed in the list view
     list_display = [
         'project_title', 'client', 'client_name', 'client_email', 'service_type',
-        'status', 'estimated_amount', 'requirements_accepted', 'created_at'
+        'status', 'estimated_amount', 'requirements_accepted', 'created_at', 'pdf_link'
     ]
     
     # Filters available in the sidebar for quick filtering
@@ -113,6 +113,15 @@ class QuoteAdmin(admin.ModelAdmin):
             'description': 'Automatically tracked timestamps'
         }),
     )
+
+    def pdf_link(self, obj):
+        """Link to the API quote PDF endpoint."""
+        if not obj or not obj.id:
+            return "-"
+        url = reverse('quote-pdf', args=[obj.pk])
+        return format_html('<a href="{}" target="_blank">Download PDF</a>', url)
+
+    pdf_link.short_description = "PDF"
     
     def send_response_button(self, obj):
         """
