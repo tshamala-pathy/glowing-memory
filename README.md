@@ -124,6 +124,29 @@ glowing-memory/
 └── docs/                   # Documentation
 ```
 
+## Documentation & GitHub Pages
+
+This project includes Sphinx-based documentation under the `docs/` directory.
+
+- **Live docs**: After pushing to the default branch (`main`/`master`), GitHub
+  Actions builds the Sphinx HTML docs and deploys them to the `gh-pages`
+  branch. You can enable GitHub Pages in the repository settings and point it
+  at the `gh-pages` branch to host the docs.
+- **Build locally**:
+
+  ```bash
+  # From repo root
+  venv\Scripts\activate  # or source venv/bin/activate on Linux/Mac
+  python -m pip install -r requirements.txt
+  cd docs
+  python -m sphinx -b html . build/html
+  ```
+
+  Then open `docs/build/html/index.html` in your browser.
+
+The workflow configuration lives in `.github/workflows/docs.yml` and does not
+affect application logic or runtime behavior.
+
 ## Key Documentation
 
 - **[User and Client Guide](docs/USER_AND_CLIENT_GUIDE.md)**: Difference between User and Client, how they are linked, Client Portal data flow, and why this architecture is used (start here for portal/auth work)
