@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { formatDate, formatCurrency, getQuoteStatusClass, getInvoiceStatusClass, getProjectStatusClass } from '../utils/formatters';
+import InvoiceDetailModal from '../components/InvoiceDetailModal';
 
 /**
  * Client Portal: shows the logged-in client's quotes, invoices, and projects.
@@ -11,12 +12,16 @@ import { formatDate, formatCurrency, getQuoteStatusClass, getInvoiceStatusClass,
  */
 const ClientPortal = () => {
   const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const quoteIdFromUrl = searchParams.get('quote');
   const [quotes, setQuotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const hasInvoiceForApprovedQuote = quoteIdFromUrl && invoices.some((inv) => String(inv.quote) === String(quoteIdFromUrl));
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -59,6 +64,24 @@ const ClientPortal = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       setError('Failed to download invoice.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDownloadQuote = async (quote) => {
+    if (downloadingId) return;
+    setDownloadingId(`quote-${quote.id}`);
+    try {
+      const res = await api.get(`/quotes/${quote.id}/pdf/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quote_${quote.id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to download quote.');
     } finally {
       setDownloadingId(null);
     }
@@ -113,6 +136,15 @@ const ClientPortal = () => {
           </div>
         )}
 
+        {quoteIdFromUrl && hasInvoiceForApprovedQuote && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-3">
+            <span className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            </span>
+            <p className="font-medium">Your quote was approved. Pay your invoice below.</p>
+          </div>
+        )}
+
         {/* My Quotes — only the logged-in client's quotes */}
         <section className="mb-12">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
@@ -140,17 +172,28 @@ const ClientPortal = () => {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estimated</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {quotes.map((q) => (
                       <tr key={q.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{q.project_title || '—'}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{q.title || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusClass(q.status)}`}>{q.status}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(q.estimated_amount)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(q.total_price)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(q.created_at)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadQuote(q)}
+                            disabled={downloadingId === `quote-${q.id}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          >
+                            {downloadingId === `quote-${q.id}` ? 'Downloading...' : 'Download PDF'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -198,7 +241,14 @@ const ClientPortal = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(inv.total_amount)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(inv.due_date)}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right flex gap-3 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoice(inv)}
+                            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                          >
+                            View
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDownloadInvoice(inv)}
@@ -259,6 +309,15 @@ const ClientPortal = () => {
           <Link to="/profile" className="text-blue-600 hover:text-blue-800 font-medium">Back to Profile</Link>
         </div>
       </div>
+
+      {selectedInvoice && (
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          onDownloadPDF={handleDownloadInvoice}
+          isDownloading={downloadingId === selectedInvoice?.id}
+        />
+      )}
     </div>
   );
 };

@@ -50,6 +50,10 @@ class Client(models.Model):
         blank=True,
         help_text="Brief description of the client"
     )
+    internal_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes (admin/staff only; not visible to clients)",
+    )
     is_public = models.BooleanField(
         default=False,
         help_text="Display on public website"
@@ -181,10 +185,19 @@ class Project(models.Model):
         default=False,
         help_text="If true, project is visible to non-authenticated users on public projects page"
     )
+    internal_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes (admin/staff only; not visible to clients)",
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Timestamp when the project was marked as completed",
+    )
 
     def __str__(self):
         return f"{self.name} - {self.client.name}" if self.client else self.name
@@ -197,7 +210,7 @@ class Project(models.Model):
         """
         Validate that if invoice is provided, it must be paid.
         """
-        if self.invoice and self.invoice.status != 'Paid':
+        if self.invoice and self.invoice.status != 'paid':
             raise ValidationError({
                 'invoice': 'Project can only be created from a paid invoice.'
             })
@@ -207,6 +220,66 @@ class Project(models.Model):
         ordering = ['-created_at']
         verbose_name = "Client Project"
         verbose_name_plural = "Client Projects"
+
+
+# ================================
+# Task Model (Admin-only; linked to Project)
+# ================================
+class Task(models.Model):
+    """
+    Internal task linked to a Project. Admin-only: not visible to clients.
+    Used for project task tracking (todo / in_progress / done).
+    """
+    STATUS_CHOICES = [
+        ('todo', 'To Do'),
+        ('in_progress', 'In Progress'),
+        ('done', 'Done'),
+    ]
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ]
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='tasks',
+        help_text="Project this task belongs to",
+    )
+    title = models.CharField(max_length=255, help_text="Task title")
+    description = models.TextField(blank=True, help_text="Task description")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='todo',
+        help_text="Task status",
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='medium',
+        help_text="Task priority",
+    )
+    due_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Due date for this task",
+    )
+    internal_notes = models.TextField(
+        blank=True,
+        help_text="Internal notes (admin only)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Task"
+        verbose_name_plural = "Tasks"
 
 
 # ================================

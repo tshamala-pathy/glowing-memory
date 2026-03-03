@@ -21,7 +21,7 @@ class InvoiceAdmin(admin.ModelAdmin):
     """
     list_display = [
         'invoice_number', 'client', 'client_name', 'quote_link', 'total_amount',
-        'status', 'issue_date', 'due_date', 'amount_due'
+        'status', 'issue_date', 'due_date', 'amount_due', 'pdf_link'
     ]
     list_filter = ['status', 'issue_date', 'due_date', 'created_at', 'client']
     search_fields = [
@@ -82,6 +82,15 @@ class InvoiceAdmin(admin.ModelAdmin):
         """Optimize queryset with select_related for quote."""
         qs = super().get_queryset(request)
         return qs.select_related('quote', 'created_by')
+
+    def pdf_link(self, obj):
+        """Link to API invoice PDF endpoint."""
+        if not obj or not obj.id:
+            return "-"
+        url = reverse('invoice-pdf', args=[obj.pk])
+        return format_html('<a href="{}" target="_blank">Download PDF</a>', url)
+
+    pdf_link.short_description = "PDF"
     
     def save_model(self, request, obj, form, change):
         """
@@ -95,7 +104,7 @@ class InvoiceAdmin(admin.ModelAdmin):
                 obj.created_by = request.user
             
             # Validate quote is approved
-            if obj.quote and obj.quote.status != 'Approved':
+            if obj.quote and obj.quote.status != 'approved':
                 messages.error(request, 'Invoice can only be created from an approved quote. Please approve the quote first.')
                 return
         

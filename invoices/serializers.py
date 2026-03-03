@@ -8,7 +8,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     Serializer for Invoice model.
 
     Quote-to-Invoice lifecycle:
-    - Invoice can only be created from a quote with status 'Approved'.
+    - Invoice can only be created from a quote with status 'approved'.
     - On create, only 'quote' (and optionally issue_date, due_date, status) are required.
     - Client details (name, email, phone, company) and project details (line items from
       project title, service type, estimated amount; notes from project description) are
@@ -27,7 +27,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'provider_name', 'provider_address', 'provider_phone', 'provider_email',
             'provider_vat_number',
             'items', 'subtotal', 'vat_rate', 'vat_amount', 'total_amount',
-            'amount_paid', 'amount_due', 'issue_date', 'due_date', 'paid_date',
+            'amount_paid', 'amount_due', 'issue_date', 'due_date', 'paid_date', 'paid_at',
             'status', 'payment_method', 'payment_reference', 'notes',
             'created_by', 'created_by_name', 'created_at', 'updated_at'
         ]
@@ -36,12 +36,25 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'created_by_name', 'quote_project_title', 'quote_status',
             'subtotal', 'vat_amount', 'total_amount', 'amount_due'
         ]
+
+    def to_representation(self, instance):
+        """
+        Hide internal notes from non-admin/staff clients.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            if not (request.user.is_staff or request.user.is_superuser):
+                data.pop('notes', None)
+        else:
+            data.pop('notes', None)
+        return data
     
     def validate_quote(self, value):
         """
         Validate that the quote is approved before allowing invoice creation.
         """
-        if value.status != 'Approved':
+        if value.status != 'approved':
             raise ValidationError(
                 'Invoice can only be created from an approved quote. '
                 f'Current quote status: {value.status}. Please approve the quote first.'

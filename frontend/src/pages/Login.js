@@ -27,9 +27,16 @@ const Login = () => {
 
     const result = await login(formData.email, formData.password);
 
-    // On login: redirect to Profile page (loads all related client data)
+    // On login:
+    // - Admins (superusers) go straight to the admin dashboard
+    // - Regular users go to the Profile page
     if (result.success) {
-      navigate('/profile');
+      const loggedInUser = result.user;
+      if (loggedInUser?.is_superuser) {
+        navigate('/admin');
+      } else {
+        navigate('/profile');
+      }
     } else {
       setError(result.error);
     }
@@ -161,13 +168,13 @@ const Login = () => {
 
         <p className="mt-8 text-center text-sm text-gray-600">
           By signing in, you agree to our{' '}
-          <a href="/terms" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/terms-and-privacy#terms-of-service" className="font-medium text-blue-600 hover:text-blue-500">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="/privacy" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/terms-and-privacy#privacy-policy" className="font-medium text-blue-600 hover:text-blue-500">
             Privacy Policy
-          </a>
+          </Link>
         </p>
       </div>
     </div>

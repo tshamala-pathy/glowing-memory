@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
@@ -13,6 +13,9 @@ const AdminClients = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientRelated, setClientRelated] = useState({ quotes: [], invoices: [], projects: [] });
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, client: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -72,6 +75,28 @@ const AdminClients = () => {
     });
     setLogoPreview(client.logo ? getMediaUrl(client.logo) : null);
     setShowForm(true);
+  };
+
+  const handleView = async (client) => {
+    setSelectedClient(client);
+    setLoadingRelated(true);
+    setClientRelated({ quotes: [], invoices: [], projects: [] });
+    try {
+      const [quotesRes, invoicesRes, projectsRes] = await Promise.all([
+        api.get(`/quotes/?client=${client.id}`),
+        api.get(`/invoices/?client=${client.id}`),
+        api.get(`/clients/clients/${client.id}/projects/`),
+      ]);
+      setClientRelated({
+        quotes: quotesRes.data.results || quotesRes.data || [],
+        invoices: invoicesRes.data.results || invoicesRes.data || [],
+        projects: Array.isArray(projectsRes.data) ? projectsRes.data : [],
+      });
+    } catch (error) {
+      console.error('Error fetching related data:', error);
+    } finally {
+      setLoadingRelated(false);
+    }
   };
 
   const handleDelete = (client) => {
@@ -205,14 +230,135 @@ const AdminClients = () => {
           />
         </div>
 
-        {/* Data Table */}
-        <DataTable
-          columns={columns}
-          data={filteredClients}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          emptyMessage="No clients found"
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={selectedClient ? 'lg:col-span-2' : 'lg:col-span-3'}>
+            <DataTable
+              columns={columns}
+              data={filteredClients}
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              emptyMessage="No clients found"
+            />
+          </div>
+
+          {selectedClient && (
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-24">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Client Details</h3>
+                  <button
+                    onClick={() => setSelectedClient(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-4 mb-6">
+                  {selectedClient.logo && (
+                    <img
+                      src={getMediaUrl(selectedClient.logo)}
+                      alt={selectedClient.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Name</label>
+                    <p className="text-gray-900 font-medium">{selectedClient.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Industry</label>
+                    <p className="text-gray-900">{selectedClient.industry || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <p className="text-gray-900 text-sm">{selectedClient.description || '—'}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(selectedClient)}
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                    >
+                      Edit
+                    </button>
+                    <Link
+                      to="/admin/quotes"
+                      className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 text-center"
+                    >
+                      Quotes
+                    </Link>
+                    <Link
+                      to="/admin/invoices"
+                      className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 text-center"
+                    >
+                      Invoices
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4 space-y-4">
+                  <h4 className="font-medium text-gray-900">Related Items (Django Admin Inlines)</h4>
+                  {loadingRelated ? (
+                    <p className="text-sm text-gray-500">Loading...</p>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Quotes ({clientRelated.quotes.length})</label>
+                        <ul className="mt-1 space-y-1 max-h-32 overflow-y-auto">
+                          {clientRelated.quotes.length === 0 ? (
+                            <li className="text-sm text-gray-500">No quotes</li>
+                          ) : (
+                            clientRelated.quotes.map((q) => (
+                              <li key={q.id} className="text-sm">
+                                <Link to={`/admin/quotes`} className="text-blue-600 hover:underline">
+                                  {q.project_title} — {q.status}
+                                </Link>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Invoices ({clientRelated.invoices.length})</label>
+                        <ul className="mt-1 space-y-1 max-h-32 overflow-y-auto">
+                          {clientRelated.invoices.length === 0 ? (
+                            <li className="text-sm text-gray-500">No invoices</li>
+                          ) : (
+                            clientRelated.invoices.map((inv) => (
+                              <li key={inv.id} className="text-sm">
+                                <Link to={`/admin/invoices`} className="text-blue-600 hover:underline">
+                                  {inv.invoice_number} — R {parseFloat(inv.total_amount || 0).toFixed(2)} ({inv.status})
+                                </Link>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Projects ({clientRelated.projects.length})</label>
+                        <ul className="mt-1 space-y-1 max-h-32 overflow-y-auto">
+                          {clientRelated.projects.length === 0 ? (
+                            <li className="text-sm text-gray-500">No projects</li>
+                          ) : (
+                            clientRelated.projects.map((p) => (
+                              <li key={p.id} className="text-sm">
+                                <Link to={`/admin/projects`} className="text-blue-600 hover:underline">
+                                  {p.name} — {p.status}
+                                </Link>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Form Modal */}
         {showForm && (

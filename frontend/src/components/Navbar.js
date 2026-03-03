@@ -33,12 +33,11 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1 flex-1 mx-4">
-            {/* Public navigation - visible to everyone (anonymous and authenticated) */}
+          {/* Desktop Navigation — top 4 only: Home, Services, Pricing, Contact */}
+          <div className="hidden md:flex items-center gap-x-1 flex-1 mx-2 lg:mx-4 min-w-0">
             <Link
               to="/"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                 isActive('/')
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -47,18 +46,8 @@ const Navbar = () => {
               Home
             </Link>
             <Link
-              to="/projects"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/projects')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Projects
-            </Link>
-            <Link
               to="/services"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                 isActive('/services')
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -68,7 +57,7 @@ const Navbar = () => {
             </Link>
             <Link
               to="/pricing"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                 isActive('/pricing')
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -77,18 +66,8 @@ const Navbar = () => {
               Pricing
             </Link>
             <Link
-              to="/about"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/about')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              About
-            </Link>
-            <Link
               to="/contact"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                 isActive('/contact')
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -96,12 +75,11 @@ const Navbar = () => {
             >
               Contact
             </Link>
-            {/* Client portal navigation - only for authenticated users */}
             {isAuthenticated && (
               <>
                 <Link
                   to="/blog"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                     isActive('/blog')
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -111,7 +89,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/clients"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                     isActive('/clients')
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -121,7 +99,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/case-studies"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                     isActive('/case-studies')
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -131,7 +109,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/my-projects"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                     isActive('/my-projects')
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -244,15 +222,15 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation — scrollable so it fits any device height */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4 fade-in">
+          <div className="md:hidden border-t border-gray-200 py-4 fade-in max-h-[calc(100vh-4rem)] overflow-y-auto">
             {/* Mobile Search Bar */}
             <div className="px-4 mb-4">
               <SearchBar />
             </div>
+            <p className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Main</p>
             <div className="space-y-1">
-              {/* Public navigation - visible to everyone */}
               <Link
                 to="/"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
@@ -263,17 +241,6 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
-              </Link>
-              <Link
-                to="/projects"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/projects')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Projects
               </Link>
               <Link
                 to="/services"
@@ -298,17 +265,6 @@ const Navbar = () => {
                 Pricing
               </Link>
               <Link
-                to="/about"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/about')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About
-              </Link>
-              <Link
                 to="/contact"
                 className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
                   isActive('/contact')
@@ -319,7 +275,9 @@ const Navbar = () => {
               >
                 Contact
               </Link>
-              {/* Client portal navigation - only for authenticated users */}
+              {isAuthenticated && (
+                <p className="px-4 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Portal</p>
+              )}
               {isAuthenticated && (
                 <>
                   <Link

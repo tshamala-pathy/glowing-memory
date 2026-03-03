@@ -1,5 +1,11 @@
 /* AWS-Inspired Professional Design System */
 
+/* Prevent horizontal scroll on small devices */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* Custom Utility Classes */
 .line-clamp-2 {
   display: -webkit-box;

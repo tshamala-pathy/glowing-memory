@@ -37,10 +37,13 @@ import AdminClients from './pages/admin/AdminClients';
 import AdminClientProjects from './pages/admin/AdminClientProjects';
 import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 import AdminAbout from './pages/admin/AdminAbout';
+import AdminFinancialDashboard from './pages/admin/AdminFinancialDashboard';
+import AdminTasks from './pages/admin/AdminTasks';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import Requirements from './pages/Requirements';
 import QuoteSuccess from './pages/QuoteSuccess';
+import TermsAndPrivacy from './pages/TermsAndPrivacy';
 import SearchResults from './pages/SearchResults';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogDetail from './pages/BlogDetail';
@@ -57,9 +60,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen">
+        <div className="min-h-screen w-full overflow-x-hidden">
           <Navbar />
-          <main>
+          <main className="w-full min-w-0">
             <Routes>
               {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
@@ -77,12 +80,34 @@ function App() {
               <Route path="/requirements" element={<Requirements />} />
               <Route path="/request-quote" element={<Quotes />} />
               <Route path="/quote-success" element={<QuoteSuccess />} />
+              <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
               <Route path="/public-projects" element={<PublicProjects />} />
 
               {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
-              <Route path="/profile" element={<ProtectedRoute requireAuth={true}><Profile /></ProtectedRoute>} />
-              <Route path="/portal" element={<ProtectedRoute requireAuth={true}><ClientPortal /></ProtectedRoute>} />
-              <Route path="/my-projects" element={<ProtectedRoute requireAuth={true}><ClientProjects /></ProtectedRoute>} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/portal"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <ClientPortal />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-projects"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <ClientProjects />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
               <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />
               <Route path="/blog/:id" element={<ProtectedRoute requireAuth={true}><BlogDetail /></ProtectedRoute>} />
@@ -160,6 +185,22 @@ function App() {
                 element={
                   <ProtectedRoute requireSuperuser={true}>
                     <AdminInvoices />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/financial" 
+                element={
+                  <ProtectedRoute requireStaffOrSuperuser={true}>
+                    <AdminFinancialDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/tasks" 
+                element={
+                  <ProtectedRoute requireStaffOrSuperuser={true}>
+                    <AdminTasks />
                   </ProtectedRoute>
                 } 
               />

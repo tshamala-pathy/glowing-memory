@@ -91,9 +91,18 @@ class RegisterView(generics.CreateAPIView):
 # View for aggregated profile data (user, client, quotes, invoices, projects, messages, testimonials)
 class ProfileAggregateView(generics.GenericAPIView):
     """
-    Single endpoint /api/profile/ that returns all data needed for the Profile page:
-    user, client, quotes, invoices, projects, messages, testimonials.
-    Requires authentication.
+    GET /api/profile/ — Aggregated data for the logged-in user's Profile page.
+
+    Returns: user, client, quotes, invoices, projects, messages, testimonials.
+
+    Permission: IsAuthenticated. Data is strictly scoped to the requesting user:
+    - Quotes: only those where client=user's client_profile or client_email=user.email
+    - Invoices: same rule (client or client_email match)
+    - Projects: only those for user's client_profile
+    - Messages: only those for user's client or email
+    - Testimonials: only those for user's client_profile
+    Clients never receive other clients' data. Admin (superuser) with no client_profile
+    receives only data keyed by their user email (typically empty).
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -103,7 +112,7 @@ class ProfileAggregateView(generics.GenericAPIView):
         from contact.models import ContactMessage
         from contact.serializers import ContactMessageSerializer
         from quotes.models import Quote
-        from quotes.serializers import QuoteSerializer
+        from quotes.serializers import ProfileQuoteSerializer
         from invoices.models import Invoice
         from invoices.serializers import InvoiceSerializer
         from testimonials.models import Testimonial
@@ -128,15 +137,15 @@ class ProfileAggregateView(generics.GenericAPIView):
             ).order_by('-created_at')[:20]
         messages_data = ContactMessageSerializer(messages_qs, many=True).data
 
-        # Quotes (by client or email)
+        # Quotes: only this user's quotes (client FK or client_email). No cross-client access.
         quotes_qs = Quote.objects.filter(
             Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email)
         ).order_by('-created_at') if profile else Quote.objects.filter(
             client_email__iexact=user.email
         ).order_by('-created_at')
-        quotes_data = QuoteSerializer(quotes_qs, many=True, context={'request': request}).data
+        quotes_data = ProfileQuoteSerializer(quotes_qs, many=True, context={'request': request}).data
 
-        # Invoices (by client or email)
+        # Invoices: only this user's invoices (client FK or client_email). No cross-client access.
         invoices_qs = Invoice.objects.filter(
             Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email)
         ).order_by('-created_at') if profile else Invoice.objects.filter(

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Client, Project, CaseStudy
+from .models import Client, Project, CaseStudy, Task
 
 
 # ================================
@@ -22,6 +22,7 @@ class ClientSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'logo', 'industry', 'description',
             'is_public', 'created_at', 'updated_at',
+            'internal_notes',
             'projects_count', 'case_studies_count'
         ]
         read_only_fields = ('created_at', 'updated_at', 'projects_count', 'case_studies_count')
@@ -55,6 +56,19 @@ class ClientSerializer(serializers.ModelSerializer):
         """Return count of case studies for this client."""
         return obj.case_studies.count()
 
+    def to_representation(self, instance):
+        """
+        Hide internal_notes from non-admin/staff users.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            if not (request.user.is_staff or request.user.is_superuser):
+                data.pop('internal_notes', None)
+        else:
+            data.pop('internal_notes', None)
+        return data
+
 
 # ================================
 # Project Serializer
@@ -83,7 +97,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'client', 'client_id', 'client_name', 'client_email',
             'status', 'quote', 'quote_project_title', 'invoice', 'invoice_number',
             'tech_stack', 'screenshots', 'repo_url', 'live_url',
-            'is_public', 'created_at', 'updated_at'
+            'is_public', 'created_at', 'updated_at', 'internal_notes'
         ]
         read_only_fields = (
             'created_at', 'updated_at', 'client_id', 'client_name', 'client_email',
@@ -145,14 +159,39 @@ class ProjectSerializer(serializers.ModelSerializer):
             representation.pop('client_email', None)
             representation.pop('invoice_number', None)
             representation.pop('invoice', None)
+            representation.pop('internal_notes', None)
         elif request and request.user.is_authenticated:
             is_owner = instance.client and getattr(instance.client, 'user', None) == request.user
             if not is_owner and not (request.user.is_staff or request.user.is_superuser):
                 representation.pop('client_email', None)
                 representation.pop('invoice_number', None)
                 representation.pop('invoice', None)
+                representation.pop('internal_notes', None)
 
         return representation
+
+
+# ================================
+# Task Serializer (admin-only; not exposed to clients)
+# ================================
+class TaskSerializer(serializers.ModelSerializer):
+    """Serializer for Task model. Used only by admin API."""
+
+    class Meta:
+        model = Task
+        fields = [
+            "id",
+            "project",
+            "title",
+            "description",
+            "status",
+            "priority",
+            "due_date",
+            "internal_notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("created_at", "updated_at")
 
 
 # ================================

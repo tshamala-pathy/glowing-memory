@@ -2,6 +2,8 @@
 
 A comprehensive full-stack web application built with Django REST Framework and React for managing a digital portfolio, blog, services, client quotes, and more.
 
+![PathyCode UI Screenshot](docs/pathycode-ui-screenshot.png)
+
 ## Features
 
 - **Project Portfolio**: Showcase projects with images, descriptions, and technologies
@@ -121,6 +123,29 @@ glowing-memory/
 ├── media/                  # User-uploaded files
 └── docs/                   # Documentation
 ```
+
+## Documentation & GitHub Pages
+
+This project includes Sphinx-based documentation under the `docs/` directory.
+
+- **Live docs**: After pushing to the default branch (`main`/`master`), GitHub
+  Actions builds the Sphinx HTML docs and deploys them to the `gh-pages`
+  branch. You can enable GitHub Pages in the repository settings and point it
+  at the `gh-pages` branch to host the docs.
+- **Build locally**:
+
+  ```bash
+  # From repo root
+  venv\Scripts\activate  # or source venv/bin/activate on Linux/Mac
+  python -m pip install -r requirements.txt
+  cd docs
+  python -m sphinx -b html . build/html
+  ```
+
+  Then open `docs/build/html/index.html` in your browser.
+
+The workflow configuration lives in `.github/workflows/docs.yml` and does not
+affect application logic or runtime behavior.
 
 ## Key Documentation
 

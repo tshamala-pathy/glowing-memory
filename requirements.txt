@@ -12,3 +12,7 @@ sqlparse==0.5.3
 tzdata==2025.2
 gunicorn
 reportlab==4.2.5
+
+# Documentation
+Sphinx>=7.0.0
+alabaster>=0.7.16

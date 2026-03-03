@@ -3,7 +3,7 @@ from django.urls import path, include
 from .views import ProjectViewSet
 
 router = DefaultRouter()
-router.register(r'', ProjectViewSet)
+router.register(r'', ProjectViewSet, basename='portfolio')
 
 urlpatterns = [
     path('', include(router.urls)),

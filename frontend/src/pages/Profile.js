@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatDate, formatDateTime, formatCurrency } from '../utils/formatters';
+import InvoiceDetailModal from '../components/InvoiceDetailModal';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
@@ -20,20 +21,21 @@ const SPACING = {
   cardGap: 'gap-6',
 };
 
-/** Status badge: pending (amber), approved/completed (green), rejected/overdue (red), etc. */
+/** Status badge: pending (amber), replied (blue), approved/paid (green), declined (red), etc. */
 const StatusBadge = ({ status, label }) => {
   const variants = {
     pending: 'bg-amber-100 text-amber-800 border-amber-200',
     new: 'bg-amber-100 text-amber-800 border-amber-200',
-    approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     replied: 'bg-blue-100 text-blue-800 border-blue-200',
+    approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     read: 'bg-slate-100 text-slate-700 border-slate-200',
     sent: 'bg-blue-100 text-blue-800 border-blue-200',
     in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
     archived: 'bg-gray-100 text-gray-600 border-gray-200',
     rejected: 'bg-red-100 text-red-800 border-red-200',
+    declined: 'bg-red-100 text-red-800 border-red-200',
     overdue: 'bg-red-100 text-red-800 border-red-200',
     draft: 'bg-gray-100 text-gray-600 border-gray-200',
     cancelled: 'bg-gray-100 text-gray-600 border-gray-200',
@@ -108,28 +110,87 @@ const Profile = () => {
   const [testimonials, setTestimonials] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState('');
+  const [quoteActionLoading, setQuoteActionLoading] = useState(null); // quote id when approve/decline in progress
+  const [quoteSuccessMessage, setQuoteSuccessMessage] = useState(''); // e.g. "Quote declined."
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [invoiceDownloadingId, setInvoiceDownloadingId] = useState(null);
+  const navigate = useNavigate();
+
+  const handleDownloadInvoicePDF = async (inv) => {
+    if (invoiceDownloadingId) return;
+    setInvoiceDownloadingId(inv.id);
+    try {
+      const res = await api.get(`/invoices/${inv.id}/pdf/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice_${inv.invoice_number || inv.id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Failed to download invoice PDF.');
+    } finally {
+      setInvoiceDownloadingId(null);
+    }
+  };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    const fetchProfile = async () => {
-      setDataLoading(true);
-      setError('');
-      try {
-        const { data } = await api.get('/profile/');
+    if (!isAuthenticated || !user) return;
+    fetchProfile();
+  }, [isAuthenticated, user]);
+
+  const fetchProfile = () => {
+    setDataLoading(true);
+    setError('');
+    api.get('/profile/')
+      .then(({ data }) => {
         setClient(data.client ?? null);
         setMessages(data.messages ?? []);
         setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
         setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
         setProjects(Array.isArray(data.projects) ? data.projects : []);
         setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
-      } catch (err) {
-        setError('We couldn\'t load your profile data. Please check your connection and try again.');
-      } finally {
-        setDataLoading(false);
+      })
+      .catch(() => setError('We couldn\'t load your profile data. Please check your connection and try again.'))
+      .finally(() => setDataLoading(false));
+  };
+
+  const handleQuoteApprove = async (quoteId) => {
+    setQuoteActionLoading(quoteId);
+    setError('');
+    setQuoteSuccessMessage('');
+    try {
+      const { data } = await api.post(`/quotes/${quoteId}/decision/`, { decision: 'approve' });
+      await fetchProfile();
+      const paymentUrl = data?.payment_url?.trim();
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+        return;
       }
-    };
-    fetchProfile();
-  }, [isAuthenticated]);
+      setError('No payment link is available for this quote. Please contact support.');
+    } catch (err) {
+      const msg = err.response?.data?.decision?.[0] || err.response?.data?.detail || 'Failed to approve quote. Please try again.';
+      setError(msg);
+    } finally {
+      setQuoteActionLoading(null);
+    }
+  };
+
+  const handleQuoteDecline = async (quoteId) => {
+    setQuoteActionLoading(quoteId);
+    setError('');
+    setQuoteSuccessMessage('');
+    try {
+      await api.post(`/quotes/${quoteId}/decision/`, { decision: 'decline' });
+      setQuoteSuccessMessage('Quote declined.');
+      fetchProfile();
+    } catch (err) {
+      const msg = err.response?.data?.decision?.[0] || err.response?.data?.detail || 'Failed to decline quote. Please try again.';
+      setError(msg);
+    } finally {
+      setQuoteActionLoading(null);
+    }
+  };
 
   const msgIcon = 'M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z';
   const docIcon = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
@@ -245,6 +306,11 @@ const Profile = () => {
     if (activeTab === 'quotes') {
       return (
         <SectionCard title="My Quotes" icon={docIcon} iconBg="bg-amber-50" iconColor="text-amber-600">
+          {quoteSuccessMessage && (
+            <div className="mb-4 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium">
+              {quoteSuccessMessage}
+            </div>
+          )}
           {dataLoading ? (
             <LoadingState label="Loading your quotes..." />
           ) : quotes.length === 0 ? (
@@ -255,27 +321,68 @@ const Profile = () => {
               action={<Link to="/request-quote" className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors shadow-sm">Request a quote</Link>}
             />
           ) : (
-            <div className="overflow-x-auto -mx-5 sm:-mx-6">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estimated</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {quotes.map((q) => (
-                    <tr key={q.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900">{q.project_title || '—'}</td>
-                      <td className="px-4 sm:px-6 py-4"><StatusBadge status={q.status} /></td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-600">{formatCurrency(q.estimated_amount)}</td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">{formatDate(q.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-6">
+              {quotes.map((q) => (
+                <div key={q.id} className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <h3 className="text-lg font-bold text-gray-900">{q.title || 'Quote'}</h3>
+                    <StatusBadge status={q.status} label={q.status === 'pending' ? 'Pending' : q.status === 'replied' ? 'Replied' : q.status === 'approved' ? 'Approved' : q.status === 'declined' ? 'Declined' : q.status === 'paid' ? 'Paid' : q.status} />
+                  </div>
+                  {q.description && (
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap mb-4">{q.description}</p>
+                  )}
+                  {Array.isArray(q.item_breakdown) && q.item_breakdown.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Item breakdown</p>
+                      <ul className="space-y-1">
+                        {q.item_breakdown.map((item, idx) => (
+                          <li key={idx} className="flex justify-between text-sm text-gray-700">
+                            <span>{item.description}</span>
+                            {item.amount != null && <span>{formatCurrency(item.amount)}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {q.total_price != null && (
+                    <p className="text-base font-semibold text-gray-900 mb-3">Total: {formatCurrency(q.total_price)}</p>
+                  )}
+                  {q.admin_response && (
+                    <div className="mb-4 p-4 rounded-lg bg-blue-50 border border-blue-100">
+                      <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">Our response</p>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{q.admin_response}</p>
+                      {q.responded_at && <p className="text-xs text-gray-500 mt-2">Responded {formatDateTime(q.responded_at)}</p>}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <span>Submitted {formatDate(q.created_at)}</span>
+                    {q.responded_at && q.admin_response && <span>· Responded {formatDate(q.responded_at)}</span>}
+                  </div>
+                  {q.status === 'replied' && (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleQuoteApprove(q.id)}
+                        disabled={quoteActionLoading === q.id}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                      >
+                        {quoteActionLoading === q.id ? 'Updating...' : 'Approve'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuoteDecline(q.id)}
+                        disabled={quoteActionLoading === q.id}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        {quoteActionLoading === q.id ? 'Updating...' : 'Decline'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="pt-2">
+                <Link to="/request-quote" className="text-sm font-medium text-amber-600 hover:text-amber-800">Request a new quote →</Link>
+              </div>
             </div>
           )}
         </SectionCard>
@@ -303,6 +410,7 @@ const Profile = () => {
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due date</th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -312,6 +420,15 @@ const Profile = () => {
                       <td className="px-4 sm:px-6 py-4"><StatusBadge status={inv.status} /></td>
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-600">{formatCurrency(inv.total_amount)}</td>
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">{formatDate(inv.due_date)}</td>
+                      <td className="px-4 sm:px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedInvoice(inv)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          View
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -453,8 +570,17 @@ const Profile = () => {
           </div>
         )}
 
-        {/* Header */}
+        {/* Home link + Header */}
         <div className="mb-8 sm:mb-10">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-blue-600 mb-4 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Home
+          </Link>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg flex-shrink-0">
               {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
@@ -491,6 +617,15 @@ const Profile = () => {
           {renderTabContent()}
         </div>
       </div>
+
+      {selectedInvoice && (
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          onDownloadPDF={handleDownloadInvoicePDF}
+          isDownloading={invoiceDownloadingId === selectedInvoice?.id}
+        />
+      )}
     </div>
   );
 };
