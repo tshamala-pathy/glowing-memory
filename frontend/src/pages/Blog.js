@@ -47,7 +47,7 @@ const Blog = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center px-4">
         <div className="text-center">
           <div className="spinner mx-auto mb-4"></div>
           <p className="text-gray-600">Loading blog posts...</p>
@@ -58,8 +58,8 @@ const Blog = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md mx-auto px-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -73,10 +73,10 @@ const Blog = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white overflow-x-hidden">
       {/* Header Section */}
       <section className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="text-center fade-in">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
               Blog & Insights
@@ -90,8 +90,8 @@ const Blog = () => {
 
       {/* Category Filter */}
       {categories.length > 0 && (
-        <section className="bg-white border-b border-gray-200 py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="bg-white border-b border-gray-200 py-4 sm:py-6">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-wrap gap-3 justify-center">
               <button
                 onClick={() => setSelectedCategory('')}
@@ -122,7 +122,7 @@ const Blog = () => {
       )}
 
       {/* Blog Posts Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
         {posts.length === 0 ? (
           <div className="text-center py-20">
             <div className="bg-white rounded-2xl shadow-lg p-12 max-w-md mx-auto">

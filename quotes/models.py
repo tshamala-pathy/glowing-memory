@@ -10,29 +10,32 @@ class Quote(models.Model):
     Optional client FK links to Client; client_name, client_email, company_name store
     contact details for display and for unauthenticated submissions. See docs/RESPONSIBILITIES.md.
 
-    Status flow (state machine):
-    - pending → replied (admin only)
-    - replied → approved | declined (client only)
-    - approved → invoiced (system only, when draft invoice is created)
-    - invoiced → paid (system only, after payment success)
+    Status flow (state machine) — Quote → Payment → Invoice → Project:
+    - pending → reviewed (admin only; admin sets proposed_price, admin_notes, estimated_delivery_time)
+    - reviewed → approved | declined (client only)
+    - approved: client is redirected to Payment page; after payment, Invoice and Project are created automatically.
     Use validate_status_transition() before changing status.
     """
     STATUS_CHOICES = [
         ('pending', 'Pending'),
-        ('replied', 'Replied'),
+        ('reviewed', 'Reviewed'),
         ('approved', 'Approved'),
-        ('invoiced', 'Invoiced'),
         ('declined', 'Declined'),
-        ('paid', 'Paid'),
+        # Legacy: kept for existing rows; new flow uses only the four above
+        ('replied', 'Replied (legacy)'),
+        ('invoiced', 'Invoiced (legacy)'),
+        ('paid', 'Paid (legacy)'),
     ]
 
     # Valid status transitions: from_status -> list of allowed to_status
     VALID_TRANSITIONS = {
-        'pending': ['replied'],
-        'replied': ['approved', 'declined'],
-        'approved': ['invoiced', 'paid'],
-        'invoiced': ['paid'],
+        'pending': ['reviewed'],
+        'reviewed': ['approved', 'declined'],
+        'approved': [],
         'declined': [],
+        # Legacy transitions for existing data
+        'replied': ['approved', 'declined'],
+        'invoiced': ['paid'],
         'paid': [],
     }
     
@@ -104,13 +107,19 @@ class Quote(models.Model):
         help_text="Timestamp when requirements were accepted"
     )
     
-    # Quote Details
+    # Quote Details (admin sets these when reviewing)
     estimated_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         blank=True,
         null=True,
-        help_text="Admin-provided estimated amount for the project"
+        help_text="Proposed price from admin (shown to client when status = reviewed)"
+    )
+    estimated_delivery_time = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Admin-estimated delivery time (e.g. '2-4 weeks'); shown to client when status = reviewed"
     )
     status = models.CharField(
         max_length=20,
@@ -126,7 +135,7 @@ class Quote(models.Model):
     admin_response = models.TextField(
         blank=True,
         null=True,
-        help_text="Admin's response to the client (sent via email when status changes to 'replied')"
+        help_text="Admin notes/response to the client (visible in Client Portal when status = reviewed)"
     )
     responded_at = models.DateTimeField(
         blank=True,
@@ -167,10 +176,10 @@ class Quote(models.Model):
     def validate_status_transition(cls, old_status, new_status):
         """
         Enforce strict status flow. Raises ValidationError if transition is invalid.
-        - pending → replied (admin only)
-        - replied → approved | declined (client only)
-        - approved → invoiced | paid (system only)
-        - invoiced → paid (system only)
+        - pending → reviewed (admin only)
+        - reviewed → approved | declined (client only)
+        - approved/declined: no further transitions in main flow.
+        Legacy: replied → approved|declined; invoiced → paid.
         """
         if old_status == new_status:
             return

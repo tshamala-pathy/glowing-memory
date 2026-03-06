@@ -171,7 +171,7 @@ const AdminBlog = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64 px-4">
           <div className="text-gray-600">Loading...</div>
         </div>
       </AdminLayout>
@@ -180,11 +180,11 @@ const AdminBlog = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Blog Posts</h1>
-            <p className="text-gray-600 mt-1">Manage your blog content</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Blog Posts</h1>
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage your blog content</p>
           </div>
           <button
             onClick={handleCreate}
@@ -204,13 +204,15 @@ const AdminBlog = () => {
           />
         </div>
 
-        <DataTable
-          columns={columns}
-          data={filteredPosts}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          emptyMessage="No blog posts found"
-        />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          <DataTable
+            columns={columns}
+            data={filteredPosts}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            emptyMessage="No blog posts found"
+          />
+        </div>
 
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">

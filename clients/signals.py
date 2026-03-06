@@ -104,7 +104,8 @@ def create_project_on_invoice_paid(sender, instance, **kwargs):
                     client=client,
                     quote=quote,
                     invoice=instance,
-                    status='in_progress',
+                    status='planning',
+                    start_date=timezone.now().date(),
                     tech_stack=quote.service_type or '',
                     is_public=False,
                 )

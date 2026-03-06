@@ -5,6 +5,9 @@ from .models import CustomUser
 from .serializers import (
     RegisterSerializer,
     UserSerializer,
+    ProfileUpdateSerializer,
+    ChangePasswordSerializer,
+    ChangeEmailSerializer,
     CustomTokenObtainPairSerializer,
     ForgotPasswordSerializer,
     ResetPasswordSerializer
@@ -27,8 +30,7 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        # Get user data and client profile (for portal: quotes, invoices, projects)
+
         email = request.data.get('email')
         user = CustomUser.objects.get(email=email)
         user_data = UserSerializer(user).data
@@ -38,11 +40,10 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
             client_profile = user.client_profile
             client_data = {'id': client_profile.id, 'name': client_profile.name}
         except Client.DoesNotExist:
-            # Auto-create Client for legacy users or if signal did not run
             name = (user.get_full_name() or user.email or user.username or 'Client').strip() or 'Client'
             client_profile = Client.objects.create(user=user, name=name)
             client_data = {'id': client_profile.id, 'name': client_profile.name}
-        
+
         return Response({
             'access': serializer.validated_data['access'],
             'refresh': serializer.validated_data['refresh'],
@@ -122,7 +123,6 @@ class ProfileAggregateView(generics.GenericAPIView):
         user = request.user
         user_data = UserSerializer(user).data
 
-        # Client
         profile = getattr(user, 'client_profile', None)
         client_data = None
         if profile:
@@ -198,21 +198,63 @@ class ProfileView(generics.RetrieveAPIView):
         """
         return self.request.user
 
-# View for updating the authenticated user's profile
+# View for updating the authenticated user's profile (first name, last name, bio, avatar)
 class ProfileUpdateView(generics.UpdateAPIView):
     """
-    API endpoint to update the profile of the currently authenticated user.
-    Only accessible to logged-in users.
+    PATCH/PUT /api/users/profile/update/ — Update current user's profile.
+    Allowed fields: first_name, last_name, bio, avatar. Only the authenticated user can update their own profile.
     """
     queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = ProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['put', 'patch', 'head', 'options']
 
     def get_object(self):
-        """
-        Return the current authenticated user.
-        """
         return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(UserSerializer(instance, context={'request': request}).data)
+
+# Change password (requires current password)
+class ChangePasswordView(generics.GenericAPIView):
+    """
+    POST /api/users/change-password/ — Change authenticated user's password.
+    Body: current_password, new_password, confirm_new_password.
+    """
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
+
+# Change email (requires password)
+class ChangeEmailView(generics.GenericAPIView):
+    """
+    POST /api/users/change-email/ — Change authenticated user's email.
+    Body: new_email, password. Validates password and new email uniqueness.
+    """
+    serializer_class = ChangeEmailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.email = serializer.validated_data['new_email']
+        user.save(update_fields=['email'])
+        return Response({'detail': 'Email updated successfully.', 'email': user.email}, status=status.HTTP_200_OK)
+
 
 # ViewSet for listing users (superuser only)
 class UserListViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatDate, formatCurrency, getQuoteStatusClass, getInvoiceStatusClass, getProjectStatusClass } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
@@ -12,6 +12,7 @@ import InvoiceDetailModal from '../components/InvoiceDetailModal';
  */
 const ClientPortal = () => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quoteIdFromUrl = searchParams.get('quote');
   const [quotes, setQuotes] = useState([]);
@@ -21,7 +22,9 @@ const ClientPortal = () => {
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [decisionLoadingId, setDecisionLoadingId] = useState(null);
   const hasInvoiceForApprovedQuote = quoteIdFromUrl && invoices.some((inv) => String(inv.quote) === String(quoteIdFromUrl));
+  const approvedQuoteNotPaid = quoteIdFromUrl && !invoices.some((inv) => String(inv.quote) === String(quoteIdFromUrl)) && quotes.some((q) => String(q.id) === String(quoteIdFromUrl) && (q.status === 'approved' || q.status === 'Approved'));
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -87,6 +90,30 @@ const ClientPortal = () => {
     }
   };
 
+  // Client can approve or decline after admin has replied (status is 'reviewed' or legacy 'replied')
+  const canApproveDecline = (q) => {
+    const s = (q.status || '').toLowerCase();
+    return s === 'reviewed' || s === 'replied';
+  };
+  const handleQuoteDecision = async (quote, decision) => {
+    if (decisionLoadingId) return;
+    setDecisionLoadingId(quote.id);
+    setError('');
+    try {
+      await api.post(`/quotes/${quote.id}/decision/`, { decision });
+      if (decision === 'approve') {
+        navigate(`/payment/${quote.id}`, { replace: true });
+        return;
+      }
+      const { data } = await api.get('/profile/');
+      setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
+    } catch (err) {
+      setError(err.response?.data?.status?.[0] || err.response?.data?.error || 'Action failed.');
+    } finally {
+      setDecisionLoadingId(null);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-12 px-4 sm:px-6 lg:px-8">
@@ -136,12 +163,23 @@ const ClientPortal = () => {
           </div>
         )}
 
+        {quoteIdFromUrl && approvedQuoteNotPaid && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-center gap-3">
+              <span className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </span>
+              <p className="font-medium">Complete payment for your approved quote.</p>
+            </span>
+            <Link to={`/payment/${quoteIdFromUrl}`} className="inline-flex px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700">Go to payment</Link>
+          </div>
+        )}
         {quoteIdFromUrl && hasInvoiceForApprovedQuote && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-3">
             <span className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             </span>
-            <p className="font-medium">Your quote was approved. Pay your invoice below.</p>
+            <p className="font-medium">Your quote was approved and paid. View your invoice below.</p>
           </div>
         )}
 
@@ -178,13 +216,41 @@ const ClientPortal = () => {
                   <tbody className="divide-y divide-gray-200">
                     {quotes.map((q) => (
                       <tr key={q.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{q.title || '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{q.title || '—'}</div>
+                          {(canApproveDecline(q) && (q.admin_response || q.estimated_delivery_time)) && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              {q.estimated_delivery_time && <span>Delivery: {q.estimated_delivery_time}. </span>}
+                              {q.admin_response && <span className="line-clamp-2">{q.admin_response}</span>}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusClass(q.status)}`}>{q.status}</span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(q.total_price)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(q.created_at)}</td>
                         <td className="px-4 py-3 text-right">
+                          {canApproveDecline(q) && (
+                            <span className="inline-flex gap-2 mr-2">
+                              <button
+                                type="button"
+                                onClick={() => handleQuoteDecision(q, 'approve')}
+                                disabled={decisionLoadingId === q.id}
+                                className="text-sm font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
+                              >
+                                {decisionLoadingId === q.id ? '...' : '✔ Approve'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuoteDecision(q, 'decline')}
+                                disabled={decisionLoadingId === q.id}
+                                className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                              >
+                                ✖ Decline
+                              </button>
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleDownloadQuote(q)}

@@ -53,6 +53,7 @@ import CaseStudies from './pages/CaseStudies';
 import PublicProjects from './pages/PublicProjects';
 import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
+import Payment from './pages/Payment';
 import Profile from './pages/Profile';
 import './App.css';
 
@@ -97,6 +98,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
                     <ClientPortal />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment/:quoteId"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <Payment />
                   </ProtectedRoute>
                 }
               />

@@ -27,6 +27,7 @@ class ProfileQuoteSerializer(serializers.ModelSerializer):
             'description',
             'item_breakdown',
             'total_price',
+            'estimated_delivery_time',
             'status',
             'admin_response',
             'payment_url',
@@ -66,7 +67,7 @@ class QuoteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'client', 'client_name', 'client_email', 'client_phone', 'company_name',
             'project_title', 'project_description', 'project_type', 'service_type',
-            'budget_range', 'deadline', 'timeline', 'estimated_amount', 'status',
+            'budget_range', 'deadline', 'timeline', 'estimated_amount', 'estimated_delivery_time', 'status',
             'notes', 'admin_response', 'payment_url', 'assigned_to', 'assigned_to_name',
             'assigned_to_email', 'requirements_accepted', 'requirements_accepted_at',
             'created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at'

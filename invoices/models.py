@@ -333,3 +333,56 @@ class Invoice(models.Model):
             models.UniqueConstraint(fields=['quote'], name='unique_quote_invoice')
         ]
 
+
+# ================================
+# Payment (Quote → Payment → Invoice → Project)
+# ================================
+class Payment(models.Model):
+    """
+    Records payment for an approved quote. Created when the client completes
+    payment at /payment/{quote_id}. One payment per quote.
+    After payment_status = 'paid', an Invoice is created (status=paid) and
+    a Project is auto-created via clients.signals.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+    ]
+    client = models.ForeignKey(
+        'clients.Client',
+        on_delete=models.PROTECT,
+        related_name='payments',
+        help_text="Client who made the payment"
+    )
+    quote = models.OneToOneField(
+        'quotes.Quote',
+        on_delete=models.PROTECT,
+        related_name='payment',
+        help_text="Quote this payment is for (must be approved)"
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Amount paid"
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    payment_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When payment was completed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Payment"
+        verbose_name_plural = "Payments"
+
+    def __str__(self):
+        return f"Payment {self.amount} - {self.quote.project_title} ({self.payment_status})"
+

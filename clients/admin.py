@@ -41,7 +41,7 @@ class ProjectInline(admin.TabularInline):
     fk_name = 'client'
     extra = 0
     show_change_link = True
-    fields = ('name', 'status', 'is_public', 'created_at')
+    fields = ('name', 'status', 'progress_percentage', 'is_public', 'created_at')
     readonly_fields = ('created_at',)
     ordering = ['-created_at']
     verbose_name = 'Project'
@@ -92,7 +92,7 @@ class ProjectAdmin(admin.ModelAdmin):
     - Search by name, description, tech stack
     """
     list_display = [
-        'name', 'client_name', 'status', 'is_public',
+        'name', 'client_name', 'status', 'progress_percentage', 'is_public',
         'quote_link', 'invoice_link', 'created_at'
     ]
     list_filter = ['status', 'is_public', 'created_at', 'client']
@@ -104,7 +104,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Project Information', {
-            'fields': ('name', 'description', 'status', 'is_public', 'internal_notes'),
+            'fields': ('name', 'description', 'status', 'progress_percentage', 'is_public', 'internal_notes'),
             'description': 'Basic project information'
         }),
         ('Client & Relationships', {

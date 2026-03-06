@@ -90,12 +90,13 @@ class ProjectSerializer(serializers.ModelSerializer):
     client_email = serializers.SerializerMethodField()
     quote_project_title = serializers.CharField(source='quote.project_title', read_only=True)
     invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
     
     class Meta:
         model = Project
         fields = [
             'id', 'name', 'description', 'client', 'client_id', 'client_name', 'client_email',
-            'status', 'quote', 'quote_project_title', 'invoice', 'invoice_number',
+            'status', 'status_label', 'progress_percentage', 'quote', 'quote_project_title', 'invoice', 'invoice_number',
             'tech_stack', 'screenshots', 'repo_url', 'live_url',
             'is_public', 'created_at', 'updated_at', 'internal_notes'
         ]

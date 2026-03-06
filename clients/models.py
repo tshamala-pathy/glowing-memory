@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # ================================
 # Client Model (Business / Customer Entity)
@@ -106,9 +107,11 @@ class Project(models.Model):
         is_public: Whether project is visible to non-authenticated users
         created_at: Timestamp when project was created
     """
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('in_progress', 'In Progress'),
+    STAGE_CHOICES = [
+        ('planning', 'Planning'),
+        ('design', 'Design'),
+        ('development', 'Development'),
+        ('testing', 'Testing'),
         ('completed', 'Completed'),
     ]
     
@@ -133,9 +136,15 @@ class Project(models.Model):
     # Project status
     status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
-        default='pending',
-        help_text="Current status of the project"
+        choices=STAGE_CHOICES,
+        default='planning',
+        help_text="Current stage of the project"
+    )
+
+    progress_percentage = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Project progress percentage (0-100). Clients can view; admin updates."
     )
     
     # Links to Quote and Invoice
@@ -191,6 +200,11 @@ class Project(models.Model):
     )
     
     # Timestamps
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Project start date (set when project is auto-created from paid invoice)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(

@@ -1,5 +1,7 @@
 # Quotes Workflow Documentation
 
+For the full **Quote → Payment → Invoice → Project** flow, see [QUOTE_TO_PROJECT_WORKFLOW.md](QUOTE_TO_PROJECT_WORKFLOW.md).
+
 ## Overview
 
 The Quotes application allows authenticated users to request project quotes/estimates, and administrators to manage and respond to these requests through the Django admin panel.

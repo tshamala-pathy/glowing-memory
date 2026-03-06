@@ -50,15 +50,37 @@ const ClientProjects = () => {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
+      case 'planning':
+        return 'bg-slate-100 text-slate-800';
+      case 'design':
+        return 'bg-fuchsia-100 text-fuchsia-800';
+      case 'development':
+        return 'bg-blue-100 text-blue-800';
+      case 'testing':
+        return 'bg-amber-100 text-amber-800';
       case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const STAGES = [
+    { key: 'planning', label: 'Planning', icon: '✔' },
+    { key: 'design', label: 'Design', icon: '✔' },
+    { key: 'development', label: 'Development', icon: '⚙' },
+    { key: 'testing', label: 'Testing', icon: '⬜' },
+    { key: 'completed', label: 'Completed', icon: '⬜' },
+  ];
+
+  const getStageState = (currentStatus, stageKey) => {
+    const order = ['planning', 'design', 'development', 'testing', 'completed'];
+    const curIdx = order.indexOf(currentStatus);
+    const stageIdx = order.indexOf(stageKey);
+    if (curIdx === -1 || stageIdx === -1) return 'todo';
+    if (stageIdx < curIdx) return 'done';
+    if (stageIdx === curIdx) return 'current';
+    return 'todo';
   };
 
   if (!isAuthenticated) {
@@ -91,11 +113,11 @@ const ClientProjects = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-10 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
             My Projects
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -128,9 +150,11 @@ const ClientProjects = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Statuses</option>
+                <option value="planning">Planning</option>
+                <option value="design">Design</option>
+                <option value="development">Development</option>
+                <option value="testing">Testing</option>
                 <option value="completed">Completed</option>
-                <option value="in_progress">In Progress</option>
-                <option value="pending">Pending</option>
               </select>
             </div>
           </div>
@@ -208,7 +232,7 @@ const ClientProjects = () => {
                         project.status
                       )}`}
                     >
-                      {project.status === 'in_progress' ? 'In Progress' : project.status === 'completed' ? 'Completed' : 'Pending'}
+                      {project.status_label || (project.status ? project.status.replace(/_/g, ' ') : '—')}
                     </span>
                   </div>
                   {/* Public/Private Badge */}
@@ -229,6 +253,46 @@ const ClientProjects = () => {
                   <p className="text-gray-600 text-sm mb-4 line-clamp-3">
                     {project.description}
                   </p>
+
+                  {/* Progress tracker */}
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold text-gray-900">Progress</p>
+                      <p className="text-sm font-semibold text-gray-700">{Math.max(0, Math.min(100, Number(project.progress_percentage ?? 0)))}%</p>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500"
+                        style={{ width: `${Math.max(0, Math.min(100, Number(project.progress_percentage ?? 0)))}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      {STAGES.map((s, idx) => {
+                        const state = getStageState(project.status, s.key);
+                        const isDone = state === 'done';
+                        const isCurrent = state === 'current';
+                        const base = 'flex items-center justify-between px-3 py-2 rounded-lg border';
+                        const style = isDone
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : isCurrent
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'bg-white border-gray-200';
+                        const icon = isDone ? '✔' : isCurrent ? '⚙' : '⬜';
+                        const text = isDone ? 'text-emerald-800' : isCurrent ? 'text-blue-800' : 'text-gray-700';
+                        return (
+                          <div key={s.key} className={`${base} ${style}`}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-semibold ${text}`}>{icon}</span>
+                              <span className={`text-sm font-medium ${text}`}>{s.label}</span>
+                            </div>
+                            {isCurrent && <span className="text-xs font-semibold text-blue-700">In progress</span>}
+                            {s.key === 'completed' && project.status === 'completed' && <span className="text-xs font-semibold text-emerald-700">Done</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   {/* Tech Stack */}
                   {project.tech_stack && project.tech_stack.length > 0 && (

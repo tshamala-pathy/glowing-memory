@@ -3,6 +3,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     RegisterView,
     ProfileView,
+    ProfileUpdateView,
+    ChangePasswordView,
+    ChangeEmailView,
     CustomTokenObtainPairView,
     UserListViewSet,
     UserAdminViewSet,
@@ -26,6 +29,12 @@ urlpatterns = [
 
     # Endpoint to retrieve the currently authenticated user's profile
     path('profile/', ProfileView.as_view(), name='profile'),
+    # Endpoint to update profile (first name, last name, bio, avatar)
+    path('profile/update/', ProfileUpdateView.as_view(), name='profile_update'),
+    # Change password (current + new + confirm)
+    path('change-password/', ChangePasswordView.as_view(), name='change_password'),
+    # Change email (new email + password)
+    path('change-email/', ChangeEmailView.as_view(), name='change_email'),
 
     # Endpoint to obtain a JWT access and refresh token pair (email-based login)
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),

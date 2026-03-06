@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 import { formatDate, formatDateTime, formatCurrency } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
 
@@ -12,7 +12,7 @@ const TABS = [
   { id: 'invoices', label: 'My Invoices', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { id: 'projects', label: 'My Projects', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
   { id: 'testimonials', label: 'Testimonials', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
-  { id: 'settings', label: 'Account Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id: 'settings', label: 'Profile Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
 /** Spacing constants for consistent layout */
@@ -100,7 +100,7 @@ const LoadingState = ({ label = 'Loading...' }) => (
  * Invoices, Projects, Testimonials, Account Settings.
  */
 const Profile = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [client, setClient] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -110,10 +110,21 @@ const Profile = () => {
   const [testimonials, setTestimonials] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState('');
-  const [quoteActionLoading, setQuoteActionLoading] = useState(null); // quote id when approve/decline in progress
-  const [quoteSuccessMessage, setQuoteSuccessMessage] = useState(''); // e.g. "Quote declined."
+  const [quoteActionLoading, setQuoteActionLoading] = useState(null);
+  const [quoteSuccessMessage, setQuoteSuccessMessage] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [invoiceDownloadingId, setInvoiceDownloadingId] = useState(null);
+  // Profile Settings state
+  const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', bio: '' });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [profileSaveLoading, setProfileSaveLoading] = useState(false);
+  const [profileSaveMessage, setProfileSaveMessage] = useState({ type: '', text: '' });
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_new_password: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+  const [emailForm, setEmailForm] = useState({ new_email: '', password: '' });
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailMessage, setEmailMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
 
   const handleDownloadInvoicePDF = async (inv) => {
@@ -139,6 +150,16 @@ const Profile = () => {
     fetchProfile();
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        bio: user.bio || '',
+      });
+    }
+  }, [user]);
+
   const fetchProfile = () => {
     setDataLoading(true);
     setError('');
@@ -151,8 +172,77 @@ const Profile = () => {
         setProjects(Array.isArray(data.projects) ? data.projects : []);
         setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
       })
-      .catch(() => setError('We couldn\'t load your profile data. Please check your connection and try again.'))
+      .catch((err) => {
+        // #region agent log
+        const payload = { sessionId: 'c877e1', location: 'Profile.js:fetchProfile', message: 'profile fetch failed', data: { status: err.response?.status, responseData: err.response?.data, message: err.message }, timestamp: Date.now(), hypothesisId: 'E' };
+        fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify(payload) }).catch(() => {});
+        // #endregion
+        setError('We couldn\'t load your profile data. Please check your connection and try again.');
+      })
       .finally(() => setDataLoading(false));
+  };
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setProfileSaveMessage({ type: '', text: '' });
+    setProfileSaveLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('first_name', profileForm.first_name);
+      formData.append('last_name', profileForm.last_name);
+      formData.append('bio', profileForm.bio);
+      if (avatarFile) formData.append('avatar', avatarFile);
+      const { data } = await api.patch('/users/profile/update/', formData);
+      if (refreshUser) await refreshUser();
+      setProfileSaveMessage({ type: 'success', text: 'Profile updated successfully.' });
+      setAvatarFile(null);
+    } catch (err) {
+      const msg = err.response?.data?.first_name?.[0] || err.response?.data?.last_name?.[0] || err.response?.data?.bio?.[0] || err.response?.data?.avatar?.[0] || err.response?.data?.detail || err.message || 'Failed to update profile.';
+      setProfileSaveMessage({ type: 'error', text: msg });
+    } finally {
+      setProfileSaveLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMessage({ type: '', text: '' });
+    if (passwordForm.new_password !== passwordForm.confirm_new_password) {
+      setPasswordMessage({ type: 'error', text: 'New password and confirmation do not match.' });
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      await api.post('/users/change-password/', {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+        confirm_new_password: passwordForm.confirm_new_password,
+      });
+      setPasswordMessage({ type: 'success', text: 'Password changed successfully.' });
+      setPasswordForm({ current_password: '', new_password: '', confirm_new_password: '' });
+    } catch (err) {
+      const msg = err.response?.data?.current_password?.[0] || err.response?.data?.new_password?.[0] || err.response?.data?.confirm_new_password?.[0] || err.response?.data?.detail || err.message || 'Failed to change password.';
+      setPasswordMessage({ type: 'error', text: msg });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    setEmailMessage({ type: '', text: '' });
+    setEmailLoading(true);
+    try {
+      const { data } = await api.post('/users/change-email/', { new_email: emailForm.new_email, password: emailForm.password });
+      setEmailMessage({ type: 'success', text: 'Email updated successfully.' });
+      setEmailForm({ new_email: '', password: '' });
+      if (refreshUser) await refreshUser();
+    } catch (err) {
+      const msg = err.response?.data?.new_email?.[0] || err.response?.data?.password?.[0] || err.response?.data?.detail || err.message || 'Failed to change email.';
+      setEmailMessage({ type: 'error', text: msg });
+    } finally {
+      setEmailLoading(false);
+    }
   };
 
   const handleQuoteApprove = async (quoteId) => {
@@ -522,23 +612,121 @@ const Profile = () => {
     }
 
     if (activeTab === 'settings') {
+      const avatarUrl = user?.avatar_url || (user?.avatar && getMediaUrl(user.avatar));
       return (
-        <SectionCard title="Account activity" icon={TABS[6].icon} iconBg="bg-slate-100" iconColor="text-slate-600">
-          <dl className={`grid grid-cols-1 sm:grid-cols-2 ${SPACING.cardGap}`}>
-            <div className="p-4 rounded-xl bg-gray-50">
-              <dt className="text-sm font-medium text-gray-500">Account created</dt>
-              <dd className="mt-1 font-semibold text-gray-900">{formatDateTime(user?.date_joined)}</dd>
-            </div>
-            <div className="p-4 rounded-xl bg-gray-50">
-              <dt className="text-sm font-medium text-gray-500">Last login</dt>
-              <dd className="mt-1 font-semibold text-gray-900">{user?.last_login ? formatDateTime(user.last_login) : '—'}</dd>
-            </div>
-          </dl>
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-base font-bold text-gray-900 mb-2">Profile information</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">To update your profile, contact support or use the admin panel if you have admin access. We're here to help!</p>
-          </div>
-        </SectionCard>
+        <div className={SPACING.section}>
+          {/* Account Info (read-only) */}
+          <SectionCard title="Account information" icon="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" iconBg="bg-slate-100" iconColor="text-slate-600">
+            <dl className={`grid grid-cols-1 sm:grid-cols-2 ${SPACING.cardGap}`}>
+              <div className="p-4 rounded-xl bg-gray-50">
+                <dt className="text-sm font-medium text-gray-500">Date joined</dt>
+                <dd className="mt-1 font-semibold text-gray-900">{formatDateTime(user?.date_joined)}</dd>
+              </div>
+              <div className="p-4 rounded-xl bg-gray-50">
+                <dt className="text-sm font-medium text-gray-500">Last login</dt>
+                <dd className="mt-1 font-semibold text-gray-900">{user?.last_login ? formatDateTime(user.last_login) : '—'}</dd>
+              </div>
+              <div className="p-4 rounded-xl bg-gray-50 sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">Email verification</dt>
+                <dd className="mt-1 font-semibold text-gray-900">{user?.email_verified ? 'Verified' : 'Not verified'}</dd>
+              </div>
+            </dl>
+          </SectionCard>
+
+          {/* Profile (personal info + avatar) */}
+          <SectionCard title="Profile" icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" iconBg="bg-blue-50" iconColor="text-blue-600">
+            <form onSubmit={handleProfileUpdate} className="space-y-6">
+              {profileSaveMessage.text && (
+                <div className={`p-4 rounded-xl text-sm font-medium ${profileSaveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  {profileSaveMessage.text}
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex flex-col items-center sm:items-start gap-3">
+                  <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden border-2 border-gray-200 flex items-center justify-center">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : avatarFile ? (
+                      <img src={URL.createObjectURL(avatarFile)} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl font-bold text-gray-400">{user?.first_name?.charAt(0) || user?.email?.charAt(0) || '?'}</span>
+                    )}
+                  </div>
+                  <label className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-700">
+                    <input type="file" accept="image/*" className="sr-only" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+                    {avatarFile ? 'Change photo' : 'Upload photo'}
+                  </label>
+                </div>
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                    <input type="text" value={profileForm.first_name} onChange={(e) => setProfileForm((p) => ({ ...p, first_name: e.target.value }))} className="input-professional w-full" placeholder="First name" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                    <input type="text" value={profileForm.last_name} onChange={(e) => setProfileForm((p) => ({ ...p, last_name: e.target.value }))} className="input-professional w-full" placeholder="Last name" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                    <textarea value={profileForm.bio} onChange={(e) => setProfileForm((p) => ({ ...p, bio: e.target.value }))} rows={3} className="input-professional w-full" placeholder="Short bio (optional)" />
+                  </div>
+                </div>
+              </div>
+              <button type="submit" disabled={profileSaveLoading} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                {profileSaveLoading ? 'Saving...' : 'Save profile'}
+              </button>
+            </form>
+          </SectionCard>
+
+          {/* Security: Change password */}
+          <SectionCard title="Security — Change password" icon="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" iconBg="bg-amber-50" iconColor="text-amber-600">
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              {passwordMessage.text && (
+                <div className={`p-4 rounded-xl text-sm font-medium ${passwordMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  {passwordMessage.text}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                <input type="password" value={passwordForm.current_password} onChange={(e) => setPasswordForm((p) => ({ ...p, current_password: e.target.value }))} className="input-professional w-full" placeholder="Current password" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <input type="password" value={passwordForm.new_password} onChange={(e) => setPasswordForm((p) => ({ ...p, new_password: e.target.value }))} className="input-professional w-full" placeholder="New password" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                <input type="password" value={passwordForm.confirm_new_password} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm_new_password: e.target.value }))} className="input-professional w-full" placeholder="Confirm new password" required />
+              </div>
+              <button type="submit" disabled={passwordLoading} className="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 disabled:opacity-50">
+                {passwordLoading ? 'Updating...' : 'Change password'}
+              </button>
+            </form>
+          </SectionCard>
+
+          {/* Security: Change email */}
+          <SectionCard title="Security — Change email" icon="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" iconBg="bg-violet-50" iconColor="text-violet-600">
+            <form onSubmit={handleChangeEmail} className="space-y-4 max-w-md">
+              {emailMessage.text && (
+                <div className={`p-4 rounded-xl text-sm font-medium ${emailMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  {emailMessage.text}
+                </div>
+              )}
+              <p className="text-sm text-gray-600">Current email: <strong>{user?.email}</strong></p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New email</label>
+                <input type="email" value={emailForm.new_email} onChange={(e) => setEmailForm((p) => ({ ...p, new_email: e.target.value }))} className="input-professional w-full" placeholder="New email address" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your password (to confirm)</label>
+                <input type="password" value={emailForm.password} onChange={(e) => setEmailForm((p) => ({ ...p, password: e.target.value }))} className="input-professional w-full" placeholder="Password" required />
+              </div>
+              <button type="submit" disabled={emailLoading} className="px-5 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                {emailLoading ? 'Updating...' : 'Change email'}
+              </button>
+            </form>
+          </SectionCard>
+        </div>
       );
     }
 
@@ -588,6 +776,45 @@ const Profile = () => {
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{user?.first_name} {user?.last_name}</h1>
               <p className="text-gray-600 text-sm truncate">{user?.email}</p>
+            </div>
+          </div>
+
+          {/* Welcome & profile overview */}
+          <div className="mt-6 sm:mt-8 relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-[1px] shadow-xl shadow-emerald-500/20">
+            <div className="relative rounded-2xl bg-gradient-to-br from-emerald-50/90 via-green-50/70 to-teal-50/80 p-6 sm:p-8">
+              {/* Decorative gradient orbs */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-300/25 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-300/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+              <div className="absolute left-0 top-0 bottom-0 w-1 sm:w-1.5 rounded-full bg-gradient-to-b from-emerald-500 via-green-500 to-teal-500" />
+              <div className="relative pl-4 sm:pl-5">
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-700 via-green-700 to-teal-700 bg-clip-text text-transparent mb-2">
+                  Welcome back{user?.first_name ? `, ${user.first_name}` : ''}!
+                </h2>
+                <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-5 max-w-2xl">
+                  This is your personal hub. Everything in one place—messages, quotes, invoices, and projects—so you stay in control of your journey with us.
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700/90 mb-3">What you can do here</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Messages', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+                    { label: 'Quotes', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+                    { label: 'Invoices', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+                    { label: 'Projects', color: 'bg-violet-100 text-violet-800 border-violet-200' },
+                    { label: 'Testimonials', color: 'bg-rose-100 text-rose-800 border-rose-200' },
+                    { label: 'Profile Settings', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+                  ].map((item) => (
+                    <span
+                      key={item.label}
+                      className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${item.color}`}
+                    >
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-gray-500 text-sm mt-4 leading-relaxed">
+                  Use the tabs below to jump to any section.
+                </p>
+              </div>
             </div>
           </div>
         </div>

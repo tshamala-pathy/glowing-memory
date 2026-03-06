@@ -29,6 +29,7 @@ export const formatCurrency = (amount) => {
 export const quoteStatusColors = {
   pending: 'bg-amber-100 text-amber-800',
   replied: 'bg-blue-100 text-blue-800',
+  reviewed: 'bg-blue-100 text-blue-800',
   approved: 'bg-green-100 text-green-800',
   declined: 'bg-red-100 text-red-800',
   paid: 'bg-green-100 text-green-800',
@@ -60,8 +61,12 @@ export const getInvoiceStatusLabel = (status) => {
   return labels[status] || (status && status.charAt(0).toUpperCase() + status.slice(1)) || status;
 };
 
-/** Tailwind classes for project status badges */
+/** Tailwind classes for project status badges (planning, design, development, testing, completed) */
 export const projectStatusColors = {
+  planning: 'bg-amber-100 text-amber-800',
+  design: 'bg-blue-100 text-blue-800',
+  development: 'bg-indigo-100 text-indigo-800',
+  testing: 'bg-purple-100 text-purple-800',
   completed: 'bg-green-100 text-green-800',
   in_progress: 'bg-blue-100 text-blue-800',
   pending: 'bg-yellow-100 text-yellow-800',

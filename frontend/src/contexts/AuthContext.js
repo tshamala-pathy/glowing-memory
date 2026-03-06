@@ -46,15 +46,28 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify({ sessionId: 'c877e1', runId: 'frontend-login', hypothesisId: 'L-E', location: 'frontend/src/contexts/AuthContext.js:login', message: 'Login attempt started', data: { hasEmail: !!email }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion agent log
+
       const response = await api.post('/users/login/', { email, password });
-      const { access, refresh } = response.data;
-      
+      const { access, refresh, user: loginUser } = response.data;
+
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      
-      const userData = await fetchUser();
-      return { success: true, user: userData };
+
+      // Use user from login response so all authenticated users (admin and non-admin) succeed.
+      // Do not call fetchUser() here: it clears tokens on any error and would break login
+      // when GET /users/profile/ fails (e.g. for some users or envs).
+      if (loginUser) {
+        setUser(loginUser);
+      }
+      return { success: true, user: loginUser };
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify({ sessionId: 'c877e1', runId: 'frontend-login', hypothesisId: 'L-E', location: 'frontend/src/contexts/AuthContext.js:login', message: 'Login failed (catch)', data: { status: error.response?.status ?? null, responseData: error.response?.data ?? null, message: error.message }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion agent log
+
       // Handle different error formats
       const errorMessage = error.response?.data?.detail || 
                           error.response?.data?.email?.[0] ||
@@ -71,13 +84,15 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/users/register/', userData);
-      const { access, refresh } = response.data;
-      
+      const { access, refresh, user: registerUser } = response.data;
+
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      
-      const fetchedUser = await fetchUser();
-      return { success: true, user: fetchedUser };
+
+      if (registerUser) {
+        setUser(registerUser);
+      }
+      return { success: true, user: registerUser };
     } catch (error) {
       // Handle different error formats from Django
       const errorMessage = error.response?.data?.detail || 
@@ -101,11 +116,23 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/users/profile/');
+      setUser(res.data);
+      return res.data;
+    } catch (e) {
+      console.error('Error refreshing user:', e);
+      return null;
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
+    refreshUser,
     loading,
     isAuthenticated: !!user,
   };
