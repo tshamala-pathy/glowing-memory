@@ -103,7 +103,8 @@ const Profile = () => {
   const { user, isAuthenticated, loading, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [client, setClient] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([]); // legacy contact messages from /profile/
+  const [threads, setThreads] = useState([]); // internal project conversations from /messaging/threads/
   const [quotes, setQuotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -160,26 +161,33 @@ const Profile = () => {
     }
   }, [user]);
 
-  const fetchProfile = () => {
+  const fetchProfile = async () => {
     setDataLoading(true);
     setError('');
-    api.get('/profile/')
-      .then(({ data }) => {
-        setClient(data.client ?? null);
-        setMessages(data.messages ?? []);
-        setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
-        setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
-        setProjects(Array.isArray(data.projects) ? data.projects : []);
-        setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
-      })
-      .catch((err) => {
-        // #region agent log
-        const payload = { sessionId: 'c877e1', location: 'Profile.js:fetchProfile', message: 'profile fetch failed', data: { status: err.response?.status, responseData: err.response?.data, message: err.message }, timestamp: Date.now(), hypothesisId: 'E' };
-        fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify(payload) }).catch(() => {});
-        // #endregion
-        setError('We couldn\'t load your profile data. Please check your connection and try again.');
-      })
-      .finally(() => setDataLoading(false));
+    try {
+      const [profileRes, threadsRes] = await Promise.all([
+        api.get('/profile/'),
+        api.get('/messaging/threads/'),
+      ]);
+      const data = profileRes.data || {};
+      setClient(data.client ?? null);
+      setMessages(data.messages ?? []);
+      setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
+      setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
+      setProjects(Array.isArray(data.projects) ? data.projects : []);
+      setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
+
+      const rawThreads = threadsRes.data?.results ?? threadsRes.data ?? [];
+      setThreads(Array.isArray(rawThreads) ? rawThreads : []);
+    } catch (err) {
+      // #region agent log
+      const payload = { sessionId: 'c877e1', location: 'Profile.js:fetchProfile', message: 'profile fetch failed', data: { status: err.response?.status, responseData: err.response?.data, message: err.message }, timestamp: Date.now(), hypothesisId: 'E' };
+      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify(payload) }).catch(() => {});
+      // #endregion
+      setError('We couldn\'t load your profile data. Please check your connection and try again.');
+    } finally {
+      setDataLoading(false);
+    }
   };
 
   const handleProfileUpdate = async (e) => {
@@ -336,8 +344,8 @@ const Profile = () => {
 
           <SectionCard title="Summary" icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" iconBg="bg-indigo-50" iconColor="text-indigo-600">
             <div className={`grid grid-cols-2 sm:grid-cols-4 ${SPACING.cardGap}`}>
-              {[
-                { count: messages.length, label: 'Messages', color: 'bg-blue-50 text-blue-700' },
+                {[
+                  { count: threads.length, label: 'Messages', color: 'bg-blue-50 text-blue-700' },
                 { count: quotes.length, label: 'Quotes', color: 'bg-amber-50 text-amber-700' },
                 { count: invoices.length, label: 'Invoices', color: 'bg-green-50 text-green-700' },
                 { count: projects.length, label: 'Projects', color: 'bg-purple-50 text-purple-700' },
@@ -368,26 +376,107 @@ const Profile = () => {
         <SectionCard title="My Messages" icon={msgIcon} iconBg="bg-blue-50" iconColor="text-blue-600">
           {dataLoading ? (
             <LoadingState label="Loading your messages..." />
-          ) : messages.length === 0 ? (
-            <EmptyState
-              icon={msgIcon}
-              title="Your inbox is empty"
-              message="You haven't sent any messages yet. Reach out anytime—we're here to help and would love to hear from you."
-              action={<Link to="/contact" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">Send a message</Link>}
-            />
           ) : (
-            <ul className="divide-y divide-gray-100 space-y-0">
-              {messages.map((m) => (
-                <li key={m.id} className="py-5 first:pt-0 last:pb-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <p className="font-semibold text-gray-900">{m.subject}</p>
-                    {m.status && <StatusBadge status={m.status} />}
-                  </div>
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-2">{m.message}</p>
-                  <p className="text-xs text-gray-500 mt-2">{formatDateTime(m.created_at)}</p>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-8">
+              {/* Project conversations (internal chat) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800">Project conversations</h3>
+                  <Link
+                    to="/messages"
+                    className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    Open full inbox →
+                  </Link>
+                </div>
+                {threads.length === 0 ? (
+                  <EmptyState
+                    icon={msgIcon}
+                    title="No project conversations yet"
+                    message="Once a project starts, your dedicated chat thread with the team will appear here so you can message us directly."
+                    action={
+                      <Link
+                        to="/my-projects"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                      >
+                        View my projects
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 overflow-hidden bg-gray-50/40">
+                    {threads.map((t) => (
+                      <li key={t.id} className="bg-white/70 hover:bg-blue-50/40 transition-colors">
+                        <Link to={`/messages/${t.id}`} className="block px-4 py-4 sm:px-5 sm:py-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {t.project_name || 'Project conversation'}
+                              </p>
+                              {t.client_name && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Client: {t.client_name}
+                                </p>
+                              )}
+                              {t.last_message_preview && (
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                  {t.last_message_preview}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0">
+                              {t.last_message_at && (
+                                <p className="text-xs text-gray-500">
+                                  {formatDateTime(t.last_message_at)}
+                                </p>
+                              )}
+                              {t.message_count > 0 && (
+                                <span className="inline-flex items-center justify-center mt-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                                  {t.message_count} {t.message_count === 1 ? 'message' : 'messages'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Legacy contact messages (from contact form, etc.) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800">Contact requests</h3>
+                  <Link
+                    to="/contact"
+                    className="text-xs font-medium text-gray-600 hover:text-gray-800"
+                  >
+                    Send a new message →
+                  </Link>
+                </div>
+                {messages.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    You haven't sent any contact requests yet.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-gray-100 space-y-0">
+                    {messages.map((m) => (
+                      <li key={m.id} className="py-4 first:pt-0 last:pb-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <p className="font-semibold text-gray-900">{m.subject}</p>
+                          {m.status && <StatusBadge status={m.status} />}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{m.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDateTime(m.created_at)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           )}
         </SectionCard>
       );

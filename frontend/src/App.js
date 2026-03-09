@@ -55,6 +55,8 @@ import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import Messages from './pages/Messages';
+import ThreadChat from './pages/ThreadChat';
 import './App.css';
 
 function App() {
@@ -118,6 +120,8 @@ function App() {
                 }
               />
               <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              <Route path="/messages" element={<ProtectedRoute requireAuth={true}><Messages /></ProtectedRoute>} />
+              <Route path="/messages/:threadId" element={<ProtectedRoute requireAuth={true}><ThreadChat /></ProtectedRoute>} />
               <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />
               <Route path="/blog/:id" element={<ProtectedRoute requireAuth={true}><BlogDetail /></ProtectedRoute>} />
               <Route path="/search" element={<ProtectedRoute requireAuth={true}><SearchResults /></ProtectedRoute>} />

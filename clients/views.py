@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
-from .models import Client, Project, CaseStudy, Task
+from .models import Client, Project, ProjectFile, CaseStudy, Task
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
+    ProjectFileSerializer,
     CaseStudySerializer,
     CaseStudyDetailSerializer,
     TaskSerializer,
@@ -269,6 +270,54 @@ class TaskViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+
+# ================================
+# ProjectFile ViewSet (file sharing: client + admin)
+# ================================
+class ProjectFileViewSet(viewsets.ModelViewSet):
+    """
+    Project files: upload, list, download. Only the project's client and admins can access.
+    List: GET /api/clients/project-files/?project=<id>
+    Create: POST /api/clients/project-files/ (multipart: project, file, description)
+    Download: GET /api/clients/project-files/<id>/download/
+    """
+    serializer_class = ProjectFileSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['project']
+    ordering_fields = ['uploaded_at']
+    ordering = ['-uploaded_at']
+
+    def get_queryset(self):
+        """Only files for projects the user can access: own projects (client) or all (admin)."""
+        qs = ProjectFile.objects.all().select_related('project', 'project__client', 'uploaded_by')
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return qs
+        profile = getattr(self.request.user, 'client_profile', None)
+        if profile:
+            return qs.filter(project__client=profile)
+        return qs.none()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    @action(detail=True, methods=['get'], url_path='download')
+    def download(self, request, pk=None):
+        """Serve the file; access already restricted by get_queryset."""
+        project_file = self.get_object()
+        if not project_file.file:
+            return Response({'error': 'File not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            file_handle = project_file.file.open('rb')
+            response = FileResponse(file_handle, content_type='application/octet-stream')
+            name = project_file.file.name.split('/')[-1] if project_file.file.name else 'download'
+            response['Content-Disposition'] = f'attachment; filename="{name}"'
+            return response
+        except OSError:
+            return Response({'error': 'File not found on disk.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # ================================

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Client, Project, CaseStudy, Task
+from .models import Client, Project, ProjectFile, CaseStudy, Task
 
 
 # ================================
@@ -170,6 +170,40 @@ class ProjectSerializer(serializers.ModelSerializer):
                 representation.pop('internal_notes', None)
 
         return representation
+
+
+# ================================
+# ProjectFile Serializer (file sharing: client + admin)
+# ================================
+class ProjectFileSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectFile. Returns file URL for download (use download endpoint for auth)."""
+    file_url = serializers.SerializerMethodField()
+    uploaded_by_email = serializers.EmailField(source='uploaded_by.email', read_only=True, allow_null=True)
+    file_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectFile
+        fields = ['id', 'project', 'uploaded_by', 'uploaded_by_email', 'file', 'file_url', 'file_name', 'description', 'uploaded_at']
+        read_only_fields = ['uploaded_by', 'uploaded_at']
+
+    def get_file_url(self, obj):
+        """Build absolute URL for the file (download goes through API for access control)."""
+        if not obj.file:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(f'/api/clients/project-files/{obj.id}/download/')
+        from django.conf import settings
+        base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
+        return f'{base}/api/clients/project-files/{obj.id}/download/'
+
+    def get_file_name(self, obj):
+        """Original filename for display."""
+        return obj.file.name.split('/')[-1] if obj.file else None
+
+    def create(self, validated_data):
+        validated_data['uploaded_by'] = self.context.get('request').user
+        return super().create(validated_data)
 
 
 # ================================

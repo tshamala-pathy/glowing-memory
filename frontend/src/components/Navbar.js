@@ -117,6 +117,16 @@ const Navbar = () => {
                 >
                   My Projects
                 </Link>
+                <Link
+                  to="/messages"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+                    isActive('/messages')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  Messages
+                </Link>
               </>
             )}
           </div>
@@ -323,6 +333,17 @@ const Navbar = () => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     My Projects
+                  </Link>
+                  <Link
+                    to="/messages"
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive('/messages')
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Messages
                   </Link>
                 </>
               )}

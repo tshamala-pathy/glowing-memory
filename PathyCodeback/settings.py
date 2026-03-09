@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'quotes',  # Quotes/Estimates app
     'invoices',  # Invoices app
     'clients',  # Clients and case studies app
+    'messaging',  # Internal messaging (threads per project)
 ]
 
 MIDDLEWARE = [

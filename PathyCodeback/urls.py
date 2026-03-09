@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/payment/quote/<int:quote_id>/', PaymentQuoteView.as_view(), name='payment-quote'),
     path('api/invoices/', include('invoices.urls')),
     path('api/clients/', include('clients.urls')),
+    path('api/messaging/', include('messaging.urls')),
 ]
 
 # ================================

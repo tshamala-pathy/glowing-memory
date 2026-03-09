@@ -12,10 +12,13 @@ import api, { getMediaUrl } from '../services/api';
 const ClientProjects = () => {
   const { isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [projectFiles, setProjectFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [uploadingForProject, setUploadingForProject] = useState(null);
+  const [expandedFilesProjectId, setExpandedFilesProjectId] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,17 +37,72 @@ const ClientProjects = () => {
       if (searchTerm) params.search = searchTerm;
       if (statusFilter) params.status = statusFilter;
 
-      // Logged-in client's projects only (my_projects endpoint)
       const response = await api.get('/clients/projects/my_projects/', { params });
       const projectsData = response.data?.results ?? response.data ?? [];
       setProjects(Array.isArray(projectsData) ? projectsData : []);
       setError('');
-    } catch (error) {
-      console.error('Error fetching client projects:', error);
+    } catch (err) {
+      console.error('Error fetching client projects:', err);
       setError('Failed to load your projects. Please try again later.');
       setProjects([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjectFiles = async () => {
+    try {
+      const res = await api.get('/clients/project-files/');
+      const data = res.data?.results ?? res.data ?? [];
+      setProjectFiles(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching project files:', err);
+      setProjectFiles([]);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && projects.length > 0) fetchProjectFiles();
+  }, [isAuthenticated, projects.length]);
+
+  const getFilesForProject = (projectId) =>
+    projectFiles.filter((f) => String(f.project) === String(projectId));
+
+  const handleUploadFile = async (projectId, file, description) => {
+    if (!file || uploadingForProject) return;
+    setUploadingForProject(projectId);
+    try {
+      const formData = new FormData();
+      formData.append('project', projectId);
+      formData.append('file', file);
+      if (description) formData.append('description', description);
+      await api.post('/clients/project-files/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setError('');
+      await fetchProjectFiles();
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setError(err.response?.data?.file?.[0] || err.response?.data?.detail || 'Upload failed.');
+    } finally {
+      setUploadingForProject(null);
+    }
+  };
+
+  const handleDownloadFile = async (fileId, fileName) => {
+    try {
+      const res = await api.get(`/clients/project-files/${fileId}/download/`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'download';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+      setError('Download failed.');
     }
   };
 
@@ -326,6 +384,83 @@ const ClientProjects = () => {
                       )}
                     </div>
                   )}
+
+                  {/* Project Files */}
+                  <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedFilesProjectId((id) => (id === project.id ? null : project.id))
+                      }
+                      className="w-full px-3 py-2 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-sm font-medium text-gray-700"
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Project files ({getFilesForProject(project.id).length})
+                      </span>
+                      <span>{expandedFilesProjectId === project.id ? '▼' : '▶'}</span>
+                    </button>
+                    {expandedFilesProjectId === project.id && (
+                      <div className="p-3 bg-white border-t border-gray-200">
+                        <ul className="space-y-2 mb-3">
+                          {getFilesForProject(project.id).length === 0 ? (
+                            <li className="text-sm text-gray-500">No files yet. Upload one below.</li>
+                          ) : (
+                            getFilesForProject(project.id).map((pf) => (
+                              <li
+                                key={pf.id}
+                                className="flex items-center justify-between text-sm gap-2"
+                              >
+                                <span className="truncate text-gray-700" title={pf.description || pf.file_name}>
+                                  {pf.file_name || pf.description || `File ${pf.id}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadFile(pf.id, pf.file_name)}
+                                  className="flex-shrink-0 text-blue-600 hover:text-blue-800 font-medium"
+                                >
+                                  Download
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                        <form
+                          className="flex flex-col gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const form = e.target;
+                            const fileInput = form.querySelector('input[type="file"]');
+                            const descInput = form.querySelector('input[name="description"]');
+                            if (fileInput?.files?.[0])
+                              handleUploadFile(project.id, fileInput.files[0], descInput?.value || '');
+                            form.reset();
+                          }}
+                        >
+                          <input
+                            type="file"
+                            className="text-sm text-gray-600 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700"
+                            required
+                          />
+                          <input
+                            type="text"
+                            name="description"
+                            placeholder="Description (optional)"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                          />
+                          <button
+                            type="submit"
+                            disabled={uploadingForProject === project.id}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {uploadingForProject === project.id ? 'Uploading...' : 'Upload'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Links */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">

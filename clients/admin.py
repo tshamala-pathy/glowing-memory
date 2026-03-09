@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Client, Project, CaseStudy, Task
+from .models import Client, Project, ProjectFile, CaseStudy, Task
 from quotes.models import Quote
 from invoices.models import Invoice
 
@@ -61,6 +61,19 @@ class TaskInline(admin.TabularInline):
     verbose_name_plural = 'Tasks'
 
 
+class ProjectFileInline(admin.TabularInline):
+    """Show project files on the Project change page."""
+    model = ProjectFile
+    fk_name = 'project'
+    extra = 0
+    show_change_link = True
+    fields = ('file', 'description', 'uploaded_by', 'uploaded_at')
+    readonly_fields = ('uploaded_at',)
+    ordering = ['-uploaded_at']
+    verbose_name = 'Project File'
+    verbose_name_plural = 'Project Files'
+
+
 # ================================
 # Client Admin
 # ================================
@@ -100,7 +113,7 @@ class ProjectAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at', 'quote_link', 'invoice_link']
     autocomplete_fields = ['client', 'quote', 'invoice']
     
-    inlines = [TaskInline]
+    inlines = [TaskInline, ProjectFileInline]
 
     fieldsets = (
         ('Project Information', {
@@ -149,6 +162,22 @@ class ProjectAdmin(admin.ModelAdmin):
         """Optimize queryset with select_related."""
         qs = super().get_queryset(request)
         return qs.select_related('client', 'client__user', 'quote', 'invoice')
+
+
+# ================================
+# ProjectFile Admin (file sharing)
+# ================================
+@admin.register(ProjectFile)
+class ProjectFileAdmin(admin.ModelAdmin):
+    list_display = ['id', 'project', 'file_name_display', 'uploaded_by', 'uploaded_at']
+    list_filter = ['uploaded_at', 'project']
+    search_fields = ['description', 'project__name', 'uploaded_by__email']
+    raw_id_fields = ['project', 'uploaded_by']
+    readonly_fields = ['uploaded_at']
+
+    def file_name_display(self, obj):
+        return obj.file.name.split('/')[-1] if obj.file else '-'
+    file_name_display.short_description = 'File'
 
 
 # ================================

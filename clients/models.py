@@ -237,6 +237,48 @@ class Project(models.Model):
 
 
 # ================================
+# ProjectFile Model (file sharing: client + admin)
+# ================================
+class ProjectFile(models.Model):
+    """
+    Project-related file shared between client and admin.
+    Stored in MEDIA_ROOT. Only the project's client and admins can list/download.
+    """
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='project_files',
+        help_text="Project this file belongs to",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_project_files',
+        help_text="User who uploaded the file (client or admin)",
+    )
+    file = models.FileField(
+        upload_to='project_files/%Y/%m/',
+        help_text="Uploaded file (stored in MEDIA_ROOT)",
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional description of the file",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+        verbose_name = "Project File"
+        verbose_name_plural = "Project Files"
+
+    def __str__(self):
+        return f"{self.file.name} ({self.project.name})"
+
+
+# ================================
 # Task Model (Admin-only; linked to Project)
 # ================================
 class Task(models.Model):

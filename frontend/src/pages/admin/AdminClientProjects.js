@@ -21,6 +21,8 @@ const AdminClientProjects = () => {
   const [clientFilter, setClientFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [clients, setClients] = useState([]);
+  const [projectFilesForModal, setProjectFilesForModal] = useState([]);
+  const [uploadingFileForProject, setUploadingFileForProject] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -91,8 +93,19 @@ const AdminClientProjects = () => {
     setShowForm(true);
   };
 
+  const fetchProjectFilesForProject = async (projectId) => {
+    try {
+      const res = await api.get('/clients/project-files/', { params: { project: projectId } });
+      const data = res.data?.results ?? res.data ?? [];
+      setProjectFilesForModal(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setProjectFilesForModal([]);
+    }
+  };
+
   const handleEdit = (project) => {
     setEditingProject(project);
+    fetchProjectFilesForProject(project.id);
     setFormData({
       name: project.name || '',
       description: project.description || '',
@@ -421,6 +434,71 @@ const AdminClientProjects = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Project files (when editing) */}
+                    {editingProject && (
+                      <div className="border-t border-gray-200 pt-4 mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Project files</label>
+                        <ul className="mb-2 max-h-32 overflow-y-auto space-y-1 text-sm">
+                          {projectFilesForModal.length === 0 ? (
+                            <li className="text-gray-500">No files. Upload below.</li>
+                          ) : (
+                            projectFilesForModal.map((pf) => (
+                              <li key={pf.id} className="flex items-center justify-between">
+                                <span className="truncate">{pf.file_name || pf.description || `File ${pf.id}`}</span>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await api.get(`/clients/project-files/${pf.id}/download/`, { responseType: 'blob' });
+                                      const url = window.URL.createObjectURL(new Blob([res.data]));
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = pf.file_name || 'download';
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 ml-2"
+                                >
+                                  Download
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const form = e.target;
+                            const fileInput = form.querySelector('input[type="file"]');
+                            const descInput = form.querySelector('input[name="fileDesc"]');
+                            if (!fileInput?.files?.[0] || uploadingFileForProject) return;
+                            setUploadingFileForProject(editingProject.id);
+                            try {
+                              const fd = new FormData();
+                              fd.append('project', editingProject.id);
+                              fd.append('file', fileInput.files[0]);
+                              if (descInput?.value) fd.append('description', descInput.value);
+                              await api.post('/clients/project-files/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                              await fetchProjectFilesForProject(editingProject.id);
+                              form.reset();
+                            } finally {
+                              setUploadingFileForProject(null);
+                            }
+                          }}
+                          className="flex flex-wrap gap-2 items-end"
+                        >
+                          <input type="file" className="text-sm" required />
+                          <input type="text" name="fileDesc" placeholder="Description (optional)" className="flex-1 min-w-0 px-2 py-1 border rounded text-sm" />
+                          <button type="submit" disabled={!!uploadingFileForProject} className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
+                            {uploadingFileForProject ? 'Uploading...' : 'Upload'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
