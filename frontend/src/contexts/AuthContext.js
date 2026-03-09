@@ -46,10 +46,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify({ sessionId: 'c877e1', runId: 'frontend-login', hypothesisId: 'L-E', location: 'frontend/src/contexts/AuthContext.js:login', message: 'Login attempt started', data: { hasEmail: !!email }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion agent log
-
       const response = await api.post('/users/login/', { email, password });
       const { access, refresh, user: loginUser } = response.data;
 
@@ -64,10 +60,6 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: true, user: loginUser };
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify({ sessionId: 'c877e1', runId: 'frontend-login', hypothesisId: 'L-E', location: 'frontend/src/contexts/AuthContext.js:login', message: 'Login failed (catch)', data: { status: error.response?.status ?? null, responseData: error.response?.data ?? null, message: error.message }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion agent log
-
       // Handle different error formats
       const errorMessage = error.response?.data?.detail || 
                           error.response?.data?.email?.[0] ||

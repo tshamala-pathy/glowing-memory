@@ -32,29 +32,6 @@ const ThreadChat = () => {
       try {
         const res = await api.get(`/messaging/threads/${threadId}/`);
         setThread(res.data);
-        // #region agent log
-        const payload = {
-          sessionId: 'c877e1',
-          location: 'ThreadChat.js:fetchThread',
-          message: 'thread detail loaded',
-          data: {
-            threadId,
-            hasMessages: Array.isArray(res.data?.messages),
-            sampleMessage: res.data?.messages?.[0] || null,
-          },
-          timestamp: Date.now(),
-          hypothesisId: 'H-image-label',
-          runId: 'thread-detail',
-        };
-        fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': 'c877e1',
-          },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-        // #endregion
         setError('');
       } catch (err) {
         setError(err.response?.status === 404 ? 'Conversation not found.' : 'Failed to load conversation.');

@@ -180,10 +180,6 @@ const Profile = () => {
       const rawThreads = threadsRes.data?.results ?? threadsRes.data ?? [];
       setThreads(Array.isArray(rawThreads) ? rawThreads : []);
     } catch (err) {
-      // #region agent log
-      const payload = { sessionId: 'c877e1', location: 'Profile.js:fetchProfile', message: 'profile fetch failed', data: { status: err.response?.status, responseData: err.response?.data, message: err.message }, timestamp: Date.now(), hypothesisId: 'E' };
-      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' }, body: JSON.stringify(payload) }).catch(() => {});
-      // #endregion
       setError('We couldn\'t load your profile data. Please check your connection and try again.');
     } finally {
       setDataLoading(false);
