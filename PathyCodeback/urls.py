@@ -15,6 +15,7 @@ from django.conf.urls.static import static
 from .views import search
 from users.views import ProfileAggregateView
 from invoices.views import PaymentQuoteView
+from payments.views import StartPayFastPaymentView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -30,9 +31,11 @@ urlpatterns = [
     path('api/about/', include('about.urls')),
     path('api/quotes/', include('quotes.urls')),
     path('api/payment/quote/<int:quote_id>/', PaymentQuoteView.as_view(), name='payment-quote'),
+    path('api/payment/quote/<int:quote_id>/start-pay/', StartPayFastPaymentView.as_view(), name='payment-quote-start-pay'),
     path('api/invoices/', include('invoices.urls')),
     path('api/clients/', include('clients.urls')),
     path('api/messaging/', include('messaging.urls')),
+    path('payments/', include('payments.urls', namespace='payments')),
 ]
 
 # ================================

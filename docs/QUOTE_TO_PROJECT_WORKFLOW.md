@@ -44,7 +44,7 @@ Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kep
 | **3. Client sees reply** | `GET /api/profile/` returns quotes with `admin_response`, `total_price`, `estimated_delivery_time`, `status`. Client Portal shows Approve/Decline for `reviewed` or `replied`. |
 | **4. Client approves/declines** | `POST /api/quotes/<id>/decision/` with `{ "decision": "approve" }` or `"decline"`. Owner-only. On approve, frontend redirects to `/payment/{quote_id}`. |
 | **5. Payment page** | Frontend `/payment/:quoteId`. `GET /api/payment/quote/<id>/` returns amount and eligibility (quote must be `approved`, user must be quote owner). |
-| **6. Record payment** | `POST /api/payment/quote/<id>/` creates `Payment` (paid), then `Invoice` (status=paid). Idempotent if invoice already exists. |
+| **6. Record payment** | PayFast flow: `POST /api/payment/quote/<id>/start-pay/` creates `Payment` (pending), returns `redirect_url`. User pays on PayFast. PayFast ITN (`POST /payments/notify/`) or local-dev `simulate_itn` creates Invoice (paid). |
 | **7. Project created** | `clients.signals.create_project_on_invoice_paid`: on invoice save with status `paid`, creates `Project` (client, quote, invoice, status=`planning`, start_date=today). |
 
 ---
@@ -57,7 +57,7 @@ Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kep
 - `POST /api/quotes/` — Submit quote.
 - `POST /api/quotes/<id>/decision/` — Approve or decline (owner only). Returns quote with `payment_url` on approve.
 - `GET /api/payment/quote/<id>/` — Payment page data (amount, project title). Only if quote is approved and user is owner.
-- `POST /api/payment/quote/<id>/` — Record payment success; creates Payment + Invoice (paid); Project created via signal.
+- `POST /api/payment/quote/<id>/start-pay/` — Start PayFast payment; creates Payment (pending), returns redirect_url. After payment, PayFast ITN (`/payments/notify/`) or local-dev `/payments/simulate-itn/` creates Invoice (paid); Project created via signal.
 - `GET /api/invoices/<id>/pdf/` — Download invoice PDF (own only).
 
 ### Admin
@@ -65,6 +65,7 @@ Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kep
 - `PATCH /api/quotes/<id>/` — Update quote (e.g. set status to `reviewed`, add response fields). Superuser.
 - `POST /api/quotes/<id>/send_response/` — Send reply email and set status to `reviewed`. Superuser.
 - `POST /api/invoices/<id>/mark_paid/` — Mark invoice paid (e.g. manual or webhook). Triggers project creation. Superuser.
+- `GET /payments/simulate-itn/?quote_id=X&payment_id=Y` — Local dev only (DEBUG): simulate PayFast ITN when notify_url unreachable (localhost).
 
 ---
 
