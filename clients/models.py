@@ -171,6 +171,12 @@ class Project(models.Model):
         blank=True,
         help_text="Comma-separated list of technologies used"
     )
+    hero_image = models.ImageField(
+        upload_to='clients/projects/hero/',
+        blank=True,
+        null=True,
+        help_text="Main hero image for this project (used on public projects page)",
+    )
     screenshots = models.JSONField(
         default=list,
         blank=True,

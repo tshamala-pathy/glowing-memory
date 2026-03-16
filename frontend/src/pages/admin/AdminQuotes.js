@@ -29,10 +29,12 @@ const AdminQuotes = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('');
   const [formData, setFormData] = useState({
+    // Client details
     client_name: '',
     client_email: '',
     client_phone: '',
     company_name: '',
+    // Project details
     project_title: '',
     project_description: '',
     project_type: '',
@@ -40,6 +42,7 @@ const AdminQuotes = () => {
     budget_range: '',
     deadline: '',
     timeline: '',
+    // Admin review
     estimated_amount: '',
     status: 'pending',
     notes: '',
@@ -181,7 +184,9 @@ const AdminQuotes = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = { ...formData };
+      const submitData = {
+        ...formData,
+      };
       // Convert empty string to null for assigned_to (ForeignKey field)
       if (submitData.assigned_to === '') {
         submitData.assigned_to = null;
@@ -191,6 +196,13 @@ const AdminQuotes = () => {
         if (selectedQuote && selectedQuote.id === editingQuote.id) {
           setSelectedQuote(data);
         }
+      } else {
+        // Admin-created quotes: mark requirements_accepted so backend accepts the request
+        const createData = {
+          ...submitData,
+          requirements_accepted: true,
+        };
+        await api.post('/quotes/', createData);
       }
       fetchQuotes();
       setShowForm(false);
@@ -258,9 +270,9 @@ const AdminQuotes = () => {
           <p className="text-gray-600 mt-1">Manage client quote requests and estimates</p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Filters + actions */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
             <input
               type="text"
               placeholder="Search quotes..."
@@ -288,6 +300,36 @@ const AdminQuotes = () => {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingQuote(null);
+                setFormData({
+                  client_name: '',
+                  client_email: '',
+                  client_phone: '',
+                  company_name: '',
+                  project_title: '',
+                  project_description: '',
+                  project_type: '',
+                  service_type: '',
+                  budget_range: '',
+                  deadline: '',
+                  timeline: '',
+                  estimated_amount: '',
+                  status: 'pending',
+                  notes: '',
+                  admin_response: '',
+                  assigned_to: '',
+                });
+                setShowForm(true);
+              }}
+              className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+            >
+              + New Quote
+            </button>
           </div>
         </div>
 
@@ -408,73 +450,177 @@ const AdminQuotes = () => {
               <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowForm(false)}></div>
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
                 <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Quote</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {editingQuote ? 'Edit Quote' : 'New Quote'}
+                  </h3>
+                  <div className="space-y-6">
+                    {/* Client details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Status</label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        <label className="block text-sm font-medium text-gray-700">Client name</label>
+                        <input
+                          type="text"
+                          value={formData.client_name}
+                          onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          {QUOTE_STATUS_OPTIONS.map(({ value, label }) => (
-                            <option key={value} value={value}>{label}</option>
-                          ))}
-                        </select>
+                          required
+                        />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Estimated Amount</label>
+                        <label className="block text-sm font-medium text-gray-700">Client email</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={formData.estimated_amount}
-                          onChange={(e) => setFormData({ ...formData, estimated_amount: e.target.value })}
+                          type="email"
+                          value={formData.client_email}
+                          onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Phone (optional)</label>
+                        <input
+                          type="text"
+                          value={formData.client_phone}
+                          onChange={(e) => setFormData({ ...formData, client_phone: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Company (optional)</label>
+                        <input
+                          type="text"
+                          value={formData.company_name}
+                          onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Assigned To</label>
-                      <select
-                        value={formData.assigned_to}
-                        onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">-- Unassigned --</option>
-                        {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.first_name && user.last_name
-                              ? `${user.first_name} ${user.last_name} (${user.email})`
-                              : user.username || user.email}
-                          </option>
-                        ))}
-                      </select>
+
+                    {/* Project details */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Project title</label>
+                        <input
+                          type="text"
+                          value={formData.project_title}
+                          onChange={(e) => setFormData({ ...formData, project_title: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Project description</label>
+                        <textarea
+                          rows={4}
+                          value={formData.project_description}
+                          onChange={(e) => setFormData({ ...formData, project_description: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Service type</label>
+                          <input
+                            type="text"
+                            value={formData.service_type}
+                            onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="e.g. Web Development"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Budget range</label>
+                          <input
+                            type="text"
+                            value={formData.budget_range}
+                            onChange={(e) => setFormData({ ...formData, budget_range: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="e.g. R10k–R20k"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Timeline</label>
+                          <input
+                            type="text"
+                            value={formData.timeline}
+                            onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="e.g. 4–6 weeks"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Admin Response (Sent to Client)
-                      </label>
-                      <textarea
-                        rows={6}
-                        value={formData.admin_response}
-                        onChange={(e) => setFormData({ ...formData, admin_response: e.target.value })}
-                        placeholder="Enter your response to the client. Saving with status 'Replied' will set the reply and send the email."
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        This response will be emailed to the client. Set status to "Replied" or use the "Send Response Email" button.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Internal Notes</label>
-                      <textarea
-                        rows={4}
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder="Internal notes (not visible to client)"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
+
+                    {/* Admin review fields */}
+                    <div className="space-y-4 border-t border-gray-200 pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Status</label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            {QUOTE_STATUS_OPTIONS.map(({ value, label }) => (
+                              <option key={value} value={value}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Estimated amount</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.estimated_amount}
+                            onChange={(e) => setFormData({ ...formData, estimated_amount: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Assigned to</label>
+                        <select
+                          value={formData.assigned_to}
+                          onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">-- Unassigned --</option>
+                          {users.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.first_name && user.last_name
+                                ? `${user.first_name} ${user.last_name} (${user.email})`
+                                : user.username || user.email}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Admin response (sent to client)
+                        </label>
+                        <textarea
+                          rows={6}
+                          value={formData.admin_response}
+                          onChange={(e) => setFormData({ ...formData, admin_response: e.target.value })}
+                          placeholder="Enter your response to the client. This will be emailed when you mark the quote as reviewed or use the send response action."
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          This response will be emailed to the client when you set status to &quot;Reviewed&quot; or &quot;Replied&quot;,
+                          or when you click the &quot;Send Response Email&quot; button.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Internal notes</label>
+                        <textarea
+                          rows={4}
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          placeholder="Internal notes (not visible to client)"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="mt-6 flex justify-end space-x-3">
@@ -489,7 +635,7 @@ const AdminQuotes = () => {
                       type="submit"
                       className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
                     >
-                      Update
+                      {editingQuote ? 'Update' : 'Create'}
                     </button>
                   </div>
                 </form>

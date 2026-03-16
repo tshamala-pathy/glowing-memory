@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser
+from .models import CustomUser, Notification
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -200,6 +200,16 @@ class AdminUserSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+  """
+  Serializer for in-app notifications.
+  """
+  class Meta:
+    model = Notification
+    fields = ['id', 'message', 'link', 'is_read', 'created_at']
+    read_only_fields = ['id', 'created_at']
 
 
 # ================================

@@ -1,7 +1,8 @@
 from rest_framework import generics, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from PathyCodeback.permissions import IsSuperuser
-from .models import CustomUser
+from .models import CustomUser, Notification
 from .serializers import (
     RegisterSerializer,
     UserSerializer,
@@ -10,7 +11,8 @@ from .serializers import (
     ChangeEmailSerializer,
     CustomTokenObtainPairSerializer,
     ForgotPasswordSerializer,
-    ResetPasswordSerializer
+    ResetPasswordSerializer,
+    NotificationSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -281,6 +283,32 @@ class UserAdminViewSet(viewsets.ModelViewSet):
             from .serializers import AdminUserSerializer
             return AdminUserSerializer
         return UserSerializer
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for listing and updating notifications for the current user.
+
+    - GET /api/users/notifications/ — list current user's notifications
+    - PATCH /api/users/notifications/{id}/ — mark a single notification as read
+    - POST /api/users/notifications/mark_all_read/ — mark all as read
+    """
+
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        # Not used by frontend, but keep safe default
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        qs = self.get_queryset().filter(is_read=False)
+        updated = qs.update(is_read=True)
+        return Response({'updated': updated}, status=status.HTTP_200_OK)
 
 
 # ================================

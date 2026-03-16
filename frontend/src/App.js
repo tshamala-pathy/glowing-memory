@@ -31,6 +31,7 @@ import AdminContact from './pages/admin/AdminContact';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminQuotes from './pages/admin/AdminQuotes';
+import AdminMessagingThreads from './pages/admin/AdminMessagingThreads';
 import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminClients from './pages/admin/AdminClients';
@@ -74,7 +75,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/about" element={<About />} />
-              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects" element={<PublicProjects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/services" element={<Services />} />
               <Route path="/services/:id" element={<ServiceDetail />} />
@@ -182,6 +183,14 @@ function App() {
                 element={
                   <ProtectedRoute requireSuperuser={true}>
                     <AdminNewsletter />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/messaging-threads" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminMessagingThreads />
                   </ProtectedRoute>
                 } 
               />

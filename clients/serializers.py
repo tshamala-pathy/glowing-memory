@@ -97,7 +97,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'client', 'client_id', 'client_name', 'client_email',
             'status', 'status_label', 'progress_percentage', 'quote', 'quote_project_title', 'invoice', 'invoice_number',
-            'tech_stack', 'screenshots', 'repo_url', 'live_url',
+            'tech_stack', 'hero_image', 'screenshots', 'repo_url', 'live_url',
             'is_public', 'created_at', 'updated_at', 'internal_notes'
         ]
         read_only_fields = (
@@ -146,7 +146,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         return f'{base}{path}'
 
     def to_representation(self, instance):
-        """Hide sensitive data for non-owners; convert screenshots to absolute URLs."""
+        """Hide sensitive data for non-owners; convert screenshots and hero image to absolute URLs."""
         representation = super().to_representation(instance)
         request = self.context.get('request')
 
@@ -155,6 +155,10 @@ class ProjectSerializer(serializers.ModelSerializer):
             representation['screenshots'] = [
                 self._build_absolute_media_url(p) for p in representation['screenshots']
             ]
+
+        # Convert hero_image to absolute URL if present
+        if representation.get('hero_image'):
+            representation['hero_image'] = self._build_absolute_media_url(representation['hero_image'])
 
         if request and not request.user.is_authenticated:
             representation.pop('client_email', None)
@@ -210,13 +214,18 @@ class ProjectFileSerializer(serializers.ModelSerializer):
 # Task Serializer (admin-only; not exposed to clients)
 # ================================
 class TaskSerializer(serializers.ModelSerializer):
-    """Serializer for Task model. Used only by admin API."""
+    """Serializer for Task model. Used only by admin API. Includes project/client labels for display."""
+
+    project_name = serializers.SerializerMethodField()
+    client_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = [
             "id",
             "project",
+            "project_name",
+            "client_name",
             "title",
             "description",
             "status",
@@ -226,7 +235,25 @@ class TaskSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ("created_at", "updated_at")
+        read_only_fields = ("created_at", "updated_at", "project_name", "client_name")
+
+    def get_project_name(self, obj):
+        """Display name for the linked project (name or quote title)."""
+        if not obj.project_id:
+            return None
+        proj = obj.project
+        if proj.name:
+            return proj.name
+        if getattr(proj, "quote", None) and proj.quote:
+            return getattr(proj.quote, "project_title", None)
+        return None
+
+    def get_client_name(self, obj):
+        """Client name for the linked project."""
+        if not obj.project_id or not obj.project:
+            return None
+        client = getattr(obj.project, "client", None)
+        return client.name if client else None
 
 
 # ================================

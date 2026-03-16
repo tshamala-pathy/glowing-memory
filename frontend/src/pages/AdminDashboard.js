@@ -14,6 +14,7 @@ const AdminDashboard = () => {
     contacts: 0,
     testimonials: 0,
     newsletter: 0,
+    messageThreads: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentContacts, setRecentContacts] = useState([]);
@@ -34,13 +35,14 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [projectsRes, blogRes, servicesRes, contactsRes, testimonialsRes, newsletterRes] = await Promise.all([
+      const [projectsRes, blogRes, servicesRes, contactsRes, testimonialsRes, newsletterRes, threadsRes] = await Promise.all([
         api.get('/projects/'),
         api.get('/blog/'),
         api.get('/services/'),
         api.get('/contact/'),
         api.get('/testimonials/'),
         api.get('/newsletter/subscriptions/').catch(() => ({ data: [] })),
+        api.get('/messaging/threads/').catch(() => ({ data: [] })),
       ]);
 
       setStats({
@@ -50,6 +52,7 @@ const AdminDashboard = () => {
         contacts: contactsRes.data.count || (Array.isArray(contactsRes.data) ? contactsRes.data.length : contactsRes.data.results?.length || 0),
         testimonials: testimonialsRes.data.count || (Array.isArray(testimonialsRes.data) ? testimonialsRes.data.length : testimonialsRes.data.results?.length || 0),
         newsletter: newsletterRes.data.count || (Array.isArray(newsletterRes.data) ? newsletterRes.data.length : newsletterRes.data.results?.length || 0),
+        messageThreads: threadsRes.data.count || (Array.isArray(threadsRes.data) ? threadsRes.data.length : threadsRes.data.results?.length || 0),
       });
 
       // Get recent contacts
@@ -169,6 +172,17 @@ const AdminDashboard = () => {
       ),
       color: 'from-indigo-500 to-indigo-600',
       adminPath: '/admin/newsletter',
+    },
+    {
+      title: 'Message Threads',
+      value: stats.messageThreads,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      ),
+      color: 'from-sky-500 to-blue-600',
+      adminPath: '/admin/messaging-threads',
     },
   ];
 

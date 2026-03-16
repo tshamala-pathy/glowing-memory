@@ -20,10 +20,10 @@ from .utils import generate_invoice_pdf
 from quotes.models import Quote
 from clients.models import Project, Client
 from django.contrib.auth import get_user_model
-
-User = get_user_model()
 import logging
 import csv
+
+User = get_user_model()
 
 
 logger = logging.getLogger(__name__)
@@ -474,6 +474,8 @@ class PaymentQuoteView(APIView):
         return Response({
             'quote_id': quote.id,
             'project_title': quote.project_title,
+            'service_type': quote.service_type,
+            'client_name': quote.client_name,
             'amount': float(amount),
             'already_paid': False,
         })

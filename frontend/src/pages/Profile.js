@@ -53,12 +53,12 @@ const StatusBadge = ({ status, label }) => {
   );
 };
 
-/** Reusable section card with icon and title */
-const SectionCard = ({ title, icon, iconBg = 'bg-slate-100', iconColor = 'text-slate-600', children, className = '' }) => (
-  <div className={`bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden ${className}`}>
-    <div className="px-6 sm:px-8 py-5 border-b border-gray-100 bg-gray-50/50">
-      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-3">
-        <span className={`w-11 h-11 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+/** AWS-style section card: white bg, subtle border, clear header */
+const SectionCard = ({ title, icon, iconBg = 'bg-[#f4f4f4]', iconColor = 'text-[var(--aws-dark)]', children, className = '' }) => (
+  <div className={`bg-white border border-[var(--aws-card-border)] overflow-hidden ${className}`}>
+    <div className="px-6 sm:px-8 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa]">
+      <h2 className="text-base font-semibold text-[var(--aws-dark)] flex items-center gap-3">
+        <span className={`w-9 h-9 rounded ${iconBg} ${iconColor} flex items-center justify-center flex-shrink-0`}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
           </svg>
@@ -72,23 +72,23 @@ const SectionCard = ({ title, icon, iconBg = 'bg-slate-100', iconColor = 'text-s
 
 /** Empty state with icon, friendly message, and CTA */
 const EmptyState = ({ icon, title, message, action }) => (
-  <div className="flex flex-col items-center justify-center py-14 sm:py-20 px-6 text-center">
-    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 text-gray-400 flex items-center justify-center mb-5 ring-4 ring-gray-100">
-      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-6 text-center">
+    <div className="w-16 h-16 rounded bg-[#f4f4f4] text-[#737373] flex items-center justify-center mb-4">
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={icon} />
       </svg>
     </div>
-    <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-    <p className="text-gray-500 text-base max-w-md leading-relaxed mb-6">{message}</p>
+    <h3 className="text-lg font-semibold text-[var(--aws-dark)] mb-2">{title}</h3>
+    <p className="text-[#545b64] text-sm max-w-md leading-relaxed mb-6">{message}</p>
     {action}
   </div>
 );
 
 /** Loading skeleton for section content */
 const LoadingState = ({ label = 'Loading...' }) => (
-  <div className="flex flex-col items-center justify-center py-16">
-    <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-    <p className="text-sm font-medium text-gray-500">{label}</p>
+  <div className="flex flex-col items-center justify-center py-12">
+    <div className="w-10 h-10 border-2 border-[var(--aws-orange)] border-t-transparent rounded-full animate-spin mb-4" />
+    <p className="text-sm font-medium text-[#545b64]">{label}</p>
   </div>
 );
 
@@ -293,11 +293,11 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[var(--aws-content-bg)] flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="inline-block w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-5" />
-          <p className="text-gray-600 font-semibold text-lg">Welcome back! Loading your profile...</p>
-          <p className="text-gray-500 text-sm mt-1">This will only take a moment</p>
+          <div className="inline-block w-12 h-12 border-2 border-[var(--aws-orange)] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-[var(--aws-dark)] font-semibold">Loading your profile...</p>
+          <p className="text-[#545b64] text-sm mt-1">This will only take a moment</p>
         </div>
       </div>
     );
@@ -314,53 +314,91 @@ const Profile = () => {
     if (activeTab === 'overview') {
       return (
         <div className={SPACING.section}>
-          <SectionCard title="Personal details" icon={TABS[0].icon} iconBg="bg-blue-50" iconColor="text-blue-600">
+          <SectionCard title="Personal details" icon={TABS[0].icon} iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
+            <p className="text-sm text-[#545b64] mb-4">The name and email linked to your account. To change these, go to Profile Settings in the tabs below.</p>
             <div className={`flex flex-col sm:flex-row items-start sm:items-center ${SPACING.cardGap}`}>
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg flex-shrink-0">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-[var(--brand-primary)] flex items-center justify-center text-white text-2xl sm:text-3xl font-bold flex-shrink-0">
                 {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-gray-900 text-lg">{user?.first_name} {user?.last_name}</p>
-                <p className="text-gray-600 text-sm mt-0.5">{user?.email}</p>
-                {client?.name && <p className="text-gray-600 text-sm mt-0.5">Company: {client.name}</p>}
+                <p className="font-semibold text-[var(--aws-dark)] text-lg">{user?.first_name} {user?.last_name}</p>
+                <p className="text-[#545b64] text-sm mt-0.5">{user?.email}</p>
+                {client?.name && <p className="text-[#545b64] text-sm mt-0.5">Company: {client.name}</p>}
                 {user?.is_superuser && <span className="inline-block mt-2"><StatusBadge status="admin" label="Admin" /></span>}
               </div>
             </div>
           </SectionCard>
 
           {client && (
-            <SectionCard title="Client details" icon="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" iconBg="bg-teal-50" iconColor="text-teal-600">
+            <SectionCard title="Client details" icon="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
+              <p className="text-sm text-[#545b64] mb-4">Your client record: company name and industry. This is used for quotes and projects.</p>
               <dl className={`grid grid-cols-1 sm:grid-cols-2 ${SPACING.cardGap}`}>
-                <div><dt className="text-sm text-gray-500">Company / Name</dt><dd className="font-medium text-gray-900">{client.name}</dd></div>
-                {client.industry && <div><dt className="text-sm text-gray-500">Industry</dt><dd className="text-gray-900">{client.industry}</dd></div>}
-                {client.description && <div className="sm:col-span-2"><dt className="text-sm text-gray-500">Description</dt><dd className="text-gray-900">{client.description}</dd></div>}
+                <div><dt className="text-sm text-[#64748b]">Company / Name</dt><dd className="font-medium text-[var(--aws-dark)]">{client.name}</dd></div>
+                {client.industry && <div><dt className="text-sm text-[#64748b]">Industry</dt><dd className="text-[var(--aws-dark)]">{client.industry}</dd></div>}
+                {client.description && <div className="sm:col-span-2"><dt className="text-sm text-[#64748b]">Description</dt><dd className="text-[var(--aws-dark)]">{client.description}</dd></div>}
               </dl>
             </SectionCard>
           )}
 
-          <SectionCard title="Summary" icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" iconBg="bg-indigo-50" iconColor="text-indigo-600">
+          <SectionCard title="Summary" icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
+            <p className="text-sm text-[#545b64] mb-4">Counts at a glance: how many message threads, quote requests, invoices, and projects you have.</p>
             <div className={`grid grid-cols-2 sm:grid-cols-4 ${SPACING.cardGap}`}>
                 {[
-                  { count: threads.length, label: 'Messages', color: 'bg-blue-50 text-blue-700' },
-                { count: quotes.length, label: 'Quotes', color: 'bg-amber-50 text-amber-700' },
-                { count: invoices.length, label: 'Invoices', color: 'bg-green-50 text-green-700' },
-                { count: projects.length, label: 'Projects', color: 'bg-purple-50 text-purple-700' },
-              ].map((item) => (
-                <div key={item.label} className={`rounded-xl p-4 text-center ${item.color}`}>
-                  <p className="text-2xl sm:text-3xl font-bold">{item.count}</p>
-                  <p className="text-xs sm:text-sm font-medium mt-0.5">{item.label}</p>
-                </div>
-              ))}
+                  { count: threads.length, label: 'Messages', tabId: 'messages', bg: 'bg-blue-100', border: 'border-blue-200', text: 'text-blue-800', num: 'text-blue-700', hover: 'hover:bg-blue-200/80' },
+                  { count: quotes.length, label: 'Quotes', tabId: 'quotes', bg: 'bg-amber-100', border: 'border-amber-200', text: 'text-amber-800', num: 'text-amber-700', hover: 'hover:bg-amber-200/80' },
+                  { count: invoices.length, label: 'Invoices', tabId: 'invoices', bg: 'bg-emerald-100', border: 'border-emerald-200', text: 'text-emerald-800', num: 'text-emerald-700', hover: 'hover:bg-emerald-200/80' },
+                  { count: projects.length, label: 'Projects', tabId: 'projects', bg: 'bg-violet-100', border: 'border-violet-200', text: 'text-violet-800', num: 'text-violet-700', hover: 'hover:bg-violet-200/80' },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setActiveTab(item.tabId)}
+                    className={`rounded-lg p-4 text-center border w-full cursor-pointer transition-colors ${item.bg} ${item.border} ${item.hover} focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[var(--brand-primary)]`}
+                  >
+                    <p className={`text-2xl sm:text-3xl font-bold ${item.num}`}>{item.count}</p>
+                    <p className={`text-xs sm:text-sm font-medium mt-0.5 ${item.text}`}>{item.label}</p>
+                  </button>
+                ))}
             </div>
           </SectionCard>
 
-          <SectionCard title="Quick access" icon="M13 10V3L4 14h7v7l9-11h-7z" iconBg="bg-slate-100" iconColor="text-slate-600">
+          {(() => {
+            const approvedUnpaidQuotes = quotes.filter((q) => (q.status === 'approved' || q.status === 'Approved') && q.status !== 'paid');
+            if (approvedUnpaidQuotes.length === 0) return null;
+            return (
+              <SectionCard title="Outstanding payments" icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" iconBg="bg-[#ccfbf1]" iconColor="text-[var(--brand-primary)]">
+                <p className="text-sm text-[#545b64] mb-4">You have approved quotes waiting for payment. Pay anytime to generate your invoice and create your project.</p>
+                <ul className="space-y-3">
+                  {approvedUnpaidQuotes.map((q) => (
+                    <li key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-4 border border-[var(--aws-card-border)] bg-[#fafafa]">
+                      <div>
+                        <p className="font-semibold text-[var(--aws-dark)]">{q.title || `Quote #${q.id}`}</p>
+                        {(q.total_price != null || q.estimated_amount != null) && (
+                          <p className="text-sm text-[#545b64] mt-0.5">{formatCurrency(q.total_price ?? q.estimated_amount)}</p>
+                        )}
+                      </div>
+                      <Link
+                        to={`/payment/${q.id}`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--aws-orange)] text-white text-sm font-semibold hover:bg-[var(--aws-orange-hover)] transition-colors shrink-0"
+                      >
+                        Pay now
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </SectionCard>
+            );
+          })()}
+
+          <SectionCard title="Quick access" icon="M13 10V3L4 14h7v7l9-11h-7z" iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
+            <p className="text-sm text-[#545b64] mb-4">Shortcuts to the Client Portal, your projects, quote requests, and contact. Use the left menu or tabs above to open Messages, Quotes, Invoices, and Profile Settings.</p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/portal" className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">Client Portal</Link>
-              <Link to="/my-projects" className="px-4 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">My Projects</Link>
-              <Link to="/request-quote" className="px-4 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">Request Quote</Link>
-              <Link to="/contact" className="px-4 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">Contact</Link>
-              {user?.is_superuser && <Link to="/admin" className="px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 transition-colors shadow-sm">Admin Dashboard</Link>}
+              <Link to="/portal" className="px-4 py-2.5 bg-[var(--aws-orange)] text-white text-sm font-medium hover:bg-[var(--aws-orange-hover)] transition-colors">Client Portal</Link>
+              <Link to="/my-projects" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">My Projects</Link>
+              <Link to="/request-quote" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">Request Quote</Link>
+              <Link to="/contact" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">Contact</Link>
+              {user?.is_superuser && <Link to="/admin" className="px-4 py-2.5 bg-[var(--aws-dark)] text-white text-sm font-medium hover:bg-[var(--aws-dark-hover)] transition-colors">Admin Dashboard</Link>}
             </div>
           </SectionCard>
         </div>
@@ -551,6 +589,18 @@ const Profile = () => {
                       >
                         {quoteActionLoading === q.id ? 'Updating...' : 'Decline'}
                       </button>
+                    </div>
+                  )}
+                  {(q.status === 'approved' || q.status === 'Approved') && (
+                    <div className="mt-4">
+                      <Link
+                        to={`/payment/${q.id}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--aws-orange)] text-white text-sm font-semibold hover:bg-[var(--aws-orange-hover)] transition-colors"
+                      >
+                        Pay now
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                      </Link>
+                      <p className="text-xs text-[#545b64] mt-2">Complete payment to generate your invoice and create your project.</p>
                     </div>
                   )}
                 </div>
@@ -819,116 +869,112 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl lg:max-w-5xl mx-auto">
-        {error && (
-          <div className="mb-8 p-5 bg-red-50 border border-red-200 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex items-start gap-3 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-red-900">Something went wrong</p>
-                <p className="text-red-700 text-sm mt-0.5">{error}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors shrink-0"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Home link + Header */}
-        <div className="mb-8 sm:mb-10">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-blue-600 mb-4 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            Home
+    <div className="min-h-screen flex bg-[var(--aws-content-bg)]">
+      {/* AWS-style dark sidebar */}
+      <aside className="hidden lg:flex lg:flex-col w-64 flex-shrink-0 bg-[var(--aws-dark)] text-white">
+        <div className="p-4 border-b border-white/10">
+          <Link to="/" className="flex items-center gap-2 text-white hover:opacity-90">
+            <img src="/pathycode-logo.png" alt="PathyCode" className="h-8 w-auto" />
+            <span className="font-semibold text-sm">Client profile</span>
           </Link>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg flex-shrink-0">
-              {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{user?.first_name} {user?.last_name}</h1>
-              <p className="text-gray-600 text-sm truncate">{user?.email}</p>
-            </div>
-          </div>
-
-          {/* Welcome & profile overview */}
-          <div className="mt-6 sm:mt-8 relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-[1px] shadow-xl shadow-emerald-500/20">
-            <div className="relative rounded-2xl bg-gradient-to-br from-emerald-50/90 via-green-50/70 to-teal-50/80 p-6 sm:p-8">
-              {/* Decorative gradient orbs */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-300/25 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-300/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-              <div className="absolute left-0 top-0 bottom-0 w-1 sm:w-1.5 rounded-full bg-gradient-to-b from-emerald-500 via-green-500 to-teal-500" />
-              <div className="relative pl-4 sm:pl-5">
-                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-700 via-green-700 to-teal-700 bg-clip-text text-transparent mb-2">
-                  Welcome back{user?.first_name ? `, ${user.first_name}` : ''}!
-                </h2>
-                <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-5 max-w-2xl">
-                  This is your personal hub. Everything in one place—messages, quotes, invoices, and projects—so you stay in control of your journey with us.
-                </p>
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700/90 mb-3">What you can do here</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: 'Messages', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-                    { label: 'Quotes', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-                    { label: 'Invoices', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-                    { label: 'Projects', color: 'bg-violet-100 text-violet-800 border-violet-200' },
-                    { label: 'Testimonials', color: 'bg-rose-100 text-rose-800 border-rose-200' },
-                    { label: 'Profile Settings', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-                  ].map((item) => (
-                    <span
-                      key={item.label}
-                      className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${item.color}`}
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-gray-500 text-sm mt-4 leading-relaxed">
-                  Use the tabs below to jump to any section.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0 ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-white shadow-sm border border-gray-200 text-blue-700'
-                  : 'text-gray-600 hover:bg-white/80 hover:text-gray-900'
+                  ? 'bg-[var(--aws-orange)] text-white'
+                  : 'text-[#d5dbdb] hover:bg-[var(--aws-dark-hover)] hover:text-white'
               }`}
             >
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 flex-shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
               </svg>
               <span className="whitespace-nowrap">{tab.label}</span>
             </button>
           ))}
+        </nav>
+        <div className="p-3 border-t border-white/10">
+          <div className="px-3 py-2 text-xs text-[#d5dbdb]">
+            <p className="font-medium text-white truncate">{user?.first_name} {user?.last_name}</p>
+            <p className="truncate opacity-90">{user?.email}</p>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Breadcrumb + mobile nav */}
+        <div className="bg-white border-b border-[var(--aws-card-border)] px-4 sm:px-6 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <nav className="flex items-center gap-2 text-sm text-[#545b64]">
+              <Link to="/" className="hover:text-[var(--aws-orange)]">Home</Link>
+              <span aria-hidden>/</span>
+              <span className="text-[var(--aws-dark)] font-medium">Profile</span>
+              <span aria-hidden>/</span>
+              <span className="text-[var(--aws-dark)]">{TABS.find((t) => t.id === activeTab)?.label ?? 'Overview'}</span>
+            </nav>
+            {/* Mobile tab dropdown / pills */}
+            <div className="flex lg:hidden gap-1 overflow-x-auto pb-1">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium shrink-0 ${
+                    activeTab === tab.id ? 'bg-[var(--aws-orange)] text-white' : 'bg-[#f4f4f4] text-[#545b64] hover:bg-[#e8e8e8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} /></svg>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Tab content */}
-        <div className="mt-2">
-          {renderTabContent()}
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl">
+          {error && (
+            <div className="mb-6 p-4 bg-[#fff4e5] border border-[#ffb366] flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-9 h-9 rounded bg-[#ffb366] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-[var(--aws-dark)]">Something went wrong</p>
+                  <p className="text-[#545b64] text-sm mt-0.5">{error}</p>
+                </div>
+              </div>
+              <button onClick={() => window.location.reload()} className="px-4 py-2 bg-[var(--aws-dark)] text-white text-sm font-medium hover:bg-[var(--aws-dark-hover)] shrink-0">
+                Try again
+              </button>
+            </div>
+          )}
+
+          <div className="mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--aws-dark)]">
+              {activeTab === 'overview' ? `Welcome, ${user?.first_name || 'there'}` : TABS.find((t) => t.id === activeTab)?.label}
+            </h1>
+            <p className="text-sm text-[#545b64] mt-1">
+              {activeTab === 'overview'
+                ? 'Your account overview, outstanding payments, and quick links.'
+                : `Manage your ${(TABS.find((t) => t.id === activeTab)?.label ?? '').toLowerCase()}.`}
+            </p>
+            {activeTab === 'overview' && (
+              <div className="mt-4 p-4 bg-[#f8fafc] border border-[var(--aws-card-border)] rounded-lg">
+                <p className="text-sm text-[#475569] leading-relaxed">
+                  Here you can view your details and summary, pay any approved quotes, and use the quick links below. Click the coloured summary boxes or the menu on the left to open Messages, Quotes, Invoices, or Projects. Change your name and email under Profile Settings.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {renderTabContent()}
+          </div>
         </div>
-      </div>
+      </main>
 
       {selectedInvoice && (
         <InvoiceDetailModal

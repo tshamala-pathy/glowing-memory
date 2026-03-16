@@ -49,10 +49,12 @@ const Login = () => {
       <div className="max-w-md w-full">
         {/* Logo and Header */}
         <div className="text-center mb-8 fade-in">
-          <Link to="/" className="inline-flex items-center space-x-2 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">P</span>
-            </div>
+          <Link to="/" className="inline-flex flex-col items-center space-y-3 mb-4">
+            <img
+              src="/pathycode-logo.png"
+              alt="PathyCode logo"
+              className="h-14 w-auto mb-1"
+            />
             <span className="text-2xl font-bold text-gray-900">PathyCode</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">

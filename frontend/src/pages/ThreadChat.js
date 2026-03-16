@@ -136,24 +136,29 @@ const ThreadChat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col">
-      <div className="max-w-4xl mx-auto w-full flex flex-col flex-1">
-        {/* Header */}
-        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 flex items-center gap-4">
-          <Link
-            to="/messages"
-            className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"
-          >
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800 border border-slate-700">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </span>
-            Back
-          </Link>
-        </div>
+      <div className="container-fluid flex-1 d-flex flex-column">
+        <div className="row justify-content-center flex-1">
+          <div className="col-12 col-md-10 col-lg-8 d-flex flex-column max-w-4xl mx-auto w-full">
+            {/* Header */}
+            <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 flex items-center gap-4">
+              <Link
+                to="/messages"
+                className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white text-sm"
+              >
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-800 border border-slate-700">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </span>
+                Back
+              </Link>
+            </div>
 
-        <div className="px-4 sm:px-6 pb-4">
-          <div className="relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl flex flex-col max-h-[calc(100vh-7rem)]">
+            <div className="px-4 sm:px-6 pb-4">
+              <div
+                className="relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl d-flex flex-column"
+                style={{ height: '90vh', maxHeight: '90vh', minHeight: '70vh' }}
+              >
             {/* Decorative background */}
             <div className="pointer-events-none absolute inset-0 opacity-60">
               <div className="absolute -top-24 -right-16 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl" />
@@ -182,7 +187,7 @@ const ThreadChat = () => {
             </div>
 
             {/* Timeline */}
-            <div className="relative flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3">
+                <div className="relative flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3">
               {!(Array.isArray(thread?.messages) && thread.messages.length > 0) ? (
                 <p className="text-center text-slate-300/80 text-sm py-10">
                   No messages yet. Start the conversation below.
@@ -246,7 +251,7 @@ const ThreadChat = () => {
             </div>
 
             {/* Send form */}
-            <div className="relative border-t border-slate-700 bg-slate-900/95 px-3 sm:px-5 py-3">
+                <div className="relative border-t border-slate-700 bg-slate-900/95 px-3 sm:px-5 py-3">
               {error && <p className="text-red-400 text-xs mb-1.5">{error}</p>}
               <form onSubmit={handleSend} className="flex flex-col gap-2">
                 <textarea
@@ -284,6 +289,8 @@ const ThreadChat = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
             </div>
           </div>
         </div>

@@ -6,6 +6,9 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+/** Backend origin (no /api) for payment redirects and media. */
+export const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:8000';
+
 /**
  * Build an absolute URL for media files (images, etc.).
  * - If url is already http(s)://, return as-is.
@@ -79,20 +82,38 @@ api.interceptors.response.use(
           const response = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
             refresh: refreshToken,
           });
-          
+
           const { access } = response.data;
           localStorage.setItem('access_token', access);
-          
+
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': 'c877e1',
+          },
+          body: JSON.stringify({
+            sessionId: 'c877e1',
+            location: 'api.js:responseInterceptor',
+            message: 'Token refresh failed; keeping user on current page',
+            data: {
+              path: originalRequest?.url || originalRequest?.baseURL,
+              status: error.response?.status || null,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H401',
+          }),
+        }).catch(() => {});
+        // #endregion
+
+        // Clear tokens but DO NOT force redirect; user stays on current page
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        // Only redirect if not already on login page
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
       }
     }
     

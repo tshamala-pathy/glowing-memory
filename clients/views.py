@@ -7,6 +7,7 @@ from django.db import models
 from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
 from .models import Client, Project, ProjectFile, CaseStudy, Task
+import json
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
@@ -245,6 +246,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
         public_projects = public_projects.order_by(ordering)
         
         serializer = self.get_serializer(public_projects, many=True)
+
+        # Debug log: how many public projects are being returned
+        try:
+            log_entry = {
+                "sessionId": "c877e1",
+                "location": "clients.views:ProjectViewSet.public",
+                "message": "Public projects response",
+                "data": {
+                    "count": public_projects.count(),
+                    "ids": list(public_projects.values_list("id", flat=True)),
+                },
+                "timestamp": int(__import__("time").time() * 1000),
+                "hypothesisId": "PUB1",
+            }
+            with open("debug-c877e1.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception:
+            # Never break the endpoint due to logging
+            pass
+
         return Response(serializer.data)
 
 
@@ -257,7 +278,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     Admin-only: only staff/superuser can list, create, update, delete.
     Tasks are not exposed to clients (not included in Project serializer).
     """
-    queryset = Task.objects.all().select_related("project").order_by("-created_at")
+    queryset = Task.objects.all().select_related("project", "project__client", "project__quote").order_by("-created_at")
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["project", "status", "priority"]

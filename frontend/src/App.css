@@ -1,5 +1,19 @@
 /* AWS-Inspired Professional Design System */
 
+/* Brand colors — aligned with PathyCode logo; change hex values to match your logo */
+:root {
+  --brand-primary: #0D9488;
+  --brand-primary-hover: #0F766E;
+  --brand-dark: #1e293b;
+  --brand-dark-hover: #334155;
+  --aws-dark: var(--brand-dark);
+  --aws-dark-hover: var(--brand-dark-hover);
+  --aws-orange: var(--brand-primary);
+  --aws-orange-hover: var(--brand-primary-hover);
+  --aws-content-bg: #f8fafc;
+  --aws-card-border: #e2e8f0;
+}
+
 /* Prevent horizontal scroll on small devices */
 html, body {
   overflow-x: hidden;
@@ -68,7 +82,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid #FF9900;
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
 }
 

@@ -10,6 +10,8 @@ const Navbar = () => {
   const location = useLocation();
 
   const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to sign out?');
+    if (!confirmed) return;
     logout();
     navigate('/');
     setIsMenuOpen(false);
@@ -26,9 +28,11 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                <span className="text-white font-bold text-xl">P</span>
-              </div>
+              <img
+                src="/pathycode-logo.png"
+                alt="PathyCode logo"
+                className="h-10 w-auto transform group-hover:scale-105 transition-transform"
+              />
               <span className="text-2xl font-bold text-gray-900">PathyCode</span>
             </Link>
           </div>
@@ -65,69 +69,30 @@ const Navbar = () => {
             >
               Pricing
             </Link>
-            <Link
-              to="/contact"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                isActive('/contact')
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              Contact
-            </Link>
-            {isAuthenticated && (
-              <>
-                <Link
-                  to="/blog"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                    isActive('/blog')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  Blog
-                </Link>
-                <Link
-                  to="/clients"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                    isActive('/clients')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  Clients
-                </Link>
-                <Link
-                  to="/case-studies"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                    isActive('/case-studies')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  Case Studies
-                </Link>
-                <Link
-                  to="/my-projects"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                    isActive('/my-projects')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  My Projects
-                </Link>
-                <Link
-                  to="/messages"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                    isActive('/messages')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  Messages
-                </Link>
-              </>
+            {user?.is_superuser !== true && (
+              <Link
+                to="/contact"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+                  isActive('/contact')
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                Contact
+              </Link>
+            )}
+            {/* Client blog link: only for non-admin clients */}
+            {isAuthenticated && user?.is_superuser !== true && (
+              <Link
+                to="/blog"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+                  isActive('/blog')
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                Blog
+              </Link>
             )}
           </div>
 
@@ -140,17 +105,8 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/profile"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/profile')
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Profile
-                </Link>
-                {user?.is_superuser === true && (
+                {/* For regular clients, show Profile + (if admin) Admin */}
+                {user?.is_superuser === true ? (
                   <Link
                     to="/admin"
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -161,10 +117,21 @@ const Navbar = () => {
                   >
                     Admin
                   </Link>
+                ) : (
+                  <Link
+                    to="/profile"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive('/profile')
+                        ? 'bg-[#ccfbf1] text-[var(--brand-primary)]'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Profile
+                  </Link>
                 )}
                 <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
                         {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                       </span>
@@ -191,7 +158,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium text-sm transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors"
                 >
                   Get Started
                 </Link>
@@ -274,78 +241,32 @@ const Navbar = () => {
               >
                 Pricing
               </Link>
-              <Link
-                to="/contact"
-                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                  isActive('/contact')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
-              {isAuthenticated && (
-                <p className="px-4 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Portal</p>
+              {user?.is_superuser !== true && (
+                <Link
+                  to="/contact"
+                  className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                    isActive('/contact')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
+                </Link>
               )}
-              {isAuthenticated && (
-                <>
-                  <Link
-                    to="/blog"
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/blog')
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Blog
-                  </Link>
-                  <Link
-                    to="/clients"
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/clients')
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Clients
-                  </Link>
-                  <Link
-                    to="/case-studies"
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/case-studies')
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Case Studies
-                  </Link>
-                  <Link
-                    to="/my-projects"
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/my-projects')
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    My Projects
-                  </Link>
-                  <Link
-                    to="/messages"
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
-                      isActive('/messages')
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Messages
-                  </Link>
-                </>
+              {/* Client blog item only for non-admin clients */}
+              {isAuthenticated && user?.is_superuser !== true && (
+                <Link
+                  to="/blog"
+                  className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+                    isActive('/blog')
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Blog
+                </Link>
               )}
 
               {isAuthenticated ? (
@@ -354,7 +275,7 @@ const Navbar = () => {
                     to="/profile"
                     className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors ${
                       isActive('/profile')
-                        ? 'bg-blue-50 text-blue-600'
+                        ? 'bg-[#ccfbf1] text-[var(--brand-primary)]'
                         : 'text-gray-700 hover:bg-gray-50'
                     }`}
                     onClick={() => setIsMenuOpen(false)}
@@ -376,7 +297,7 @@ const Navbar = () => {
                   )}
                   <div className="px-4 py-3 border-t border-gray-200 mt-2">
                     <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                         <span className="text-white text-sm font-semibold">
                           {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                         </span>
@@ -407,7 +328,7 @@ const Navbar = () => {
                   </Link>
                   <Link
                     to="/register"
-                    className="block w-full px-4 py-2 text-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all"
+                    className="block w-full px-4 py-2 text-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Get Started

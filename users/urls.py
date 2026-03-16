@@ -10,7 +10,8 @@ from .views import (
     UserListViewSet,
     UserAdminViewSet,
     ForgotPasswordView,
-    ResetPasswordView
+    ResetPasswordView,
+    NotificationViewSet,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -22,6 +23,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 router = DefaultRouter()
 router.register(r'list', UserListViewSet, basename='user-list')
 router.register(r'admin', UserAdminViewSet, basename='user-admin')
+router.register(r'notifications', NotificationViewSet, basename='notifications')
 
 urlpatterns = [
     # Endpoint for user registration

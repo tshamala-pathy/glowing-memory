@@ -24,8 +24,21 @@ const AdminTasks = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [formData, setFormData] = useState({
+    project: '',
+    title: '',
+    description: '',
+    status: 'todo',
+    priority: 'medium',
+    due_date: '',
+    internal_notes: '',
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -37,6 +50,7 @@ const AdminTasks = () => {
       return;
     }
     fetchTasks();
+    fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, navigate]);
 
@@ -44,11 +58,66 @@ const AdminTasks = () => {
     try {
       const response = await api.get('/clients/tasks/');
       const data = response.data.results || response.data;
-      setTasks(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setTasks(list);
+      // #region agent log
+      const first = list[0];
+      const projectVal = first?.project;
+      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' },
+        body: JSON.stringify({
+          sessionId: 'c877e1',
+          location: 'AdminTasks.js:fetchTasks',
+          message: 'Tasks loaded',
+          data: {
+            taskCount: list.length,
+            firstTaskProject: projectVal,
+            firstTaskProjectType: typeof projectVal,
+            firstTaskProjectId: projectVal && typeof projectVal === 'object' ? projectVal.id : projectVal,
+          },
+          timestamp: Date.now(),
+          hypothesisId: 'B',
+        }),
+      }).catch(() => {});
+      // #endregion
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const response = await api.get('/clients/projects/');
+      const data = response.data.results || response.data;
+      const list = Array.isArray(data) ? data : [];
+      setProjects(list);
+      // #region agent log
+      const first = list[0];
+      fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' },
+        body: JSON.stringify({
+          sessionId: 'c877e1',
+          location: 'AdminTasks.js:fetchProjects',
+          message: 'Projects loaded',
+          data: {
+            count: list.length,
+            firstProjectKeys: first ? Object.keys(first) : [],
+            firstId: first?.id,
+            firstName: first?.name,
+            firstClientName: first?.client_name,
+            rawHasResults: !!response.data.results,
+          },
+          timestamp: Date.now(),
+          hypothesisId: 'A',
+        }),
+      }).catch(() => {});
+      // #endregion
+    } catch (error) {
+      console.error('Error fetching projects for tasks:', error);
     }
   };
 
@@ -63,11 +132,11 @@ const AdminTasks = () => {
     tasks.forEach((task) => {
       if (statusFilter && task.status !== statusFilter) return;
       if (priorityFilter && task.priority !== priorityFilter) return;
-      const key = task.project;
+      const projectId = typeof task.project === 'object' ? task.project?.id : task.project;
+      const key = projectId ?? 'none';
       if (!map[key]) {
         map[key] = {
-          projectId: task.project,
-          // These fields are not on the Task payload by default; keep minimal grouping
+          projectId,
           tasks: [],
         };
       }
@@ -80,6 +149,36 @@ const AdminTasks = () => {
     () => tasks.filter((t) => isOverdue(t)),
     [tasks]
   );
+
+  // #region agent log
+  useEffect(() => {
+    if (tasks.length === 0 || loading) return;
+    const t = tasks[0];
+    const projectId = typeof t?.project === 'object' ? t?.project?.id : t?.project;
+    const project = projects.find((p) => p.id === projectId);
+    const projectLabel =
+      project?.name || project?.quote_project_title || `Project #${projectId}`;
+    const clientLabel = project?.client_name ? ` • Client: ${project.client_name}` : '';
+    fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c877e1' },
+      body: JSON.stringify({
+        sessionId: 'c877e1',
+        location: 'AdminTasks.js:lookup',
+        message: 'First task project lookup',
+        data: {
+          projectId,
+          projectFound: !!project,
+          projectLabel,
+          clientLabel,
+          projectsLength: projects.length,
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'C',
+      }),
+    }).catch(() => {});
+  }, [tasks, projects, loading]);
+  // #endregion
 
   const statusBadge = (value) => {
     const base = 'px-2 py-1 text-xs rounded-full capitalize ';
@@ -144,12 +243,32 @@ const AdminTasks = () => {
               Internal task board, grouped by project. Clients never see these tasks.
             </p>
           </div>
-          <button
-            onClick={fetchTasks}
-            className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchTasks}
+              className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => {
+                setFormError('');
+                setFormData({
+                  project: '',
+                  title: '',
+                  description: '',
+                  status: 'todo',
+                  priority: 'medium',
+                  due_date: '',
+                  internal_notes: '',
+                });
+                setShowForm(true);
+              }}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              + New Task
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -193,6 +312,8 @@ const AdminTasks = () => {
           ) : (
             <ul className="space-y-2">
               {overdueTasks.map((task) => (
+                // Find project info so we can show a friendly label instead of just an ID
+                // (tasks are always linked to a client project)
                 <li
                   key={task.id}
                   className="flex items-center justify-between text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"
@@ -200,7 +321,23 @@ const AdminTasks = () => {
                   <div className="flex flex-col">
                     <span className="font-medium text-red-700">{task.title}</span>
                     <span className="text-gray-500">
-                      Project #{task.project} • due {new Date(task.due_date).toLocaleDateString()}
+                      {(() => {
+                        const pid = typeof task.project === 'object' ? task.project?.id : task.project;
+                        const project = projects.find((p) => p.id === pid);
+                        const projectLabel =
+                          task.project_name ||
+                          project?.name ||
+                          project?.quote_project_title ||
+                          `Project #${pid}`;
+                        const clientLabel = task.client_name
+                          ? ` • Client: ${task.client_name}`
+                          : project?.client_name
+                            ? ` • Client: ${project.client_name}`
+                            : '';
+                        return `${projectLabel}${clientLabel} • due ${new Date(
+                          task.due_date
+                        ).toLocaleDateString()}`;
+                      })()}
                     </span>
                   </div>
                   <span className={priorityBadge(task.priority)}>{task.priority}</span>
@@ -221,9 +358,27 @@ const AdminTasks = () => {
               <div key={group.projectId} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      Project #{group.projectId}
-                    </h2>
+                    {(() => {
+                      const gid = typeof group.projectId === 'object' ? group.projectId?.id : group.projectId;
+                      const firstTask = group.tasks[0];
+                      const project = projects.find((p) => p.id === gid);
+                      const projectLabel =
+                        firstTask?.project_name ||
+                        project?.name ||
+                        project?.quote_project_title ||
+                        `Project #${gid}`;
+                      const clientLabel = firstTask?.client_name
+                        ? ` • Client: ${firstTask.client_name}`
+                        : project?.client_name
+                          ? ` • Client: ${project.client_name}`
+                          : '';
+                      return (
+                        <h2 className="text-lg font-bold text-gray-900">
+                          {projectLabel}
+                          <span className="text-sm font-normal text-gray-500">{clientLabel}</span>
+                        </h2>
+                      );
+                    })()}
                     <p className="text-sm text-gray-500">
                       {group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''}
                     </p>
@@ -238,6 +393,157 @@ const AdminTasks = () => {
             ))
           )}
         </div>
+
+        {/* New Task Modal */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-lg mx-4">
+              <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Add Task</h2>
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!formData.project || !formData.title.trim()) {
+                    setFormError('Project and title are required.');
+                    return;
+                  }
+                  setSaving(true);
+                  setFormError('');
+                  try {
+                    await api.post('/clients/tasks/', formData);
+                    await fetchTasks();
+                    setShowForm(false);
+                  } catch (error) {
+                    console.error('Error creating task:', error);
+                    const msg =
+                      error.response?.data?.project?.[0] ||
+                      error.response?.data?.title?.[0] ||
+                      error.response?.data?.detail ||
+                      'Failed to create task.';
+                    setFormError(msg);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="px-5 py-4 space-y-4"
+              >
+                {formError && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+                    {formError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+                  <select
+                    value={formData.project}
+                    onChange={(e) => setFormData({ ...formData, project: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select project</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name || p.quote_project_title || `Project #${p.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description <span className="text-gray-400 text-xs">(optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="todo">To Do</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                    <input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Internal notes <span className="text-gray-400 text-xs">(optional, admin only)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.internal_notes}
+                    onChange={(e) => setFormData({ ...formData, internal_notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Create Task'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
