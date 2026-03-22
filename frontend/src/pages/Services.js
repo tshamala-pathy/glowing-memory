@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api';
 
 const Services = () => {
   const [services, setServices] = useState([]);
@@ -14,16 +14,17 @@ const Services = () => {
   const fetchServices = async () => {
     try {
       const response = await api.get('/services/');
-      setServices(response.data.results || response.data || []);
+      const data = response.data?.results ?? response.data ?? [];
+      const list = Array.isArray(data) ? data : [];
+      setServices(list);
       setError('');
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      if (error.isNetworkError) {
+    } catch (err) {
+      if (err.isNetworkError) {
         setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
       } else {
-        const errorMessage = error.response?.data?.detail || 
-                            error.response?.data?.message ||
-                            error.message || 
+        const errorMessage = err.response?.data?.detail || 
+                            err.response?.data?.message ||
+                            err.message || 
                             'Failed to fetch services';
         setError(`Error: ${errorMessage}`);
       }
@@ -229,7 +230,9 @@ const Services = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {services.map((service, index) => {
+            {[...services]
+              .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+              .map((service) => {
               const features = parseFeatures(service.features);
               return (
                 <Link
@@ -239,10 +242,23 @@ const Services = () => {
                 >
                   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-lg hover:border-slate-300 hover:-translate-y-1">
                     {/* Service Image/Illustration */}
-                    <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                      <div className="w-full h-full opacity-90">
-                        {getServiceImage(service)}
-                      </div>
+                    <div className="relative w-full h-48 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                      {service.image ? (
+                        <img
+                          src={getMediaUrl(service.image)}
+                          alt={service.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full opacity-90">
+                          {getServiceImage(service)}
+                        </div>
+                      )}
+                      {service.is_featured && (
+                        <span className="absolute top-3 right-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-400/90 text-amber-900">
+                          Featured
+                        </span>
+                      )}
                     </div>
                     
                     {/* Content Section */}
@@ -254,10 +270,12 @@ const Services = () => {
                             {getServiceIcon(service)}
                           </div>
                         </div>
-                        {service.price && (
+                        {service.price != null && parseFloat(service.price) > 0 && (
                           <div className="text-right">
-                            <span className="text-2xl sm:text-3xl font-bold text-slate-900">${parseFloat(service.price).toFixed(0)}</span>
-                            <span className="text-xs sm:text-sm text-slate-500 block">per month</span>
+                            <span className="text-2xl sm:text-3xl font-bold text-slate-900">
+                              R {parseFloat(service.price).toLocaleString('en-ZA', { minimumFractionDigits: 0 })}
+                            </span>
+                            <span className="text-xs sm:text-sm text-slate-500 block">ZAR</span>
                           </div>
                         )}
                       </div>
@@ -269,7 +287,7 @@ const Services = () => {
                     
                     {/* Service Description */}
                     <p className="text-slate-600 mb-6 line-clamp-3 leading-relaxed text-sm sm:text-base flex-grow">
-                      {service.description}
+                      {service.short_description || service.description}
                     </p>
                     
                     {/* Features List */}
