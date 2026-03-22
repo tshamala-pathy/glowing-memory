@@ -35,31 +35,6 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return userData;
     } catch (error) {
-      console.error('Error fetching user:', error);
-      // #region agent log
-      try {
-        fetch('http://127.0.0.1:7242/ingest/09dda989-d72c-43d8-8020-eb55e586cb02', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Debug-Session-Id': 'c877e1',
-          },
-          body: JSON.stringify({
-            sessionId: 'c877e1',
-            location: 'AuthContext.js:fetchUser',
-            message: 'fetchUser failed; clearing tokens',
-            data: {
-              status: error.response?.status || null,
-              path: '/users/profile/',
-            },
-            timestamp: Date.now(),
-            hypothesisId: 'HFETCH',
-          }),
-        }).catch(() => {});
-      } catch (_) {
-        // ignore logging failures
-      }
-      // #endregion
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       return null;
@@ -137,8 +112,7 @@ export const AuthProvider = ({ children }) => {
       const res = await api.get('/users/profile/');
       setUser(res.data);
       return res.data;
-    } catch (e) {
-      console.error('Error refreshing user:', e);
+    } catch {
       return null;
     }
   };

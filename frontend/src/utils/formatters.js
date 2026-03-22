@@ -26,12 +26,13 @@ export const formatCurrency = (amount) => {
 };
 
 /** Tailwind classes for quote status badges (lowercase to match API) */
-export const quoteStatusColors = {
+const quoteStatusColors = {
   pending: 'bg-amber-100 text-amber-800',
   replied: 'bg-blue-100 text-blue-800',
   reviewed: 'bg-blue-100 text-blue-800',
   approved: 'bg-green-100 text-green-800',
   declined: 'bg-red-100 text-red-800',
+  invoiced: 'bg-indigo-100 text-indigo-800',
   paid: 'bg-green-100 text-green-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
@@ -41,7 +42,7 @@ export const quoteStatusColors = {
 };
 
 /** Tailwind classes for invoice status badges (backend uses lowercase: draft, unpaid, paid, overdue, cancelled) */
-export const invoiceStatusColors = {
+const invoiceStatusColors = {
   paid: 'bg-green-100 text-green-800',
   unpaid: 'bg-blue-100 text-blue-800',
   draft: 'bg-gray-100 text-gray-800',
@@ -62,7 +63,7 @@ export const getInvoiceStatusLabel = (status) => {
 };
 
 /** Tailwind classes for project status badges (planning, design, development, testing, completed) */
-export const projectStatusColors = {
+const projectStatusColors = {
   planning: 'bg-amber-100 text-amber-800',
   design: 'bg-blue-100 text-blue-800',
   development: 'bg-indigo-100 text-indigo-800',
@@ -70,6 +71,20 @@ export const projectStatusColors = {
   completed: 'bg-green-100 text-green-800',
   in_progress: 'bg-blue-100 text-blue-800',
   pending: 'bg-yellow-100 text-yellow-800',
+};
+
+/** Display label for quote status */
+export const getQuoteStatusLabel = (status) => {
+  const labels = {
+    pending: 'Pending',
+    replied: 'Replied',
+    reviewed: 'Reviewed',
+    approved: 'Approved',
+    declined: 'Declined',
+    invoiced: 'Invoiced',
+    paid: 'Paid',
+  };
+  return labels[status] || (status && status.charAt(0).toUpperCase() + status.slice(1)) || status;
 };
 
 /** Get status badge class for quote, invoice, or project */

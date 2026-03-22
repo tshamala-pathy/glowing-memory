@@ -45,6 +45,7 @@ import Quotes from './pages/Quotes';
 import Requirements from './pages/Requirements';
 import QuoteSuccess from './pages/QuoteSuccess';
 import TermsAndPrivacy from './pages/TermsAndPrivacy';
+import NewsletterPage from './pages/NewsletterPage';
 import SearchResults from './pages/SearchResults';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogDetail from './pages/BlogDetail';
@@ -75,7 +76,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/about" element={<About />} />
-              <Route path="/projects" element={<PublicProjects />} />
+              <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/services" element={<Services />} />
               <Route path="/services/:id" element={<ServiceDetail />} />
@@ -85,7 +86,9 @@ function App() {
               <Route path="/request-quote" element={<Quotes />} />
               <Route path="/quote-success" element={<QuoteSuccess />} />
               <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
+              <Route path="/newsletter" element={<NewsletterPage />} />
               <Route path="/public-projects" element={<PublicProjects />} />
+              <Route path="/client-projects" element={<PublicProjects />} />
 
               {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
               <Route

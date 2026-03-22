@@ -14,8 +14,7 @@ const AboutSection = () => {
     try {
       const response = await api.get('/about/');
       setAboutData(response.data);
-    } catch (error) {
-      console.error('Error fetching about data:', error);
+    } catch {
       // Don't show error, just don't display the section
     } finally {
       setLoading(false);
@@ -39,7 +38,7 @@ const AboutSection = () => {
             </p>
             <Link
               to="/about"
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="inline-flex items-center text-teal-600 hover:text-teal-700 font-semibold transition-colors"
             >
               <span>Learn More About Us</span>
               <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,8 +60,8 @@ const AboutSection = () => {
 
         {/* Mission & Vision Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-16">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-8 fade-in">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white mb-6">
+          <div className="bg-gradient-to-br from-teal-50 to-slate-50 rounded-2xl p-8 fade-in">
+            <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-slate-600 rounded-xl flex items-center justify-center text-white mb-6">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -75,8 +74,8 @@ const AboutSection = () => {
             </p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-8 fade-in" style={{ animationDelay: '0.1s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center text-white mb-6">
+          <div className="bg-gradient-to-br from-slate-50 to-teal-50 rounded-2xl p-8 fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="w-16 h-16 bg-gradient-to-br from-slate-500 to-teal-600 rounded-xl flex items-center justify-center text-white mb-6">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -99,7 +98,7 @@ const AboutSection = () => {
               {aboutData.values.slice(0, 3).map((value) => (
                 <div key={value.id} className="text-center fade-in">
                   {value.icon && (
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white mx-auto mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-slate-600 rounded-lg flex items-center justify-center text-white mx-auto mb-4">
                       <i className={value.icon}></i>
                     </div>
                   )}

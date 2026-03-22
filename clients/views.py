@@ -7,7 +7,7 @@ from django.db import models
 from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
 from .models import Client, Project, ProjectFile, CaseStudy, Task
-import json
+import csv
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
@@ -241,31 +241,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 models.Q(description__icontains=search_query) |
                 models.Q(tech_stack__icontains=search_query)
             )
+
+        status_filter = request.query_params.get('status', None)
+        if status_filter:
+            public_projects = public_projects.filter(status=status_filter)
         
         ordering = request.query_params.get('ordering', '-created_at')
         public_projects = public_projects.order_by(ordering)
         
         serializer = self.get_serializer(public_projects, many=True)
-
-        # Debug log: how many public projects are being returned
-        try:
-            log_entry = {
-                "sessionId": "c877e1",
-                "location": "clients.views:ProjectViewSet.public",
-                "message": "Public projects response",
-                "data": {
-                    "count": public_projects.count(),
-                    "ids": list(public_projects.values_list("id", flat=True)),
-                },
-                "timestamp": int(__import__("time").time() * 1000),
-                "hypothesisId": "PUB1",
-            }
-            with open("debug-c877e1.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_entry) + "\n")
-        except Exception:
-            # Never break the endpoint due to logging
-            pass
-
         return Response(serializer.data)
 
 
@@ -291,6 +275,29 @@ class TaskViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        """Export all tasks as CSV. Admin/staff only."""
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="tasks.csv"'
+        writer = csv.writer(response)
+        writer.writerow(
+            ["ID", "Project", "Title", "Status", "Priority", "Due Date", "Created At"]
+        )
+        for task in Task.objects.select_related("project", "project__client").all().order_by("id"):
+            writer.writerow(
+                [
+                    task.id,
+                    task.project.name if task.project else "",
+                    task.title,
+                    task.status,
+                    task.priority,
+                    task.due_date.isoformat() if task.due_date else "",
+                    task.created_at.isoformat() if task.created_at else "",
+                ]
+            )
+        return response
 
 
 # ================================

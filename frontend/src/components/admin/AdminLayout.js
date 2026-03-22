@@ -6,7 +6,7 @@ const AdminLayout = ({ children, allowStaff = false }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Ensure user is authenticated and is superuser (or staff if allowStaff)
@@ -291,8 +291,8 @@ const AdminLayout = ({ children, allowStaff = false }) => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 lg:ml-0">
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+        <main className="flex-1 min-w-0 lg:ml-0 overflow-x-hidden">
+          <div className="p-4 sm:p-6 lg:p-8 min-w-0">{children}</div>
         </main>
       </div>
     </div>

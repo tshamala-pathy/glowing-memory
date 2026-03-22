@@ -363,7 +363,18 @@ const Profile = () => {
           </SectionCard>
 
           {(() => {
-            const approvedUnpaidQuotes = quotes.filter((q) => (q.status === 'approved' || q.status === 'Approved') && q.status !== 'paid');
+            // Quote IDs that already have an invoice (paid) - use invoice existence as source of truth
+            const quoteIdsWithInvoice = new Set(
+              (invoices || [])
+                .map((inv) => (typeof inv.quote === 'object' ? inv.quote?.id : inv.quote))
+                .filter(Boolean)
+            );
+            const approvedUnpaidQuotes = quotes.filter(
+              (q) =>
+                (q.status === 'approved' || q.status === 'Approved') &&
+                q.status !== 'paid' &&
+                !quoteIdsWithInvoice.has(q.id)
+            );
             if (approvedUnpaidQuotes.length === 0) return null;
             return (
               <SectionCard title="Outstanding payments" icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" iconBg="bg-[#ccfbf1]" iconColor="text-[var(--brand-primary)]">

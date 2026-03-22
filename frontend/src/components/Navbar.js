@@ -33,7 +33,7 @@ const Navbar = () => {
                 alt="PathyCode logo"
                 className="h-10 w-auto transform group-hover:scale-105 transition-transform"
               />
-              <span className="text-2xl font-bold text-gray-900">PathyCode</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-900 truncate max-w-[140px] sm:max-w-none">PathyCode</span>
             </Link>
           </div>
 

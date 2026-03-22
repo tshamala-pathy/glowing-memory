@@ -26,7 +26,6 @@ const SearchResults = () => {
       });
       setResults(response.data);
     } catch (err) {
-      console.error('Search error:', err);
       setError('Failed to search. Please try again.');
       setResults(null);
     } finally {

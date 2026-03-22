@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
+import { formatDateTime } from '../../utils/formatters';
 
 const AdminMessagingThreads = () => {
   const { user, isAuthenticated } = useAuth();
@@ -35,7 +36,6 @@ const AdminMessagingThreads = () => {
       setThreads(Array.isArray(data) ? data : []);
       setError('');
     } catch (err) {
-      console.error('Error fetching message threads:', err);
       setError('Failed to load message threads.');
       setThreads([]);
     } finally {
@@ -48,8 +48,8 @@ const AdminMessagingThreads = () => {
       const res = await api.get('/clients/projects/');
       const data = res.data?.results ?? res.data ?? [];
       setProjects(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching projects for messaging threads:', err);
+    } catch {
+      setProjects([]);
     }
   };
 
@@ -70,7 +70,6 @@ const AdminMessagingThreads = () => {
       setSelectedProjectId('');
       setError('');
     } catch (err) {
-      console.error('Error creating message thread:', err);
       const msg =
         err.response?.data?.project?.[0] ||
         err.response?.data?.detail ||
@@ -90,13 +89,6 @@ const AdminMessagingThreads = () => {
       String(t.id).includes(term)
     );
   });
-
-  const formatDateTime = (value) => {
-    if (!value) return '—';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleString();
-  };
 
   const projectOptionsWithoutThread = projects.filter((p) => {
     const projectId = p.id;

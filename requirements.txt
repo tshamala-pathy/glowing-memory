@@ -14,9 +14,9 @@ tzdata==2025.2
 gunicorn
 reportlab==4.2.5
 
-# PayFast: No extra package required. Integration uses standard HTTP/urllib.
-# For local dev, PayFast ITN (notify_url) cannot reach localhost; use simulate_itn
-# or ngrok to expose the backend. See PathyCodeback/settings.py PAYFAST_* vars.
+# PayFast: No extra package required. Uses standard library (hashlib, urllib).
+# Features: redirect flow, ITN callback, signature verification (PAYFAST_PASSPHRASE),
+# simulate-itn for local dev. See payments/README.md and PathyCodeback/settings.py.
 
 # Documentation
 Sphinx>=7.0.0

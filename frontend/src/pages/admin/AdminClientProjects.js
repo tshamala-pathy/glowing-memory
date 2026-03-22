@@ -10,7 +10,6 @@ const AdminClientProjects = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +26,14 @@ const AdminClientProjects = () => {
     name: '',
     description: '',
     client: '',
-    status: 'pending',
+    status: 'planning',
     tech_stack: '',
     quote: '',
     invoice: '',
     repo_url: '',
     live_url: '',
     is_public: false,
+    hero_image: null,
     screenshots: [],
   });
 
@@ -51,25 +51,21 @@ const AdminClientProjects = () => {
 
   const fetchData = async () => {
     try {
-      const [projectsRes, usersRes, quotesRes, invoicesRes, clientsRes] = await Promise.all([
+      const [projectsRes, quotesRes, invoicesRes, clientsRes] = await Promise.all([
         api.get('/clients/projects/'),
-        api.get('/users/admin/'),
         api.get('/quotes/'),
         api.get('/invoices/'),
         api.get('/clients/clients/'),
       ]);
-      const projectsData = projectsRes.data.results || projectsRes.data;
-      const usersData = usersRes.data.results || usersRes.data;
-      const quotesData = quotesRes.data.results || quotesRes.data;
-      const invoicesData = invoicesRes.data.results || invoicesRes.data;
-      const clientsData = clientsRes.data.results || clientsRes.data;
+      const projectsData = projectsRes.data?.results ?? projectsRes.data;
+      const quotesData = quotesRes.data?.results ?? quotesRes.data;
+      const invoicesData = invoicesRes.data?.results ?? invoicesRes.data;
+      const clientsData = clientsRes.data?.results ?? clientsRes.data;
       setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setUsers(Array.isArray(usersData) ? usersData : []);
       setQuotes(Array.isArray(quotesData) ? quotesData : []);
       setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
       setClients(Array.isArray(clientsData) ? clientsData : []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -81,13 +77,14 @@ const AdminClientProjects = () => {
       name: '',
       description: '',
       client: '',
-      status: 'pending',
+      status: 'planning',
       tech_stack: '',
       quote: '',
       invoice: '',
       repo_url: '',
       live_url: '',
       is_public: false,
+      hero_image: null,
       screenshots: [],
     });
     setShowForm(true);
@@ -109,14 +106,15 @@ const AdminClientProjects = () => {
     setFormData({
       name: project.name || '',
       description: project.description || '',
-      client: project.client || '',
-      status: project.status || 'pending',
+      client: project.client || project.client_id || '',
+      status: project.status || 'planning',
       tech_stack: Array.isArray(project.tech_stack) ? project.tech_stack.join(', ') : project.tech_stack || '',
       quote: project.quote || '',
       invoice: project.invoice || '',
       repo_url: project.repo_url || '',
       live_url: project.live_url || '',
       is_public: project.is_public || false,
+      hero_image: null,
       screenshots: project.screenshots || [],
     });
     setShowForm(true);
@@ -131,8 +129,7 @@ const AdminClientProjects = () => {
       await api.delete(`/clients/projects/${deleteDialog.project.id}/`);
       fetchData();
       setDeleteDialog({ open: false, project: null });
-    } catch (error) {
-      console.error('Error deleting project:', error);
+    } catch {
       alert('Failed to delete project');
     }
   };
@@ -143,7 +140,7 @@ const AdminClientProjects = () => {
       const submitData = {
         name: formData.name,
         description: formData.description,
-        client: formData.client,
+        client: formData.client || null,
         status: formData.status,
         tech_stack: formData.tech_stack ? formData.tech_stack.split(',').map(t => t.trim()).filter(t => t).join(',') : '',
         quote: formData.quote || null,
@@ -154,22 +151,44 @@ const AdminClientProjects = () => {
         screenshots: formData.screenshots || [],
       };
 
-      if (editingProject) {
-        await api.put(`/clients/projects/${editingProject.id}/`, submitData);
+      if (formData.hero_image) {
+        const fd = new FormData();
+        fd.append('name', submitData.name);
+        fd.append('description', submitData.description);
+        if (submitData.client) fd.append('client', submitData.client);
+        fd.append('status', submitData.status);
+        fd.append('tech_stack', submitData.tech_stack);
+        if (submitData.quote) fd.append('quote', submitData.quote);
+        if (submitData.invoice) fd.append('invoice', submitData.invoice);
+        fd.append('repo_url', submitData.repo_url);
+        fd.append('live_url', submitData.live_url);
+        fd.append('is_public', submitData.is_public);
+        fd.append('screenshots', JSON.stringify(submitData.screenshots));
+        fd.append('hero_image', formData.hero_image);
+
+        if (editingProject) {
+          await api.patch(`/clients/projects/${editingProject.id}/`, fd);
+        } else {
+          await api.post('/clients/projects/', fd);
+        }
       } else {
-        await api.post('/clients/projects/', submitData);
+        if (editingProject) {
+          await api.put(`/clients/projects/${editingProject.id}/`, submitData);
+        } else {
+          await api.post('/clients/projects/', submitData);
+        }
       }
       fetchData();
       setShowForm(false);
       setEditingProject(null);
-    } catch (error) {
-      console.error('Error saving project:', error);
-      alert('Failed to save project: ' + (error.response?.data?.detail || error.message));
+    } catch (err) {
+      alert('Failed to save project: ' + (err.response?.data?.detail || err.message || 'Unknown error'));
     }
   };
 
   const filteredProjects = projects.filter((project) => {
-    const matchesClient = !clientFilter || String(project.client) === String(clientFilter);
+    const projectClientId = project.client ?? project.client_id;
+    const matchesClient = !clientFilter || String(projectClientId) === String(clientFilter);
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     const matchesSearch =
       project.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -186,13 +205,16 @@ const AdminClientProjects = () => {
       accessor: 'status',
       render: (value) => {
         const statusColors = {
-          pending: 'bg-yellow-100 text-yellow-800',
-          in_progress: 'bg-blue-100 text-blue-800',
-          completed: 'bg-green-100 text-green-800',
+          planning: 'bg-amber-100 text-amber-800',
+          design: 'bg-sky-100 text-sky-800',
+          development: 'bg-blue-100 text-blue-800',
+          testing: 'bg-purple-100 text-purple-800',
+          completed: 'bg-emerald-100 text-emerald-800',
         };
+        const labels = { planning: 'Planning', design: 'Design', development: 'Development', testing: 'Testing', completed: 'Completed' };
         return (
           <span className={`px-2 py-1 text-xs rounded ${statusColors[value] || 'bg-gray-100 text-gray-800'}`}>
-            {value === 'in_progress' ? 'In Progress' : value || 'Pending'}
+            {labels[value] || value || 'Planning'}
           </span>
         );
       },
@@ -201,7 +223,7 @@ const AdminClientProjects = () => {
       header: 'Public',
       accessor: 'is_public',
       render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+        <span className={`px-2 py-1 text-xs rounded ${value ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
           {value ? 'Yes' : 'No'}
         </span>
       ),
@@ -212,7 +234,7 @@ const AdminClientProjects = () => {
       render: (value) => (
         <div className="flex flex-wrap gap-1">
           {Array.isArray(value) && value.length > 0 ? value.slice(0, 3).map((tech, idx) => (
-            <span key={idx} className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+            <span key={idx} className="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">
               {tech}
             </span>
           )) : '-'}
@@ -226,11 +248,17 @@ const AdminClientProjects = () => {
     },
   ];
 
+  const publicCount = projects.filter((p) => p.is_public).length;
+  const completedCount = projects.filter((p) => p.status === 'completed').length;
+
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64 px-4">
-          <div className="text-gray-600">Loading...</div>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-600 font-medium">Loading projects...</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -238,34 +266,76 @@ const AdminClientProjects = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-0">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Client Projects</h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage projects for your clients</p>
+      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
+                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </span>
+                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Client Projects</h1>
+              </div>
+              <p className="text-slate-100 text-sm sm:text-lg">Manage projects and set which appear on the public portfolio.</p>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
+              <button
+                onClick={handleCreate}
+                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Project
+              </button>
+              <button
+                onClick={fetchData}
+                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            + Add Project
-          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{projects.length}</div>
+          </div>
+          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Public</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold text-emerald-600">{publicCount}</div>
+          </div>
+          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Completed</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{completedCount}</div>
+          </div>
+          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredProjects.length}</div>
+          </div>
         </div>
 
         {/* Search & filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               type="text"
               placeholder="Search by project or client name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
             />
             <select
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
             >
               <option value="">All Clients</option>
               {clients.map((c) => (
@@ -275,18 +345,20 @@ const AdminClientProjects = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
             >
               <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
+              <option value="planning">Planning</option>
+              <option value="design">Design</option>
+              <option value="development">Development</option>
+              <option value="testing">Testing</option>
               <option value="completed">Completed</option>
             </select>
           </div>
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
           <DataTable
             columns={columns}
             data={filteredProjects}
@@ -300,10 +372,10 @@ const AdminClientProjects = () => {
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowForm(false)}></div>
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+              <div className="fixed inset-0 transition-opacity bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowForm(false)} />
+              <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200">
                 <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  <h3 className="text-xl font-bold text-slate-900 mb-6">
                     {editingProject ? 'Edit Project' : 'Create Project'}
                   </h3>
                   <div className="space-y-4">
@@ -318,7 +390,7 @@ const AdminClientProjects = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Client (User) *</label>
+                      <label className="block text-sm font-medium text-gray-700">Client *</label>
                       <select
                         required
                         value={formData.client}
@@ -326,10 +398,8 @@ const AdminClientProjects = () => {
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select a client</option>
-                        {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.email} {user.first_name || user.last_name ? `(${user.first_name} ${user.last_name})` : ''}
-                          </option>
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
@@ -343,6 +413,18 @@ const AdminClientProjects = () => {
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Hero Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFormData({ ...formData, hero_image: e.target.files?.[0] || null })}
+                        className="mt-1 block w-full text-sm text-gray-600"
+                      />
+                      {editingProject?.hero_image && !formData.hero_image && (
+                        <p className="mt-1 text-xs text-gray-500">Current: {editingProject.hero_image}</p>
+                      )}
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Status *</label>
@@ -352,8 +434,10 @@ const AdminClientProjects = () => {
                           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
+                          <option value="planning">Planning</option>
+                          <option value="design">Design</option>
+                          <option value="development">Development</option>
+                          <option value="testing">Testing</option>
                           <option value="completed">Completed</option>
                         </select>
                       </div>
@@ -457,8 +541,8 @@ const AdminClientProjects = () => {
                                       a.download = pf.file_name || 'download';
                                       a.click();
                                       window.URL.revokeObjectURL(url);
-                                    } catch (err) {
-                                      console.error(err);
+                                    } catch {
+                                      // Download failed silently; user can retry
                                     }
                                   }}
                                   className="text-blue-600 hover:text-blue-800 ml-2"
@@ -500,17 +584,17 @@ const AdminClientProjects = () => {
                       </div>
                     )}
                   </div>
-                  <div className="mt-6 flex justify-end space-x-3">
+                  <div className="mt-6 flex justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setShowForm(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
+                      className="px-4 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-semibold hover:bg-slate-800"
                     >
                       {editingProject ? 'Update' : 'Create'}
                     </button>

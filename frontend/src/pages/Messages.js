@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { formatDateTime } from '../utils/formatters';
 
 const Messages = () => {
   const { isAuthenticated } = useAuth();
@@ -52,12 +53,6 @@ const Messages = () => {
     };
     fetchThreads();
   }, [isAuthenticated]);
-
-  const formatDate = (d) => {
-    if (!d) return '—';
-    const date = typeof d === 'string' ? new Date(d) : d;
-    return isNaN(date.getTime()) ? d : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
 
   if (!isAuthenticated) {
     return (
@@ -154,7 +149,7 @@ const Messages = () => {
                 <div className="relative flex items-center justify-between mt-4">
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <span className="inline-flex h-6 px-2 items-center justify-center rounded-full bg-slate-800/80 border border-slate-700 text-[11px] font-medium">
-                      {formatDate(t.last_message_at)}
+                      {formatDateTime(t.last_message_at)}
                     </span>
                   </div>
                   {t.message_count > 0 && (

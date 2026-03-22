@@ -15,14 +15,15 @@ Flow:
   6. Local dev: PayFast cannot reach localhost, so success page shows "Complete payment locally"
      button that calls simulate_itn to run the same logic
 """
+import hashlib
 from decimal import Decimal
+from urllib.parse import urlencode, quote_plus
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from urllib.parse import urlencode
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -33,6 +34,18 @@ from quotes.models import Quote
 from invoices.models import Invoice
 from clients.models import Client
 from .models import Payment
+
+
+def _user_can_access_quote(request, quote):
+    """True if request.user is the quote owner (client or client_email match). Matches PaymentQuoteView logic."""
+    if not request.user.is_authenticated:
+        return False
+    profile = getattr(request.user, "client_profile", None)
+    if profile and quote.client_id == profile.id:
+        return True
+    if quote.client_email and quote.client_email.lower() == (request.user.email or "").lower():
+        return True
+    return False
 
 
 def _process_payment_complete(quote, payment, provider_reference=""):
@@ -61,7 +74,9 @@ def _process_payment_complete(quote, payment, provider_reference=""):
     invoice.status = "paid"
     invoice.amount_paid = invoice.total_amount
     invoice.amount_due = Decimal("0.00")
-    invoice.paid_date = invoice.issue_date
+    # Ensure paid_date is a date (issue_date may be datetime from default=timezone.now)
+    issue = invoice.issue_date
+    invoice.paid_date = issue.date() if hasattr(issue, "date") and callable(getattr(issue, "date")) else issue
     invoice.paid_at = None
     invoice.save()
 
@@ -88,6 +103,7 @@ def _build_payfast_redirect_url(quote, payment):
     return_url = f"{base_return}?quote_id={quote.id}&payment_id={payment.id}" if base_return else base_return
     cancel_url = f"{base_cancel}?quote_id={quote.id}&payment_id={payment.id}" if base_cancel else base_cancel
     # PayFast expects these fields; custom_str1/2 are echoed back in ITN POST for lookup
+    # Currency: ZAR for South African PayFast
     payfast_data = {
         "merchant_id": settings.PAYFAST_MERCHANT_ID,
         "merchant_key": settings.PAYFAST_MERCHANT_KEY,
@@ -98,6 +114,7 @@ def _build_payfast_redirect_url(quote, payment):
         "notify_url": settings.PAYFAST_NOTIFY_URL,  # Server-to-server ITN callback (must be public)
         "custom_str1": str(quote.id),   # Echoed in ITN for quote lookup
         "custom_str2": str(payment.id), # Echoed in ITN for payment lookup
+        "currency": "ZAR",  # PayFast default; supports ZAR, USD, EUR, GBP
     }
     query_string = urlencode(payfast_data)
     return f"{settings.PAYFAST_SANDBOX_URL}?{query_string}"
@@ -126,24 +143,32 @@ class StartPayFastPaymentView(APIView):
         except Quote.DoesNotExist:
             return Response({"error": "Quote not found."}, status=status.HTTP_404_NOT_FOUND)
         if not (request.user.is_staff or request.user.is_superuser):
-            profile = getattr(request.user, "client_profile", None)
-            if not profile or quote.client_id != profile.id:
+            if not _user_can_access_quote(request, quote):
                 return Response({"error": "You do not have access to this quote."}, status=status.HTTP_403_FORBIDDEN)
         if quote.status != "approved":
             return Response({"error": "Only approved quotes can be paid."}, status=status.HTTP_400_BAD_REQUEST)
+        # Already paid: invoice exists
+        if Invoice.objects.filter(quote=quote).exists():
+            return Response({"error": "This quote has already been paid."}, status=status.HTTP_400_BAD_REQUEST)
         amount = quote.estimated_amount or Decimal("0.00")
         if amount <= 0:
             return Response({"error": "Invalid quote amount for payment."}, status=status.HTTP_400_BAD_REQUEST)
-        # Create pending payment and build PayFast redirect URL
-        client = quote.client or getattr(request.user, "client_profile", None)
-        payment = Payment.objects.create(
-            client=client,
-            user=request.user,
-            quote=quote,
-            amount=amount,
-            payment_status=Payment.STATUS_PENDING,
-            provider_reference="",
-        )
+        # Reuse existing pending payment to avoid duplicates on rapid clicks
+        existing_pending = Payment.objects.filter(
+            quote=quote, payment_status=Payment.STATUS_PENDING
+        ).order_by("-created_at").first()
+        if existing_pending:
+            payment = existing_pending
+        else:
+            client = quote.client or getattr(request.user, "client_profile", None)
+            payment = Payment.objects.create(
+                client=client,
+                user=request.user,
+                quote=quote,
+                amount=amount,
+                payment_status=Payment.STATUS_PENDING,
+                provider_reference="",
+            )
         redirect_url = _build_payfast_redirect_url(quote, payment)
         return Response({"redirect_url": redirect_url})
 
@@ -161,31 +186,57 @@ def create_payfast_payment(request, quote_id):
     """
     quote = get_object_or_404(Quote, pk=quote_id)
 
-    # Ownership/permission: allow quote owner (client) or admin
+    # Ownership/permission: allow quote owner (client or client_email) or admin
     if not (request.user.is_staff or request.user.is_superuser):
-        profile = getattr(request.user, "client_profile", None)
-        if not profile or quote.client_id != profile.id:
+        if not _user_can_access_quote(request, quote):
             return HttpResponse("You do not have access to this quote.", status=403)
 
     if quote.status != "approved":
         return HttpResponse("Only approved quotes can be paid.", status=400)
+    if Invoice.objects.filter(quote=quote).exists():
+        return HttpResponse("This quote has already been paid.", status=400)
 
     amount = quote.estimated_amount or Decimal("0.00")
     if amount <= 0:
         return HttpResponse("Invalid quote amount for payment.", status=400)
 
-    client = quote.client or getattr(request.user, "client_profile", None)
-
-    payment = Payment.objects.create(
-        client=client,
-        user=request.user,
-        quote=quote,
-        amount=amount,
-        payment_status=Payment.STATUS_PENDING,
-        provider_reference="",
-    )
+    # Reuse existing pending payment to avoid duplicates on rapid clicks
+    existing_pending = Payment.objects.filter(
+        quote=quote, payment_status=Payment.STATUS_PENDING
+    ).order_by("-created_at").first()
+    if existing_pending:
+        payment = existing_pending
+    else:
+        client = quote.client or getattr(request.user, "client_profile", None)
+        payment = Payment.objects.create(
+            client=client,
+            user=request.user,
+            quote=quote,
+            amount=amount,
+            payment_status=Payment.STATUS_PENDING,
+            provider_reference="",
+        )
     redirect_url = _build_payfast_redirect_url(quote, payment)
     return HttpResponseRedirect(redirect_url)
+
+
+def _verify_payfast_signature(post_data, passphrase):
+    """
+    Verify PayFast ITN signature. Returns True if valid or passphrase not set.
+    PayFast docs: exclude 'signature', sort keys, build string, append passphrase, MD5.
+    """
+    if not passphrase:
+        return True
+    submitted = post_data.get("signature", "").strip()
+    if not submitted:
+        return False
+    exclude = {"signature"}
+    params = [(k, str(v).strip()) for k, v in post_data.items() if k not in exclude and str(v).strip()]
+    params.sort(key=lambda x: x[0].lower())
+    param_str = "&".join(f"{k}={quote_plus(v)}" for k, v in params)
+    param_str += f"&passphrase={quote_plus(passphrase)}"
+    expected = hashlib.md5(param_str.encode()).hexdigest()
+    return expected == submitted
 
 
 @csrf_exempt
@@ -198,11 +249,15 @@ def payfast_notify(request):
     publicly reachable (PayFast cannot reach localhost). For local dev, use
     simulate_itn instead.
 
-    NOTE: For production, implement full ITN security (signature verification) per
-    PayFast docs. This implementation only demonstrates the workflow.
+    When PAYFAST_PASSPHRASE is set, verifies ITN signature before processing.
     """
     if request.method != "POST":
         return HttpResponse("Invalid method", status=405)
+
+    post_data = request.POST.dict()
+    passphrase = getattr(settings, "PAYFAST_PASSPHRASE", "") or ""
+    if passphrase and not _verify_payfast_signature(post_data, passphrase):
+        return HttpResponse("Invalid signature", status=400)
 
     # PayFast echoes custom_str1/2 from the original payment request
     quote_id = request.POST.get("custom_str1")
@@ -230,15 +285,20 @@ def payfast_notify(request):
     return HttpResponse("OK")
 
 
+def _get_frontend_url():
+    """Frontend base URL for redirects/links. Defaults to localhost:3000 when empty."""
+    return (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/")
+
+
 def payment_success(request):
     """
     Payment success page shown after PayFast redirects the user back.
 
     Endpoint: GET /payments/success/?quote_id=X&payment_id=Y
     When DEBUG and quote_id/payment_id are present, shows "Complete payment locally"
-    button (PayFast ITN cannot reach localhost). Otherwise shows standard success message.
+    button (PayFast ITN cannot reach localhost).     Otherwise shows standard success message.
     """
-    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/") or "/"
+    frontend_url = _get_frontend_url()
     quote_id = request.GET.get("quote_id")
     payment_id = request.GET.get("payment_id")
     # Show simulate button only in local dev when we have IDs (return_url includes them)
@@ -287,25 +347,29 @@ def simulate_itn(request):
 
     # Idempotent: if already paid, just redirect to portal
     if payment.payment_status == Payment.STATUS_PAID:
-        return HttpResponseRedirect(
-            f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/portal"
-        )
+        return HttpResponseRedirect(f"{_get_frontend_url()}/portal")
 
     _process_payment_complete(quote, payment, provider_reference="simulated-itn")
-    return HttpResponseRedirect(
-        f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/portal"
-    )
+    return HttpResponseRedirect(f"{_get_frontend_url()}/portal")
 
 
 def payment_cancel(request):
     """
     Payment cancelled page shown when user cancels on PayFast.
-    Endpoint: GET /payments/cancel/
+    Endpoint: GET /payments/cancel/?quote_id=X
+    When quote_id is present, shows "Try again" link to payment page.
     """
-    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/") or "/"
+    frontend_url = _get_frontend_url()
+    quote_id = request.GET.get("quote_id")
     return render(
         request,
         "payments/payment_cancel.html",
-        {"frontend_url": frontend_url, "portal_path": "/portal", "profile_path": "/profile", "home_path": "/"},
+        {
+            "frontend_url": frontend_url,
+            "portal_path": "/portal",
+            "profile_path": "/profile",
+            "home_path": "/",
+            "quote_id": quote_id,
+        },
     )
 

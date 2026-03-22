@@ -66,13 +66,14 @@ Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kep
 - `POST /api/quotes/<id>/send_response/` — Send reply email and set status to `reviewed`. Superuser.
 - `POST /api/invoices/<id>/mark_paid/` — Mark invoice paid (e.g. manual or webhook). Triggers project creation. Superuser.
 - `GET /payments/simulate-itn/?quote_id=X&payment_id=Y` — Local dev only (DEBUG): simulate PayFast ITN when notify_url unreachable (localhost).
+- `GET /payments/cancel/?quote_id=X` — Cancel page; shows "Try again" link when quote_id present.
 
 ---
 
 ## Models
 
 - **Quote:** `client`, `service_type`, `project_title`, `project_description`, `estimated_budget`/`budget_range`, `timeline`, `status`; admin: `estimated_amount` (proposed price), `admin_response`, `estimated_delivery_time`.
-- **Payment:** `client`, `quote` (OneToOne), `amount`, `payment_status`, `payment_date`. One per quote.
+- **Payment (payments app):** `client`, `user`, `quote`, `amount`, `currency`, `payment_status`, `provider_reference`. Created on start-pay; updated by ITN. See payments/README.md.
 - **Invoice:** `invoice_number`, `client`, `quote`, `service` (from quote), `amount`, `status` (unpaid/paid), `issue_date`. Created when payment is completed.
 - **Project:** `client`, `quote`, `invoice`, `name`, `description`, `status` (default `planning`), `start_date`. Created when invoice becomes paid.
 

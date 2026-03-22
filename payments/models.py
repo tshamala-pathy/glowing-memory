@@ -6,10 +6,12 @@ from django.db import models
 
 class Payment(models.Model):
     """
-    Generic external payment record for a specific quote and client.
+    Payment record for a quote, used by PayFast integration.
 
-    This model can be used with any payment provider (e.g. PayFast) and is not
-    tied to Stripe.
+    Created when client starts payment (status=pending). Updated to paid when
+    PayFast ITN or simulate_itn confirms payment. One quote can have multiple
+    Payment attempts (e.g. failed then retried). Invoice and Project are created
+    when status becomes paid (via payfast_notify or simulate_itn).
     """
 
     STATUS_PENDING = "pending"

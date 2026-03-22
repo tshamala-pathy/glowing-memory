@@ -62,10 +62,6 @@ const SearchBar = () => {
         setSelectedIndex(-1);
         setError(null);
       } catch (err) {
-        console.error('Search error:', err);
-        if (err.response) {
-          console.error('Error response:', err.response.data);
-        }
         setError(err.response?.data?.detail || 'Failed to search. Please try again.');
         setResults(null);
         setIsOpen(true); // Still show error state

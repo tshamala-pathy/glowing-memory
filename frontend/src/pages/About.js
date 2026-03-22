@@ -2,6 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 
+const defaultSolutions = [
+  { title: 'Outdated or Fragile Systems', description: 'We modernize legacy applications and rebuild unreliable systems with clean architecture, automated tests, and maintainable code.' },
+  { title: 'Scalability Bottlenecks', description: 'We design and implement scalable backends, APIs, and databases that grow with your business.' },
+  { title: 'Integration Complexity', description: 'We connect your systems—payment gateways, third-party APIs, internal tools—with reliable integrations.' },
+  { title: 'Manual, Repetitive Work', description: 'We automate workflows, reporting, and data handling so your team focuses on high-value work.' },
+  { title: 'Poor User Experience', description: 'We build intuitive, responsive web and mobile interfaces that users love.' },
+  { title: 'Security & Compliance Concerns', description: 'We implement best practices for authentication, data protection, and regulatory compliance.' },
+];
+
+const defaultServices = [
+  { title: 'Web Applications', desc: 'Secure, scalable web apps tailored to your business needs.', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { title: 'Backend & APIs', desc: 'Robust backend systems and APIs designed for performance and growth.', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+  { title: 'Cloud & DevOps', desc: 'Containerized deployments, CI/CD, and cloud infrastructure.', icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2' },
+  { title: 'UI & Frontend', desc: 'Clean, responsive, and accessible interfaces your users will enjoy.', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
+  { title: 'Maintenance & Support', desc: 'Ongoing improvements, bug fixes, and long-term technical support.', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { title: 'Consulting', desc: 'Technical guidance, system design, and architecture planning.', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+];
+
+const techStack = ['Python', 'Django', 'React', 'Node.js', 'Docker', 'PostgreSQL', 'AWS', 'Git'];
+
 const About = () => {
   const [aboutData, setAboutData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,31 +36,32 @@ const About = () => {
       const response = await api.get('/about/');
       setAboutData(response.data);
       setError('');
-    } catch (error) {
-      console.error('Error fetching about data:', error);
-      if (error.isNetworkError) {
-        setError(
-          'Cannot connect to server. Please make sure the backend is running on http://localhost:8000'
-        );
+    } catch (err) {
+      if (err.isNetworkError) {
+        setError('Cannot connect to server. Please ensure the backend is running.');
       } else {
-        const errorMessage =
-          error.response?.data?.detail ||
-          error.response?.data?.message ||
-          error.message ||
-          'Failed to load about information';
-        setError(`Error: ${errorMessage}`);
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          err.message ||
+          'Failed to load about information'
+        );
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const solutions = (aboutData?.solutions && aboutData.solutions.length > 0)
+    ? aboutData.solutions
+    : defaultSolutions;
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="spinner mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-600 font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -48,189 +69,176 @@ const About = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <svg
-              className="w-12 h-12 text-red-500 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
-            <p className="text-gray-600">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="max-w-md mx-auto px-4 text-center">
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-8">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <svg className="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Something went wrong</h2>
+            <p className="text-slate-600">{error}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!aboutData) {
-    return null;
-  }
+  if (!aboutData) return null;
 
   return (
     <div className="min-h-screen bg-white">
-      {/* HERO SECTION */}
-      <section className="bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-24 text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6">
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900 text-white">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.06%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-60" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 text-center">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6">
             {aboutData.hero_title || 'About PathyCode'}
           </h1>
-
-          <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl text-slate-100 max-w-3xl mx-auto leading-relaxed">
             {aboutData.hero_subtitle ||
-              'We are passionate about creating innovative solutions and delivering exceptional results.'}
+              'We build reliable, scalable software that solves real business problems.'}
           </p>
         </div>
       </section>
 
-      {/* OUR STORY */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      {/* Our Story */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-6">
               {aboutData.our_story_title || 'Our Story'}
             </h2>
-
             <p className="text-lg text-slate-600 leading-relaxed whitespace-pre-line">
               {aboutData.our_story_content ||
-                'PathyCode was founded with a vision to empower businesses and individuals through cutting-edge technology solutions.'}
+                'PathyCode was founded with a vision to empower businesses through technology that actually works—clear, maintainable, and built to last.'}
             </p>
           </div>
-
           {aboutData.image && (
             <img
               src={getMediaUrl(aboutData.image)}
-              alt="About"
-              className="rounded-2xl shadow-lg"
+              alt="About PathyCode"
+              className="rounded-2xl shadow-xl w-full max-w-full h-auto object-cover"
             />
           )}
         </div>
       </section>
-      {/* WHAT WE DO */}
-<section className="py-24 bg-slate-50">
-  <div className="max-w-7xl mx-auto px-6">
-    <div className="text-center mb-16">
-      <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
-        What We Do
-      </h2>
-      <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-        We build reliable, scalable, and well-crafted digital solutions.
-      </p>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-      {[
-        {
-          title: 'Web Applications',
-          desc: 'Secure and scalable web applications tailored to your business needs.',
-        },
-        {
-          title: 'Backend & APIs',
-          desc: 'Robust backend systems and APIs designed for performance and growth.',
-        },
-        {
-          title: 'Cloud & Deployment',
-          desc: 'Containerized and cloud-ready deployments using modern DevOps practices.',
-        },
-        {
-          title: 'UI & Frontend',
-          desc: 'Clean, responsive, and user-friendly interfaces.',
-        },
-        {
-          title: 'Maintenance & Support',
-          desc: 'Ongoing improvements, bug fixes, and long-term support.',
-        },
-        {
-          title: 'Consulting',
-          desc: 'Technical guidance, system design, and architecture planning.',
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          className="bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition"
-        >
-          <h3 className="text-xl font-semibold text-slate-800 mb-3">
-            {item.title}
-          </h3>
-          <p className="text-slate-600">{item.desc}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
-
-      {/* MISSION & VISION */}
-      <section className="py-20 bg-white">
+      {/* Problems We Solve / Solutions */}
+      <section className="py-20 lg:py-28 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Section Header */}
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
-              Our Purpose
+              Problems We Solve
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              What drives us and where we are going.
+              We help businesses overcome technical challenges and build solutions that scale.
             </p>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {solutions.map((item, i) => (
+              <div
+                key={item.id || i}
+                className="group relative bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center text-white mb-5">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-3">{item.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
+      {/* What We Do */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">What We Do</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              We build reliable, scalable, and well-crafted digital solutions.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {defaultServices.map((s, i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-slate-50 border border-slate-200 p-8 hover:shadow-lg hover:border-slate-200 transition-all"
+              >
+                <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center mb-5">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={s.icon} />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-3">{s.title}</h3>
+                <p className="text-slate-600">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Mission & Vision */}
+      <section className="py-16 sm:py-20 lg:py-28 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">Our Purpose</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              What drives us and where we are headed.
+            </p>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Mission */}
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
+            <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
                 <img
                   src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=80"
                   alt="Mission"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-blue-800/85 to-blue-900/90"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90" />
               </div>
               <div className="relative z-10 p-10 text-white">
                 <div className="w-16 h-16 mb-6 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-3xl font-bold mb-6">
+                <h3 className="text-2xl lg:text-3xl font-bold mb-6">
                   {aboutData.mission_title || 'Our Mission'}
                 </h3>
                 <p className="text-lg leading-relaxed whitespace-pre-line text-white/95">
                   {aboutData.mission_content ||
-                    'To deliver innovative, high-quality solutions that drive long-term success for our clients through clarity, reliability, and technical excellence.'}
+                    'To deliver innovative, high-quality solutions that drive long-term success through clarity, reliability, and technical excellence.'}
                 </p>
               </div>
             </div>
-
-            {/* Vision */}
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
+            <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
                 <img
                   src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80"
                   alt="Vision"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 via-purple-800/85 to-purple-900/90"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90" />
               </div>
               <div className="relative z-10 p-10 text-white">
                 <div className="w-16 h-16 mb-6 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </div>
-                <h3 className="text-3xl font-bold mb-6">
+                <h3 className="text-2xl lg:text-3xl font-bold mb-6">
                   {aboutData.vision_title || 'Our Vision'}
                 </h3>
                 <p className="text-lg leading-relaxed whitespace-pre-line text-white/95">
                   {aboutData.vision_content ||
-                    'To become a trusted technology partner, known for thoughtful solutions, sustainable growth, and meaningful impact.'}
+                    'To become a trusted technology partner known for thoughtful solutions, sustainable growth, and meaningful impact.'}
                 </p>
               </div>
             </div>
@@ -238,34 +246,29 @@ const About = () => {
         </div>
       </section>
 
-      {/* VALUES SECTION */}
+      {/* Values */}
       {aboutData.values && aboutData.values.length > 0 && (
-        <section className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16 fade-in">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Our Values
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                The principles that guide everything we do
+        <section className="py-20 lg:py-28 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">Our Values</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+                The principles that guide everything we do.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {aboutData.values.map((value, index) => (
+              {aboutData.values.map((v) => (
                 <div
-                  key={value.id}
-                  className="bg-gray-50 rounded-2xl p-6 fade-in hover:shadow-lg transition-shadow"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  key={v.id}
+                  className="rounded-2xl bg-slate-50 border border-slate-200 p-6 lg:p-8 hover:shadow-lg hover:border-slate-200 transition-all"
                 >
-                  {value.icon && (
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white mb-4">
-                      <i className={value.icon}></i>
+                  {v.icon && (
+                    <div className="w-12 h-12 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl flex items-center justify-center text-white mb-4">
+                      <i className={v.icon} style={{ fontSize: '1.25rem' }} />
                     </div>
                   )}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">
-                    {value.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">{value.description}</p>
+                  <h3 className="text-xl font-semibold text-slate-800 mb-3">{v.title}</h3>
+                  <p className="text-slate-600 leading-relaxed">{v.description}</p>
                 </div>
               ))}
             </div>
@@ -273,229 +276,142 @@ const About = () => {
         </section>
       )}
 
-{/* HOW WE WORK */}
-<section className="py-24 bg-white">
-  <div className="max-w-7xl mx-auto px-6">
-    <div className="text-center mb-16">
-      <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
-        How We Work
-      </h2>
-      <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-        A clear and structured approach from idea to delivery.
-      </p>
-    </div>
-
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-      {[
-        'Discover & Plan',
-        'Design & Architecture',
-        'Build & Test',
-        'Deploy & Support',
-      ].map((step, index) => (
-        <div
-          key={index}
-          className="text-center bg-slate-50 rounded-2xl p-8 border border-slate-200"
-        >
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-            {index + 1}
-          </div>
-          <h3 className="font-semibold text-slate-800">{step}</h3>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
-
-{/* WHY CHOOSE US SECTION */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 fade-in">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              {aboutData.why_choose_us_title || 'Why Choose Us'}
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
-              {aboutData.why_choose_us_content ||
-                'We combine expertise, innovation, and dedication to deliver exceptional results.'}
+      {/* How We Work */}
+      <section className="py-20 lg:py-28 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">How We Work</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              A clear, structured approach from idea to delivery.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: (
-                  <svg
-                    className="w-8 h-8"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                ),
-                title: 'Quality Assurance',
-                description:
-                  'We maintain the highest standards in every project we undertake.',
-              },
-              {
-                icon: (
-                  <svg
-                    className="w-8 h-8"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                ),
-                title: 'Fast Delivery',
-                description:
-                  'We deliver results quickly without compromising on quality.',
-              },
-              {
-                icon: (
-                  <svg
-                    className="w-8 h-8"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                ),
-                title: 'Expert Team',
-                description:
-                  'Our team consists of experienced professionals dedicated to your success.',
-              },
-            ].map((item, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {['Discover & Plan', 'Design & Architecture', 'Build & Test', 'Deploy & Support'].map((step, i) => (
               <div
-                key={index}
-                className="text-center fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
+                key={i}
+                className="text-center rounded-2xl bg-white border border-slate-200 p-8 hover:shadow-lg hover:border-slate-200 transition-all"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white mx-auto mb-4">
-                  {item.icon}
+                <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-gradient-to-br from-slate-500 to-slate-600 text-white flex items-center justify-center font-bold text-xl">
+                  {i + 1}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-gray-600">{item.description}</p>
+                <h3 className="font-semibold text-slate-800 text-lg">{step}</h3>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* TECHNOLOGIES */}
-<section className="py-24 bg-slate-50">
-  <div className="max-w-7xl mx-auto px-6 text-center">
-    <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-6">
-      Technologies We Use
-    </h2>
-    <p className="text-lg text-slate-600 mb-12">
-      Modern, proven, and scalable technologies.
-    </p>
+      {/* Why Choose Us */}
+      <section className="py-20 lg:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
+              {aboutData.why_choose_us_title || 'Why Choose Us'}
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto whitespace-pre-line">
+              {aboutData.why_choose_us_content ||
+                'We combine expertise, innovation, and dedication to deliver exceptional results.'}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {[
+              { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', title: 'Quality Assurance', desc: 'We maintain the highest standards in every project.' },
+              { icon: 'M13 10V3L4 14h7v7l9-11h-7z', title: 'Fast Delivery', desc: 'We deliver results quickly without compromising quality.' },
+              { icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', title: 'Expert Team', desc: 'Experienced professionals dedicated to your success.' },
+            ].map((item) => (
+              <div key={item.title} className="text-center">
+                <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center text-white">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">{item.title}</h3>
+                <p className="text-slate-600">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-    <div className="flex flex-wrap justify-center gap-6">
-      {[
-        'Python',
-        'Django',
-        'React',
-        'Docker',
-        'PostgreSQL',
-        'AWS',
-        'Git',
-      ].map((tech, index) => (
-        <span
-          key={index}
-          className="px-6 py-3 bg-white border border-slate-200 rounded-full text-slate-700 font-medium shadow-sm"
-        >
-          {tech}
-        </span>
-      ))}
-    </div>
-  </div>
-</section>
+      {/* Tech Stack */}
+      <section className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6">Technologies We Use</h2>
+          <p className="text-slate-600 mb-12 max-w-xl mx-auto">
+            Modern, proven, and scalable technologies.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            {techStack.map((tech) => (
+              <span
+                key={tech}
+                className="px-5 py-2.5 bg-white border border-slate-200 rounded-full text-slate-700 font-medium shadow-sm hover:border-slate-300 hover:shadow transition-all"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
 
-{/* STATS */}
-<section className="py-20 bg-slate-900 text-white">
-  <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-    {[
-      { label: 'Projects Delivered', value: '10+' },
-      { label: 'Client Commitment', value: '100%' },
-      { label: 'Clean Code Focus', value: 'Always' },
-      { label: 'Support & Growth', value: 'Ongoing' },
-    ].map((stat, index) => (
-      <div key={index}>
-        <h3 className="text-3xl font-bold mb-2">{stat.value}</h3>
-        <p className="text-slate-300">{stat.label}</p>
-      </div>
-    ))}
-  </div>
-</section>
+      {/* Stats */}
+      <section className="py-20 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+          {[
+            { label: 'Projects Delivered', value: '10+' },
+            { label: 'Client Commitment', value: '100%' },
+            { label: 'Clean Code Focus', value: 'Always' },
+            { label: 'Support & Growth', value: 'Ongoing' },
+          ].map((s) => (
+            <div key={s.label}>
+              <div className="text-3xl md:text-4xl font-bold text-slate-200 mb-1">{s.value}</div>
+              <p className="text-slate-300 text-sm">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-{/* CTA SECTION */}
-      <section className="py-24 bg-slate-900">
+      {/* Founder */}
+      <section className="py-20 lg:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-6">Meet the Founder</h2>
+          <div className="rounded-2xl bg-slate-50 border border-slate-200 p-8 lg:p-12">
+            <p className="text-lg text-slate-600 leading-relaxed">
+              <strong className="text-slate-800">Tshamala Pathy</strong> is a software engineer specializing in
+              backend development, APIs, and scalable web applications. He focuses on building clean,
+              maintainable, and reliable solutions that help businesses grow with confidence.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
             Ready to Work Together?
           </h2>
-
-          <p className="text-lg sm:text-xl text-slate-300 mb-12 max-w-2xl mx-auto">
-            Let’s discuss how we can help bring your vision to life with reliable,
+          <p className="text-lg md:text-xl text-slate-100 mb-12 max-w-2xl mx-auto">
+            Let&apos;s discuss how we can help bring your vision to life with reliable,
             scalable, and well-crafted solutions.
           </p>
-
           <div className="flex flex-col sm:flex-row gap-5 justify-center">
-            {/* Primary CTA */}
             <Link
               to="/contact"
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-lg transition shadow-md"
+              className="px-8 py-4 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-semibold text-lg transition shadow-lg"
             >
               Get In Touch
             </Link>
-
-            {/* Secondary CTA */}
             <Link
               to="/projects"
-              className="px-8 py-4 border border-slate-300 text-slate-200 hover:bg-slate-800 hover:text-white rounded-xl font-semibold text-lg transition"
+              className="px-8 py-4 border-2 border-slate-400 text-slate-200 hover:bg-white/10 hover:border-slate-400 rounded-xl font-semibold text-lg transition"
             >
               View Our Work
             </Link>
           </div>
         </div>
       </section>
-
-      {/* FOUNDER */}
-<section className="py-24 bg-white">
-  <div className="max-w-5xl mx-auto px-6 text-center">
-    <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-6">
-      Meet the Founder
-    </h2>
-
-    <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-      <strong>Tshamala Pathy</strong> is a software engineer specializing in
-      backend development, APIs, and scalable web applications.  
-      He focuses on building clean, maintainable, and reliable solutions that
-      help businesses grow with confidence.
-    </p>
-  </div>
-</section>
-
     </div>
   );
 };
+
 export default About;

@@ -52,7 +52,7 @@ const featuresExplore = [
   {
     title: "About",
     description: "Our story, mission, values, and the people behind PathyCode.",
-    color: "from-teal-500 to-teal-600",
+    color: "from-slate-600 to-slate-700",
     link: "/about",
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +77,7 @@ const featuresGetStarted = [
   {
     title: "Request Quote",
     description: "Tell us your project needs and get a tailored estimate. Fast, clear, and free.",
-    color: "from-emerald-500 to-emerald-600",
+    color: "from-slate-600 to-slate-700",
     link: "/request-quote",
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

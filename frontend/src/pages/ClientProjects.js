@@ -42,7 +42,6 @@ const ClientProjects = () => {
       setProjects(Array.isArray(projectsData) ? projectsData : []);
       setError('');
     } catch (err) {
-      console.error('Error fetching client projects:', err);
       setError('Failed to load your projects. Please try again later.');
       setProjects([]);
     } finally {
@@ -56,7 +55,6 @@ const ClientProjects = () => {
       const data = res.data?.results ?? res.data ?? [];
       setProjectFiles(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error fetching project files:', err);
       setProjectFiles([]);
     }
   };
@@ -82,7 +80,6 @@ const ClientProjects = () => {
       setError('');
       await fetchProjectFiles();
     } catch (err) {
-      console.error('Upload failed:', err);
       setError(err.response?.data?.file?.[0] || err.response?.data?.detail || 'Upload failed.');
     } finally {
       setUploadingForProject(null);
@@ -101,7 +98,6 @@ const ClientProjects = () => {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Download failed:', err);
       setError('Download failed.');
     }
   };
@@ -300,7 +296,7 @@ const ClientProjects = () => {
                     </div>
                     <div className="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500"
+                        className="h-full rounded-full bg-gradient-to-r from-slate-500 via-slate-600 to-slate-700"
                         style={{ width: `${Math.max(0, Math.min(100, Number(project.progress_percentage ?? 0)))}%` }}
                       />
                     </div>

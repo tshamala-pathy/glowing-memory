@@ -1,8 +1,12 @@
 /**
  * Payment page for an approved quote.
+ *
  * Route: /payment/:quoteId
- * Only accessible when quote.status === 'approved'. After successful payment,
- * Invoice and Project are created automatically; user is redirected to portal.
+ * - Only accessible when quote.status === 'approved'
+ * - Fetches payment details via GET /api/payment/quote/:id/
+ * - On "Pay now", POSTs to /api/payment/quote/:id/start-pay/ and redirects to PayFast
+ * - Client enters card details on PayFast's secure hosted page
+ * - After payment, PayFast redirects to success/cancel; Invoice and Project created via ITN
  */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -147,10 +151,11 @@ const Payment = () => {
                   disabled={submitting}
                   className="w-full px-6 py-3 bg-[var(--aws-orange)] text-white font-medium hover:bg-[var(--aws-orange-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting ? 'Redirecting...' : 'Pay now'}
+                  {submitting ? 'Redirecting to secure payment...' : 'Pay now'}
                 </button>
                 <p className="mt-3 text-sm text-[#545b64] text-center">
-                  You will be redirected to our secure payment page to enter your card details.
+                  You will be redirected to PayFast's secure payment page to enter your card details.
+                  Payment is processed securely; we never store your card information.
                 </p>
               </div>
             )}

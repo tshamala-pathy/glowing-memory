@@ -20,8 +20,7 @@ const ServiceDetail = () => {
       setError(null);
       const response = await api.get(`/services/${id}/`);
       setService(response.data);
-    } catch (err) {
-      console.error('Error fetching service:', err);
+    } catch {
       setError('Service not found or failed to load.');
     } finally {
       setLoading(false);

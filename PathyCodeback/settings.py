@@ -260,4 +260,6 @@ PAYFAST_NOTIFY_URL = config(
 PAYFAST_SANDBOX_URL = config(
     "PAYFAST_SANDBOX_URL", default="https://sandbox.payfast.co.za/eng/process"
 )
+# Passphrase for ITN signature verification (set in PayFast merchant settings). Empty = skip verification.
+PAYFAST_PASSPHRASE = config("PAYFAST_PASSPHRASE", default="")
 

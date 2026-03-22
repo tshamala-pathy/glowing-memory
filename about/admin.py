@@ -1,6 +1,14 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import AboutUs, Value
+from .models import AboutUs, Value, Solution
+
+
+class SolutionInline(admin.TabularInline):
+    model = Solution
+    extra = 1
+    fields = ('title', 'description', 'icon', 'order')
+    classes = ('collapse',)
+
 
 class ValueInline(admin.TabularInline):
     """Inline admin for Value model."""
@@ -40,7 +48,7 @@ class AboutUsAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    inlines = [ValueInline]
+    inlines = [ValueInline, SolutionInline]
     readonly_fields = ('created_at', 'updated_at', 'image_preview')
     
     def image_preview(self, obj):
@@ -56,6 +64,16 @@ class AboutUsAdmin(admin.ModelAdmin):
 @admin.register(Value)
 class ValueAdmin(admin.ModelAdmin):
     """Admin configuration for Value model."""
+    list_display = ('title', 'about_us', 'icon', 'order', 'created_at')
+    list_filter = ('created_at', 'about_us')
+    search_fields = ('title', 'description')
+    list_editable = ('order',)
+    fields = ('about_us', 'title', 'description', 'icon', 'order')
+    ordering = ('about_us', 'order', 'created_at')
+
+
+@admin.register(Solution)
+class SolutionAdmin(admin.ModelAdmin):
     list_display = ('title', 'about_us', 'icon', 'order', 'created_at')
     list_filter = ('created_at', 'about_us')
     search_fields = ('title', 'description')

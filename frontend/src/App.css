@@ -1,11 +1,11 @@
 /* AWS-Inspired Professional Design System */
 
-/* Brand colors — aligned with PathyCode logo; change hex values to match your logo */
+/* Brand colors — light black / charcoal palette */
 :root {
-  --brand-primary: #0D9488;
-  --brand-primary-hover: #0F766E;
-  --brand-dark: #1e293b;
-  --brand-dark-hover: #334155;
+  --brand-primary: #334155;
+  --brand-primary-hover: #1e293b;
+  --brand-dark: #0f172a;
+  --brand-dark-hover: #1e293b;
   --aws-dark: var(--brand-dark);
   --aws-dark-hover: var(--brand-dark-hover);
   --aws-orange: var(--brand-primary);
@@ -98,7 +98,7 @@ select:focus-visible {
 
 /* Professional Gradient Text */
 .gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -106,7 +106,7 @@ select:focus-visible {
 
 /* Professional Button Styles */
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
   color: white;
   padding: 0.75rem 2rem;
   border-radius: 0.5rem;
@@ -118,7 +118,7 @@ select:focus-visible {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 20px rgba(51, 65, 85, 0.3);
 }
 
 .btn-secondary {
@@ -149,15 +149,15 @@ select:focus-visible {
 }
 
 .input-professional:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #334155;
+  box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.1);
   outline: none;
 }
 
 /* Professional Loading Spinner */
 .spinner {
   border: 4px solid #f3f4f6;
-  border-top: 4px solid #667eea;
+  border-top: 4px solid #334155;
   border-radius: 50%;
   width: 40px;
   height: 40px;
