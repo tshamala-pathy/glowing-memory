@@ -69,6 +69,18 @@ class ClientSerializer(serializers.ModelSerializer):
             data.pop('internal_notes', None)
         return data
 
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and request.FILES.get('logo'):
+            validated_data['logo'] = request.FILES['logo']
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+        if request and request.FILES.get('logo'):
+            validated_data['logo'] = request.FILES['logo']
+        return super().update(instance, validated_data)
+
 
 # ================================
 # Project Serializer
