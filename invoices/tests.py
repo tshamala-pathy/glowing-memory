@@ -218,14 +218,14 @@ class FinancialDashboardTests(TestCase):
         overdue_invoice.calculate_totals()
         overdue_invoice.save()
 
-        # Active and completed projects
+        # Active and completed projects (clients.Project uses planning, design, development, testing, completed)
         Project.objects.create(
             name="Active Project",
             description="Desc",
             client=self.client_profile,
             quote=self.paid_invoice_current.quote,
             invoice=self.paid_invoice_current,
-            status="in_progress",
+            status="development",
         )
         Project.objects.create(
             name="Completed Project",
@@ -281,5 +281,5 @@ class FinancialDashboardTests(TestCase):
         self.assertGreater(data["unpaid_invoices_total"], 0.0)
         self.assertGreater(data["overdue_invoices_total"], 0.0)
 
-        # Active projects count (pending + in_progress)
+        # Active projects count (all except completed)
         self.assertEqual(data["active_projects_count"], 1)

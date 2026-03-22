@@ -148,9 +148,9 @@ class FinancialDashboardView(APIView):
         ).exclude(status__in=('paid', 'cancelled')).aggregate(total=Sum('amount_due'))
         overdue_invoices_total = float(overdue_result['total'] or 0)
 
-        # Active projects: count pending + in_progress (exclude completed)
-        active_projects_count = Project.objects.filter(
-            status__in=('pending', 'in_progress')
+        # Active projects: count all except completed (clients.Project uses planning, design, development, testing, completed)
+        active_projects_count = Project.objects.exclude(
+            status='completed'
         ).count()
 
         return Response({
