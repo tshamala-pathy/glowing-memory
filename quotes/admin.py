@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -8,6 +10,9 @@ from django.core.exceptions import ValidationError
 from datetime import timedelta
 from .models import Quote
 from .views import send_quote_response_email, get_quote_payment_url
+
+logger = logging.getLogger(__name__)
+
 
 # ================================
 # Quotes Admin Configuration
@@ -204,7 +209,7 @@ class QuoteAdmin(admin.ModelAdmin):
                 try:
                     send_quote_response_email(obj)
                 except Exception as e:
-                    print(f"Error sending quote response email: {e}")
+                    logger.exception("Error sending quote response email from admin")
             if obj.status == 'reviewed' and not obj.payment_url:
                 obj.payment_url = get_quote_payment_url(obj)
         

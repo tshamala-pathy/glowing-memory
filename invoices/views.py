@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status, filters
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,6 +20,7 @@ from .utils import generate_invoice_pdf
 from quotes.models import Quote
 from clients.models import Project, Client
 from django.contrib.auth import get_user_model
+from users.activity import log_activity
 import logging
 import csv
 
@@ -333,6 +334,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.paid_date = timezone.now().date()
         invoice.paid_at = timezone.now()
         invoice.save()
+        log_activity(request.user, 'invoice_marked_paid', object_type='invoice', object_id=invoice.id, details=invoice.invoice_number)
 
         # Optional: update quote to legacy 'paid' if transition is allowed (e.g. invoiced → paid).
         # In the main workflow, quote stays 'approved'; invoice/project track payment.
@@ -405,6 +407,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         )
         invoice.save()
         invoice.calculate_totals()
+        log_activity(request.user, 'invoice_created', object_type='invoice', object_id=invoice.id, details=invoice.invoice_number)
         
         # Send email if status is 'unpaid'
         if invoice.status == 'unpaid':
@@ -527,6 +530,7 @@ class PaymentQuoteView(APIView):
         invoice.paid_date = now.date()
         invoice.paid_at = now
         invoice.save()
+        log_activity(request.user, 'payment_completed', object_type='invoice', object_id=invoice.id, details=f'{quote.project_title} - {invoice.invoice_number}')
         serializer = InvoiceSerializer(invoice)
         return Response({
             'message': 'Payment recorded. Invoice created and project will appear in your portal.',

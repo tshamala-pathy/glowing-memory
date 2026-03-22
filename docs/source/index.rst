@@ -26,6 +26,7 @@ Modules
    :maxdepth: 2
    :caption: Business Modules
 
+   modules/users
    modules/quotes
    modules/invoices
    modules/projects

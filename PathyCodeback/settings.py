@@ -19,8 +19,10 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 if os.environ.get('DJANGO_DEBUG_PATHS', '').lower() == 'true':
-    print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
-    print(f"[DEBUG] MEDIA_ROOT will be: {BASE_DIR / 'media'}")
+    import logging
+    logging.getLogger(__name__).info(
+        "[DEBUG] BASE_DIR: %s, MEDIA_ROOT: %s", BASE_DIR, BASE_DIR / 'media'
+    )
 
 
 # Quick-start development settings - unsuitable for production

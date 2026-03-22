@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
 from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
+from users.activity import log_activity
 from .models import Client, Project, ProjectFile, CaseStudy, Task
 import csv
 from .serializers import (
@@ -56,6 +57,14 @@ class ClientViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
 
+    def perform_create(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'client_created', object_type='client', object_id=serializer.instance.id, details=serializer.instance.name)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'client_updated', object_type='client', object_id=serializer.instance.id, details=serializer.instance.name)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def export_csv(self, request):
         """
@@ -64,8 +73,6 @@ class ClientViewSet(viewsets.ModelViewSet):
         """
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="clients.csv"'
-
-        import csv
 
         writer = csv.writer(response)
         writer.writerow(
@@ -168,7 +175,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    
+
+    def perform_create(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'project_created', object_type='project', object_id=serializer.instance.id, details=serializer.instance.name)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'project_updated', object_type='project', object_id=serializer.instance.id, details=serializer.instance.name)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def export_csv(self, request):
         """
@@ -177,8 +192,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="projects.csv"'
-
-        import csv
 
         writer = csv.writer(response)
         writer.writerow(

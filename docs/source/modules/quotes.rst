@@ -23,13 +23,8 @@ Views / API
    :show-inheritance:
 
 
-Signals & Utilities
--------------------
-
-.. automodule:: quotes.signals
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Utilities
+---------
 
 .. automodule:: quotes.utils
    :members:

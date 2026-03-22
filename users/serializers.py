@@ -1,7 +1,9 @@
+import logging
 from rest_framework import serializers
-from .models import CustomUser, Notification
+from .models import CustomUser, Notification, ActivityLog
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
+
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -9,6 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 # ================================
 # Serializer for User Registration
@@ -203,13 +206,41 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-  """
-  Serializer for in-app notifications.
-  """
-  class Meta:
-    model = Notification
-    fields = ['id', 'message', 'link', 'is_read', 'created_at']
-    read_only_fields = ['id', 'created_at']
+    """
+    Serializer for in-app notifications.
+    """
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'link', 'is_read', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for activity log entries.
+    """
+    action_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ActivityLog
+        fields = ['id', 'action', 'action_display', 'timestamp', 'object_type', 'object_id', 'details']
+        read_only_fields = ['id', 'timestamp']
+
+    def get_action_display(self, obj):
+        labels = {
+            'login': 'Signed in',
+            'logout': 'Signed out',
+            'register': 'Account created',
+            'profile_update': 'Profile updated',
+            'password_change': 'Password changed',
+            'email_change': 'Email changed',
+            'quote_submitted': 'Quote request submitted',
+            'quote_approved': 'Quote approved',
+            'quote_declined': 'Quote declined',
+            'quote_reviewed': 'Quote reviewed by admin',
+            'project_created': 'Project created',
+        }
+        return labels.get(obj.action, obj.action.replace('_', ' ').title())
 
 
 # ================================
@@ -344,10 +375,9 @@ PathyCode Team
                 fail_silently=False,
             )
         except Exception as e:
-            # Log error but don't reveal to user
-            print(f"Error sending password reset email: {e}")
+            logger.exception("Error sending password reset email")
         
-        return {'message': 'If an account exists with this email, a password reset link has been sent.'}
+        return {'message': 'If an account exists with this email, a password reset link has been sent.', 'user': user}
 
 
 class ResetPasswordSerializer(serializers.Serializer):

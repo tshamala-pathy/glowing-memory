@@ -20,13 +20,8 @@ Views / API
    :undoc-members:
    :show-inheritance:
 
-Signals & Utilities
--------------------
-
-.. automodule:: invoices.signals
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Utilities
+---------
 
 .. automodule:: invoices.utils
    :members:
