@@ -82,3 +82,33 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'Notification for {self.user}: {self.message[:50]}'
+
+
+class ActivityLog(models.Model):
+    """
+    Records user actions for transparency and audit trail.
+    Used for: login, logout, profile updates, quote approvals/declines,
+    project creation, and other client-relevant activities.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='activity_logs',
+        help_text='User who performed the action',
+    )
+    action = models.CharField(
+        max_length=50,
+        help_text='Action type: login, logout, profile_update, quote_approved, quote_declined, etc.',
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    object_type = models.CharField(max_length=50, blank=True, help_text='Related model: quote, project, invoice')
+    object_id = models.PositiveIntegerField(null=True, blank=True, help_text='Related object ID')
+    details = models.TextField(blank=True, help_text='Extra context (e.g. quote title, project name)')
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Activity Log'
+        verbose_name_plural = 'Activity Logs'
+
+    def __str__(self):
+        return f'{self.user} - {self.action} @ {self.timestamp}'

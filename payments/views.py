@@ -33,6 +33,7 @@ from rest_framework import status
 from quotes.models import Quote
 from invoices.models import Invoice
 from clients.models import Client
+from users.activity import log_activity
 from .models import Payment
 
 
@@ -83,6 +84,10 @@ def _process_payment_complete(quote, payment, provider_reference=""):
     # Mark quote as paid (after invoice created; Project already created by signal)
     quote.status = "paid"
     quote.save(update_fields=["status"])
+    # Log activity for the user who initiated the payment (if known)
+    user = getattr(payment, "user", None) or (getattr(payment.client, "user", None) if payment.client else None)
+    if user:
+        log_activity(user, "payment_completed", object_type="quote", object_id=quote.id, details=quote.project_title)
 
 
 def _build_payfast_redirect_url(quote, payment):
@@ -169,6 +174,7 @@ class StartPayFastPaymentView(APIView):
                 payment_status=Payment.STATUS_PENDING,
                 provider_reference="",
             )
+            log_activity(request.user, 'payment_started', object_type='quote', object_id=quote.id, details=quote.project_title)
         redirect_url = _build_payfast_redirect_url(quote, payment)
         return Response({"redirect_url": redirect_url})
 
@@ -216,6 +222,7 @@ def create_payfast_payment(request, quote_id):
             payment_status=Payment.STATUS_PENDING,
             provider_reference="",
         )
+        log_activity(request.user, 'payment_started', object_type='quote', object_id=quote.id, details=quote.project_title)
     redirect_url = _build_payfast_redirect_url(quote, payment)
     return HttpResponseRedirect(redirect_url)
 

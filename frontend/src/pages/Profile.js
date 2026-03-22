@@ -407,6 +407,7 @@ const Profile = () => {
             <div className="flex flex-wrap gap-3">
               <Link to="/portal" className="px-4 py-2.5 bg-[var(--aws-orange)] text-white text-sm font-medium hover:bg-[var(--aws-orange-hover)] transition-colors">Client Portal</Link>
               <Link to="/my-projects" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">My Projects</Link>
+              <Link to="/activity-log" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">Activity Log</Link>
               <Link to="/request-quote" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">Request Quote</Link>
               <Link to="/contact" className="px-4 py-2.5 bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:bg-[#f4f4f4] transition-colors">Contact</Link>
               {user?.is_superuser && <Link to="/admin" className="px-4 py-2.5 bg-[var(--aws-dark)] text-white text-sm font-medium hover:bg-[var(--aws-dark-hover)] transition-colors">Admin Dashboard</Link>}

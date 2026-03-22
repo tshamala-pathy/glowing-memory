@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from PathyCodeback.permissions import IsSuperuser
+from users.activity import log_activity
 from .models import Testimonial
 from .serializers import TestimonialSerializer
 
@@ -34,6 +35,7 @@ class TestimonialViewSet(viewsets.ModelViewSet):
             if profile:
                 testimonial.client = profile
                 testimonial.save(update_fields=['client'])
+            log_activity(self.request.user, 'testimonial_submitted', object_type='testimonial', object_id=testimonial.id, details=testimonial.content[:50] if testimonial.content else '')
 
     def get_serializer_context(self):
         """Add request to serializer context for building absolute URLs."""

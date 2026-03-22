@@ -18,6 +18,24 @@ export const formatDateTime = (d) => {
   return isNaN(date.getTime()) ? d : date.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+/** Relative time: "Just now", "5 min ago", "2 hours ago", "Yesterday", "Jan 15" */
+export const formatRelativeTime = (d) => {
+  if (!d) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(date.getTime())) return d;
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return formatDate(d);
+};
+
 /** Format amount as South African Rand (e.g. "R 1,234.56") */
 export const formatCurrency = (amount) => {
   if (amount == null) return '—';

@@ -57,6 +57,7 @@ import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import ActivityLog from './pages/ActivityLog';
 import Messages from './pages/Messages';
 import ThreadChat from './pages/ThreadChat';
 import './App.css';
@@ -65,7 +66,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen w-full overflow-x-hidden">
+        <div className="min-h-screen w-full overflow-x-hidden app-background">
           <Navbar />
           <main className="w-full min-w-0">
             <Routes>
@@ -124,6 +125,7 @@ function App() {
                 }
               />
               <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              <Route path="/activity-log" element={<ProtectedRoute requireAuth={true}><ActivityLog /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute requireAuth={true}><Messages /></ProtectedRoute>} />
               <Route path="/messages/:threadId" element={<ProtectedRoute requireAuth={true}><ThreadChat /></ProtectedRoute>} />
               <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />

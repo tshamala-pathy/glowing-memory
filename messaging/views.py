@@ -11,6 +11,7 @@ from django.http import FileResponse
 
 from .models import MessageThread, Message
 from .serializers import MessageThreadSerializer, MessageThreadDetailSerializer, MessageSerializer
+from users.activity import log_activity
 
 
 def _user_can_access_thread(user, thread):
@@ -70,6 +71,7 @@ class MessageThreadViewSet(viewsets.ModelViewSet):
         if not (request.user.is_staff or request.user.is_superuser) and getattr(request.user, 'client_profile', None) != project.client:
             return Response({'detail': 'Not allowed.'}, status=status.HTTP_403_FORBIDDEN)
         thread = MessageThread.objects.create(project=project, client=project.client)
+        log_activity(request.user, 'thread_created', object_type='thread', object_id=thread.id, details=project.name)
         serializer = self.get_serializer(thread)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -98,9 +100,10 @@ class MessageThreadViewSet(viewsets.ModelViewSet):
             data['attachment'] = request.FILES['attachment']
         serializer = MessageSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        thread.updated_at = serializer.instance.created_at
+        msg = serializer.save()
+        thread.updated_at = msg.created_at
         thread.save(update_fields=['updated_at'])
+        log_activity(request.user, 'message_sent', object_type='thread', object_id=thread.id, details=thread.project.name if thread.project else '')
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
