@@ -1,13 +1,20 @@
 from rest_framework import generics, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from PathyCodeback.permissions import IsSuperuser
-from .models import CustomUser
+from .models import CustomUser, Notification, ActivityLog
+from .activity import log_activity
 from .serializers import (
     RegisterSerializer,
     UserSerializer,
+    ProfileUpdateSerializer,
+    ChangePasswordSerializer,
+    ChangeEmailSerializer,
     CustomTokenObtainPairSerializer,
     ForgotPasswordSerializer,
-    ResetPasswordSerializer
+    ResetPasswordSerializer,
+    NotificationSerializer,
+    ActivityLogSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -27,8 +34,7 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        # Get user data and client profile (for portal: quotes, invoices, projects)
+
         email = request.data.get('email')
         user = CustomUser.objects.get(email=email)
         user_data = UserSerializer(user).data
@@ -38,11 +44,11 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
             client_profile = user.client_profile
             client_data = {'id': client_profile.id, 'name': client_profile.name}
         except Client.DoesNotExist:
-            # Auto-create Client for legacy users or if signal did not run
             name = (user.get_full_name() or user.email or user.username or 'Client').strip() or 'Client'
             client_profile = Client.objects.create(user=user, name=name)
             client_data = {'id': client_profile.id, 'name': client_profile.name}
-        
+
+        log_activity(user, 'login')
         return Response({
             'access': serializer.validated_data['access'],
             'refresh': serializer.validated_data['refresh'],
@@ -76,7 +82,7 @@ class RegisterView(generics.CreateAPIView):
             client_profile = Client.objects.create(user=user, name=name)
 
         client_data = {'id': client_profile.id, 'name': client_profile.name}
-        
+        log_activity(user, 'register')
         # Generate JWT tokens for the new user
         refresh = RefreshToken.for_user(user)
         user_data = UserSerializer(user).data
@@ -122,7 +128,6 @@ class ProfileAggregateView(generics.GenericAPIView):
         user = request.user
         user_data = UserSerializer(user).data
 
-        # Client
         profile = getattr(user, 'client_profile', None)
         client_data = None
         if profile:
@@ -198,21 +203,66 @@ class ProfileView(generics.RetrieveAPIView):
         """
         return self.request.user
 
-# View for updating the authenticated user's profile
+# View for updating the authenticated user's profile (first name, last name, bio, avatar)
 class ProfileUpdateView(generics.UpdateAPIView):
     """
-    API endpoint to update the profile of the currently authenticated user.
-    Only accessible to logged-in users.
+    PATCH/PUT /api/users/profile/update/ — Update current user's profile.
+    Allowed fields: first_name, last_name, bio, avatar. Only the authenticated user can update their own profile.
     """
     queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = ProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['put', 'patch', 'head', 'options']
 
     def get_object(self):
-        """
-        Return the current authenticated user.
-        """
         return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        log_activity(request.user, 'profile_update')
+        return Response(UserSerializer(instance, context={'request': request}).data)
+
+# Change password (requires current password)
+class ChangePasswordView(generics.GenericAPIView):
+    """
+    POST /api/users/change-password/ — Change authenticated user's password.
+    Body: current_password, new_password, confirm_new_password.
+    """
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        log_activity(user, 'password_change')
+        return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
+
+# Change email (requires password)
+class ChangeEmailView(generics.GenericAPIView):
+    """
+    POST /api/users/change-email/ — Change authenticated user's email.
+    Body: new_email, password. Validates password and new email uniqueness.
+    """
+    serializer_class = ChangeEmailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.email = serializer.validated_data['new_email']
+        user.save(update_fields=['email'])
+        log_activity(user, 'email_change')
+        return Response({'detail': 'Email updated successfully.', 'email': user.email}, status=status.HTTP_200_OK)
+
 
 # ViewSet for listing users (superuser only)
 class UserListViewSet(viewsets.ReadOnlyModelViewSet):
@@ -241,6 +291,62 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         return UserSerializer
 
 
+class NotificationViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for listing and updating notifications for the current user.
+
+    - GET /api/users/notifications/ — list current user's notifications
+    - PATCH /api/users/notifications/{id}/ — mark a single notification as read
+    - POST /api/users/notifications/mark_all_read/ — mark all as read
+    """
+
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        # Not used by frontend, but keep safe default
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        qs = self.get_queryset().filter(is_read=False)
+        updated = qs.update(is_read=True)
+        return Response({'updated': updated}, status=status.HTTP_200_OK)
+
+
+# Logout — logs activity before client clears tokens
+class LogoutView(generics.GenericAPIView):
+    """
+    POST /api/users/logout/ — Log logout activity.
+    Call before clearing tokens on the frontend. Returns 200.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        log_activity(request.user, 'logout')
+        return Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
+
+
+# Activity log — user's own activity history
+class ActivityLogView(generics.ListAPIView):
+    """
+    GET /api/users/activity-log/ — List current user's activity logs.
+    Authenticated users only. Returns most recent first.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ActivityLog.objects.filter(user=self.request.user).order_by('-timestamp')
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        serializer = ActivityLogSerializer(qs[:100], many=True)  # Last 100 entries
+        return Response(serializer.data)
+
+
 # ================================
 # Password Recovery Views
 # ================================
@@ -258,9 +364,11 @@ class ForgotPasswordView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
-        
+        user = result.get('user') if isinstance(result, dict) else None
+        if user:
+            log_activity(user, 'password_reset_requested')
         return Response(
-            result,
+            {k: v for k, v in result.items() if k != 'user'},
             status=status.HTTP_200_OK
         )
 
@@ -277,8 +385,10 @@ class ResetPasswordView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data.get('user')
         result = serializer.save()
-        
+        if user:
+            log_activity(user, 'password_reset_completed')
         return Response(
             result,
             status=status.HTTP_200_OK

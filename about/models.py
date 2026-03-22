@@ -43,6 +43,26 @@ class AboutUs(models.Model):
     def __str__(self):
         return self.title
 
+class Solution(models.Model):
+    """
+    Model for problems we solve / solutions we offer. Displayed on About Us page.
+    """
+    about_us = models.ForeignKey(AboutUs, related_name='solutions', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    description = models.TextField(help_text="How we solve this problem / what we deliver")
+    icon = models.CharField(max_length=100, blank=True, help_text="FontAwesome class, e.g. fas fa-lightbulb")
+    order = models.IntegerField(default=0, help_text="Display order")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = "Solution"
+        verbose_name_plural = "Solutions"
+
+    def __str__(self):
+        return self.title
+
+
 class Value(models.Model):
     """
     Model for company values displayed on About Us page.

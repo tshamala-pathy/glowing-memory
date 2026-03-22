@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status, filters
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,13 +14,17 @@ from django.db.models.functions import TruncMonth, TruncYear, Coalesce
 from datetime import timedelta
 from decimal import Decimal
 from PathyCodeback.permissions import IsSuperuser
-from .models import Invoice
+from .models import Invoice, Payment
 from .serializers import InvoiceSerializer
 from .utils import generate_invoice_pdf
 from quotes.models import Quote
-from clients.models import Project
+from clients.models import Project, Client
+from django.contrib.auth import get_user_model
+from users.activity import log_activity
 import logging
 import csv
+
+User = get_user_model()
 
 
 logger = logging.getLogger(__name__)
@@ -145,9 +149,9 @@ class FinancialDashboardView(APIView):
         ).exclude(status__in=('paid', 'cancelled')).aggregate(total=Sum('amount_due'))
         overdue_invoices_total = float(overdue_result['total'] or 0)
 
-        # Active projects: count pending + in_progress (exclude completed)
-        active_projects_count = Project.objects.filter(
-            status__in=('pending', 'in_progress')
+        # Active projects: count all except completed (clients.Project uses planning, design, development, testing, completed)
+        active_projects_count = Project.objects.exclude(
+            status='completed'
         ).count()
 
         return Response({
@@ -330,24 +334,22 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.paid_date = timezone.now().date()
         invoice.paid_at = timezone.now()
         invoice.save()
+        log_activity(request.user, 'invoice_marked_paid', object_type='invoice', object_id=invoice.id, details=invoice.invoice_number)
 
-        # Quote state machine: invoiced → paid (system only)
-        if invoice.quote_id and getattr(invoice.quote, 'status', None) in ('approved', 'invoiced'):
+        # Optional: update quote to legacy 'paid' if transition is allowed (e.g. invoiced → paid).
+        # In the main workflow, quote stays 'approved'; invoice/project track payment.
+        if invoice.quote_id and getattr(invoice.quote, 'status', None) in ('invoiced',):
             from quotes.models import Quote
-
             old_status = invoice.quote.status
             try:
                 Quote.validate_status_transition(old_status, 'paid')
                 invoice.quote.status = 'paid'
                 invoice.quote.save(update_fields=['status'])
             except Exception as e:
-                logger.warning(
-                    "Failed to move quote %s from %s to 'paid' when marking invoice %s as paid: %s",
+                logger.debug(
+                    "Quote %s not moved to 'paid' (allowed): %s",
                     getattr(invoice.quote, "id", None),
-                    old_status,
-                    getattr(invoice, "id", None),
                     e,
-                    exc_info=True,
                 )
 
         serializer = self.get_serializer(invoice)
@@ -405,6 +407,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         )
         invoice.save()
         invoice.calculate_totals()
+        log_activity(request.user, 'invoice_created', object_type='invoice', object_id=invoice.id, details=invoice.invoice_number)
         
         # Send email if status is 'unpaid'
         if invoice.status == 'unpaid':
@@ -412,4 +415,125 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(invoice)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# ================================
+# Payment page: Quote → Payment → Invoice → Project
+# ================================
+def _get_quote_client(quote):
+    """Resolve Client for quote: quote.client or User by quote.client_email -> client_profile."""
+    if quote.client_id:
+        return quote.client
+    try:
+        user = User.objects.get(email__iexact=quote.client_email)
+        return getattr(user, 'client_profile', None) or Client.objects.filter(user=user).first()
+    except User.DoesNotExist:
+        return None
+
+
+def _user_can_access_quote(request, quote):
+    """True if request.user is the quote owner (client or client_email match)."""
+    if not request.user.is_authenticated:
+        return False
+    profile = getattr(request.user, 'client_profile', None)
+    if profile and quote.client_id == profile.id:
+        return True
+    if quote.client_email and quote.client_email.lower() == (request.user.email or '').lower():
+        return True
+    return False
+
+
+class PaymentQuoteView(APIView):
+    """
+    GET  /api/payment/quote/<quote_id>/ — Payment page data (only if quote.status == approved and user is owner).
+    POST /api/payment/quote/<quote_id>/complete/ — Record payment success: create Payment(paid), Invoice(paid), then Project is auto-created via signal.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, quote_id):
+        try:
+            quote = Quote.objects.get(pk=quote_id)
+        except Quote.DoesNotExist:
+            return Response({'error': 'Quote not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not _user_can_access_quote(request, quote):
+            return Response({'error': 'You do not have access to this quote.'}, status=status.HTTP_403_FORBIDDEN)
+        if quote.status != 'approved':
+            return Response(
+                {'error': 'Payment is only available for approved quotes.', 'quote_status': quote.status},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Idempotent: if invoice already exists (payment already completed), return success with invoice info
+        existing = Invoice.objects.filter(quote=quote).first()
+        if existing:
+            return Response({
+                'quote_id': quote.id,
+                'project_title': quote.project_title,
+                'amount': float(quote.estimated_amount or 0),
+                'already_paid': True,
+                'invoice_id': existing.id,
+                'invoice_number': existing.invoice_number,
+            })
+        amount = quote.estimated_amount or Decimal('0.00')
+        return Response({
+            'quote_id': quote.id,
+            'project_title': quote.project_title,
+            'service_type': quote.service_type,
+            'client_name': quote.client_name,
+            'amount': float(amount),
+            'already_paid': False,
+        })
+
+    def post(self, request, quote_id):
+        """Record payment success: create Payment(paid), then Invoice(paid). Project is auto-created by clients.signals."""
+        try:
+            quote = Quote.objects.get(pk=quote_id)
+        except Quote.DoesNotExist:
+            return Response({'error': 'Quote not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not _user_can_access_quote(request, quote):
+            return Response({'error': 'You do not have access to this quote.'}, status=status.HTTP_403_FORBIDDEN)
+        if quote.status != 'approved':
+            return Response(
+                {'error': 'Only approved quotes can be paid.', 'quote_status': quote.status},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if Invoice.objects.filter(quote=quote).exists():
+            invoice = Invoice.objects.get(quote=quote)
+            return Response({
+                'message': 'Payment already recorded for this quote.',
+                'invoice_id': invoice.id,
+                'invoice_number': invoice.invoice_number,
+            }, status=status.HTTP_200_OK)
+        client = _get_quote_client(quote)
+        if not client:
+            return Response(
+                {'error': 'Could not determine client for this quote. Please ensure you are logged in as the quote owner.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        amount = quote.estimated_amount or Decimal('0.00')
+        now = timezone.now()
+        payment = Payment.objects.create(
+            client=client,
+            quote=quote,
+            amount=amount,
+            payment_status='paid',
+            payment_date=now,
+        )
+        invoice = Invoice(
+            quote=quote,
+            created_by=request.user,
+            status='draft',
+        )
+        invoice.save()
+        invoice.status = 'paid'
+        invoice.amount_paid = invoice.total_amount
+        invoice.amount_due = Decimal('0.00')
+        invoice.paid_date = now.date()
+        invoice.paid_at = now
+        invoice.save()
+        log_activity(request.user, 'payment_completed', object_type='invoice', object_id=invoice.id, details=f'{quote.project_title} - {invoice.invoice_number}')
+        serializer = InvoiceSerializer(invoice)
+        return Response({
+            'message': 'Payment recorded. Invoice created and project will appear in your portal.',
+            'invoice': serializer.data,
+        }, status=status.HTTP_201_CREATED)
 

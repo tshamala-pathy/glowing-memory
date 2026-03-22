@@ -18,6 +18,24 @@ export const formatDateTime = (d) => {
   return isNaN(date.getTime()) ? d : date.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+/** Relative time: "Just now", "5 min ago", "2 hours ago", "Yesterday", "Jan 15" */
+export const formatRelativeTime = (d) => {
+  if (!d) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(date.getTime())) return d;
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return formatDate(d);
+};
+
 /** Format amount as South African Rand (e.g. "R 1,234.56") */
 export const formatCurrency = (amount) => {
   if (amount == null) return '—';
@@ -26,11 +44,13 @@ export const formatCurrency = (amount) => {
 };
 
 /** Tailwind classes for quote status badges (lowercase to match API) */
-export const quoteStatusColors = {
+const quoteStatusColors = {
   pending: 'bg-amber-100 text-amber-800',
   replied: 'bg-blue-100 text-blue-800',
+  reviewed: 'bg-blue-100 text-blue-800',
   approved: 'bg-green-100 text-green-800',
   declined: 'bg-red-100 text-red-800',
+  invoiced: 'bg-indigo-100 text-indigo-800',
   paid: 'bg-green-100 text-green-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
@@ -40,7 +60,7 @@ export const quoteStatusColors = {
 };
 
 /** Tailwind classes for invoice status badges (backend uses lowercase: draft, unpaid, paid, overdue, cancelled) */
-export const invoiceStatusColors = {
+const invoiceStatusColors = {
   paid: 'bg-green-100 text-green-800',
   unpaid: 'bg-blue-100 text-blue-800',
   draft: 'bg-gray-100 text-gray-800',
@@ -60,11 +80,29 @@ export const getInvoiceStatusLabel = (status) => {
   return labels[status] || (status && status.charAt(0).toUpperCase() + status.slice(1)) || status;
 };
 
-/** Tailwind classes for project status badges */
-export const projectStatusColors = {
+/** Tailwind classes for project status badges (planning, design, development, testing, completed) */
+const projectStatusColors = {
+  planning: 'bg-amber-100 text-amber-800',
+  design: 'bg-blue-100 text-blue-800',
+  development: 'bg-indigo-100 text-indigo-800',
+  testing: 'bg-purple-100 text-purple-800',
   completed: 'bg-green-100 text-green-800',
   in_progress: 'bg-blue-100 text-blue-800',
   pending: 'bg-yellow-100 text-yellow-800',
+};
+
+/** Display label for quote status */
+export const getQuoteStatusLabel = (status) => {
+  const labels = {
+    pending: 'Pending',
+    replied: 'Replied',
+    reviewed: 'Reviewed',
+    approved: 'Approved',
+    declined: 'Declined',
+    invoiced: 'Invoiced',
+    paid: 'Paid',
+  };
+  return labels[status] || (status && status.charAt(0).toUpperCase() + status.slice(1)) || status;
 };
 
 /** Get status badge class for quote, invoice, or project */

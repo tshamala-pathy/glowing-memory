@@ -1,5 +1,8 @@
+from django.conf import settings
+from django.core.mail import EmailMessage
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from PathyCodeback.permissions import IsSuperuser
 from .models import NewsletterSubscription
 from .serializers import NewsletterSubscriptionSerializer
@@ -58,5 +61,87 @@ class NewsletterSubscriptionViewSet(viewsets.ModelViewSet):
     serializer_class = NewsletterSubscriptionSerializer
     permission_classes = [IsSuperuser]
 
-    def get_serializer_class(self):
-        return NewsletterSubscriptionSerializer
+
+class SendNewsletterView(APIView):
+    """
+    Send a newsletter email to all active subscribers. Superuser-only.
+    POST body: { subject, body, html_body? (optional), test_mode? (bool) }
+    - test_mode=True: send only to the authenticated user's email (for preview).
+    """
+    permission_classes = [IsSuperuser]
+
+    def post(self, request):
+        subject = request.data.get('subject', '').strip()
+        body = request.data.get('body', '').strip()
+        html_body = request.data.get('html_body', '').strip()
+        test_mode = request.data.get('test_mode', False)
+
+        if not subject:
+            return Response(
+                {'detail': 'Subject is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not body and not html_body:
+            return Response(
+                {'detail': 'Body or HTML body is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not body:
+            body = html_body[:500] + '...' if len(html_body) > 500 else html_body  # fallback for non-HTML clients
+
+        recipients = []
+        if test_mode:
+            user_email = getattr(request.user, 'email', None)
+            if not user_email:
+                return Response(
+                    {'detail': 'Your account has no email. Add one in your profile to use test mode.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            recipients = [user_email]
+        else:
+            subs = NewsletterSubscription.objects.filter(is_active=True).values_list('email', flat=True)
+            recipients = list(subs)
+            if not recipients:
+                return Response(
+                    {'detail': 'No active subscribers to send to.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+        sent = 0
+        errors = []
+
+        for email in recipients:
+            try:
+                msg = EmailMessage(
+                    subject=subject,
+                    body=body,
+                    from_email=from_email,
+                    to=[email],
+                )
+                if html_body:
+                    msg.content_subtype = 'html'
+                    msg.body = html_body
+                msg.send()
+                sent += 1
+            except Exception as e:
+                errors.append(f'{email}: {str(e)}')
+
+        if test_mode:
+            return Response({
+                'detail': f'Test email sent to {recipients[0]}.',
+                'sent': sent,
+            }, status=status.HTTP_200_OK)
+
+        if errors and sent == 0:
+            return Response({
+                'detail': 'Failed to send newsletter.',
+                'errors': errors[:10],  # limit response size
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            'detail': f'Newsletter sent to {sent} subscriber{"s" if sent != 1 else ""}.',
+            'sent': sent,
+            'failed': len(errors),
+            'errors': errors[:5] if errors else None,
+        }, status=status.HTTP_200_OK)

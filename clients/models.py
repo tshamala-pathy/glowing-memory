@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # ================================
 # Client Model (Business / Customer Entity)
@@ -106,9 +107,11 @@ class Project(models.Model):
         is_public: Whether project is visible to non-authenticated users
         created_at: Timestamp when project was created
     """
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('in_progress', 'In Progress'),
+    STAGE_CHOICES = [
+        ('planning', 'Planning'),
+        ('design', 'Design'),
+        ('development', 'Development'),
+        ('testing', 'Testing'),
         ('completed', 'Completed'),
     ]
     
@@ -133,9 +136,15 @@ class Project(models.Model):
     # Project status
     status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
-        default='pending',
-        help_text="Current status of the project"
+        choices=STAGE_CHOICES,
+        default='planning',
+        help_text="Current stage of the project"
+    )
+
+    progress_percentage = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Project progress percentage (0-100). Clients can view; admin updates."
     )
     
     # Links to Quote and Invoice
@@ -161,6 +170,12 @@ class Project(models.Model):
         max_length=500,
         blank=True,
         help_text="Comma-separated list of technologies used"
+    )
+    hero_image = models.ImageField(
+        upload_to='clients/projects/hero/',
+        blank=True,
+        null=True,
+        help_text="Main hero image for this project (used on public projects page)",
     )
     screenshots = models.JSONField(
         default=list,
@@ -191,6 +206,11 @@ class Project(models.Model):
     )
     
     # Timestamps
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Project start date (set when project is auto-created from paid invoice)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(
@@ -220,6 +240,48 @@ class Project(models.Model):
         ordering = ['-created_at']
         verbose_name = "Client Project"
         verbose_name_plural = "Client Projects"
+
+
+# ================================
+# ProjectFile Model (file sharing: client + admin)
+# ================================
+class ProjectFile(models.Model):
+    """
+    Project-related file shared between client and admin.
+    Stored in MEDIA_ROOT. Only the project's client and admins can list/download.
+    """
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='project_files',
+        help_text="Project this file belongs to",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_project_files',
+        help_text="User who uploaded the file (client or admin)",
+    )
+    file = models.FileField(
+        upload_to='project_files/%Y/%m/',
+        help_text="Uploaded file (stored in MEDIA_ROOT)",
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional description of the file",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+        verbose_name = "Project File"
+        verbose_name_plural = "Project Files"
+
+    def __str__(self):
+        return f"{self.file.name} ({self.project.name})"
 
 
 # ================================

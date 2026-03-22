@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
-from .models import Invoice
+from .models import Invoice, Payment
 from quotes.models import Quote
 
 
@@ -110,5 +110,14 @@ class InvoiceAdmin(admin.ModelAdmin):
         
         super().save_model(request, obj, form, change)
 
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """Payment records: one per quote, created when client completes payment at /payment/{quote_id}."""
+    list_display = ['id', 'quote', 'client', 'amount', 'payment_status', 'payment_date', 'created_at']
+    list_filter = ['payment_status', 'created_at']
+    search_fields = ['quote__project_title', 'client__name']
+    raw_id_fields = ['client', 'quote']
+    readonly_fields = ['created_at']
 
 

@@ -19,14 +19,13 @@ const Clients = () => {
       const publicClients = clientsData.filter(client => client.is_public === true);
       setClients(publicClients);
       setError('');
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      if (error.isNetworkError) {
+    } catch (err) {
+      if (err.isNetworkError) {
         setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
       } else {
-        const errorMessage = error.response?.data?.detail || 
-                            error.response?.data?.message ||
-                            error.message || 
+        const errorMessage = err.response?.data?.detail || 
+                            err.response?.data?.message ||
+                            err.message || 
                             'Failed to fetch clients';
         setError(`Error: ${errorMessage}`);
       }

@@ -118,19 +118,13 @@ and ``clients`` apps:
    - A **payment URL** (``payment_url``) is stored on the quote so the
      frontend can redirect the client to payment/portal flows.
 
-4. **Automatic Invoice Creation**
+4. **Invoice and Project Creation on Payment**
 
-   - When a quote becomes ``approved`` (either by client decision or admin
-     using the ``approve`` action), the helper
-     ``_auto_create_invoice_for_quote`` in ``quotes.views`` runs.
-   - It:
-
-     - Ensures the quote is approved.
-     - Creates a draft ``invoices.Invoice`` if none exists yet for the quote.
-     - Relies on ``Invoice._populate_from_quote`` to copy client and project
-       details and to build a default line item.
-     - Attempts to move the quote status to ``invoiced`` after successful
-       invoice creation.
+   - When payment is confirmed (PayFast ITN, simulate_itn, or direct payment
+     recording via ``PaymentQuoteView``), the system creates an Invoice and
+     marks it paid.
+   - The ``clients.signals.create_project_on_invoice_paid`` signal creates a
+     Project when an invoice transitions to ``paid``.
 
 5. **Invoice Payment**
 
@@ -200,8 +194,8 @@ Django REST Framework and Django’s ORM:
     - They enforce permissions, validate inputs, and coordinate multi-step
       operations (e.g., creating invoices from quotes, marking invoices paid).
 
-  - Helper functions in views (e.g. ``_auto_create_invoice_for_quote``,
-    ``send_invoice_email``, ``get_quote_payment_url``) group reusable
+  - Helper functions in views (e.g. ``send_invoice_email``,
+    ``get_quote_payment_url``) group reusable
     operations into small service-like functions.
 
 * **Serializers** (Boundary Layer)

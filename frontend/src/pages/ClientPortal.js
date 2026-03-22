@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatDate, formatCurrency, getQuoteStatusClass, getInvoiceStatusClass, getProjectStatusClass } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
@@ -12,6 +12,7 @@ import InvoiceDetailModal from '../components/InvoiceDetailModal';
  */
 const ClientPortal = () => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quoteIdFromUrl = searchParams.get('quote');
   const [quotes, setQuotes] = useState([]);
@@ -21,7 +22,9 @@ const ClientPortal = () => {
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [decisionLoadingId, setDecisionLoadingId] = useState(null);
   const hasInvoiceForApprovedQuote = quoteIdFromUrl && invoices.some((inv) => String(inv.quote) === String(quoteIdFromUrl));
+  const approvedQuoteNotPaid = quoteIdFromUrl && !invoices.some((inv) => String(inv.quote) === String(quoteIdFromUrl)) && quotes.some((q) => String(q.id) === String(quoteIdFromUrl) && (q.status === 'approved' || q.status === 'Approved'));
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -87,13 +90,37 @@ const ClientPortal = () => {
     }
   };
 
+  // Client can approve or decline after admin has replied (status is 'reviewed' or legacy 'replied')
+  const canApproveDecline = (q) => {
+    const s = (q.status || '').toLowerCase();
+    return s === 'reviewed' || s === 'replied';
+  };
+  const handleQuoteDecision = async (quote, decision) => {
+    if (decisionLoadingId) return;
+    setDecisionLoadingId(quote.id);
+    setError('');
+    try {
+      await api.post(`/quotes/${quote.id}/decision/`, { decision });
+      if (decision === 'approve') {
+        navigate(`/payment/${quote.id}`, { replace: true });
+        return;
+      }
+      const { data } = await api.get('/profile/');
+      setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
+    } catch (err) {
+      setError(err.response?.data?.status?.[0] || err.response?.data?.error || 'Action failed.');
+    } finally {
+      setDecisionLoadingId(null);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Client Portal</h1>
-          <p className="text-gray-600 mb-8">Please log in to view your quotes, invoices, and projects.</p>
-          <Link to="/login" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+      <div className="min-h-screen bg-[var(--aws-content-bg)] py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white border border-[var(--aws-card-border)] p-8 text-center">
+          <h1 className="text-2xl font-bold text-[var(--aws-dark)] mb-2">Client Portal</h1>
+          <p className="text-[#545b64] mb-6">Please log in to view your quotes, invoices, and projects.</p>
+          <Link to="/login" className="inline-block px-6 py-3 bg-[var(--aws-orange)] text-white font-medium hover:bg-[var(--aws-orange-hover)] transition-colors">
             Log in
           </Link>
         </div>
@@ -103,88 +130,126 @@ const ClientPortal = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-12 px-4 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--aws-content-bg)] flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-gray-600">Loading your portal...</p>
+          <div className="inline-block w-10 h-10 border-2 border-[var(--aws-orange)] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-[#545b64]">Loading your portal...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Client Portal</h1>
-          <p className="text-gray-600 mt-1">Your quotes, invoices, and projects in one place. You only see data for your account.</p>
-        </div>
+    <div className="min-h-screen bg-[var(--aws-content-bg)]">
+      {/* AWS-style header bar */}
+      <div className="bg-white border-b border-[var(--aws-card-border)] px-4 sm:px-6 py-4">
+        <nav className="flex items-center gap-2 text-sm text-[#545b64] mb-2">
+          <Link to="/" className="hover:text-[var(--aws-orange)]">Home</Link>
+          <span aria-hidden>/</span>
+          <Link to="/profile" className="hover:text-[var(--aws-orange)]">Profile</Link>
+          <span aria-hidden>/</span>
+          <span className="text-[var(--aws-dark)] font-medium">Client Portal</span>
+        </nav>
+        <h1 className="text-2xl font-bold text-[var(--aws-dark)]">Client Portal</h1>
+        <p className="text-sm text-[#545b64] mt-1">Your quotes, invoices, and projects in one place.</p>
+      </div>
 
-        {/* Hero image */}
-        <div className="mb-12 rounded-2xl overflow-hidden shadow-lg border border-gray-200/60 bg-white">
-          <img
-            src="/client-portal-hero.png"
-            alt=""
-            className="w-full h-auto object-cover object-center"
-            style={{ maxHeight: '280px' }}
-          />
-        </div>
-
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl">
+          <div className="mb-6 p-4 bg-[#fff4e5] border border-[#ffb366] text-[var(--aws-dark)] flex items-center gap-3">
+            <svg className="w-5 h-5 text-[var(--aws-orange)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             {error}
           </div>
         )}
 
-        {quoteIdFromUrl && hasInvoiceForApprovedQuote && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-3">
-            <span className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        {quoteIdFromUrl && approvedQuoteNotPaid && (
+          <div className="mb-6 p-4 bg-[#fff4e5] border border-[#ffb366] flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-center gap-3">
+              <span className="flex-shrink-0 w-10 h-10 rounded bg-[#ffb366]/30 flex items-center justify-center">
+                <svg className="w-5 h-5 text-[var(--aws-orange)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </span>
+              <p className="font-medium text-[var(--aws-dark)]">Complete payment for your approved quote.</p>
             </span>
-            <p className="font-medium">Your quote was approved. Pay your invoice below.</p>
+            <Link to={`/payment/${quoteIdFromUrl}`} className="inline-flex px-4 py-2 bg-[var(--aws-orange)] text-white text-sm font-medium hover:bg-[var(--aws-orange-hover)]">Go to payment</Link>
+          </div>
+        )}
+        {quoteIdFromUrl && hasInvoiceForApprovedQuote && (
+          <div className="mb-6 p-4 bg-[#e8f5e9] border border-[#81c784] text-[var(--aws-dark)] flex items-center gap-3">
+            <span className="flex-shrink-0 w-10 h-10 rounded bg-[#81c784]/30 flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            </span>
+            <p className="font-medium">Your quote was approved and paid. View your invoice below.</p>
           </div>
         )}
 
-        {/* My Quotes — only the logged-in client's quotes */}
-        <section className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-            <span className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mr-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </span>
-            My Quotes
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* My Quotes */}
+        <section className="mb-10">
+          <div className="bg-white border border-[var(--aws-card-border)] overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa] flex items-center gap-3">
+              <span className="w-9 h-9 rounded bg-[#f4f4f4] text-[var(--aws-dark)] flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </span>
+              <h2 className="text-base font-semibold text-[var(--aws-dark)]">My Quotes</h2>
+            </div>
             {quotes.length === 0 ? (
               <div className="p-10 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 text-blue-500 mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded bg-[#f4f4f4] text-[#737373] mb-4">
                   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">No quotes yet</h3>
-                <p className="text-gray-500 max-w-sm mx-auto mb-4">You don&apos;t have any quote requests. When you submit a quote request, it will appear here.</p>
-                <Link to="/request-quote" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Request a quote</Link>
+                <h3 className="text-lg font-semibold text-[var(--aws-dark)] mb-1">No quotes yet</h3>
+                <p className="text-[#545b64] max-w-sm mx-auto mb-4">You don&apos;t have any quote requests. When you submit a quote request, it will appear here.</p>
+                <Link to="/request-quote" className="inline-flex px-4 py-2 bg-[var(--aws-orange)] text-white text-sm font-medium hover:bg-[var(--aws-orange-hover)] transition-colors">Request a quote</Link>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-[var(--aws-card-border)]">
+                  <thead className="bg-[#fafafa]">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Project</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estimated</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Project</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Estimated</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[#545b64] uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-[var(--aws-card-border)]">
                     {quotes.map((q) => (
-                      <tr key={q.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{q.title || '—'}</td>
+                      <tr key={q.id} className="hover:bg-[#fafafa]">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{q.title || '—'}</div>
+                          {(canApproveDecline(q) && (q.admin_response || q.estimated_delivery_time)) && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              {q.estimated_delivery_time && <span>Delivery: {q.estimated_delivery_time}. </span>}
+                              {q.admin_response && <span className="line-clamp-2">{q.admin_response}</span>}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusClass(q.status)}`}>{q.status}</span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(q.total_price)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{formatDate(q.created_at)}</td>
                         <td className="px-4 py-3 text-right">
+                          {canApproveDecline(q) && (
+                            <span className="inline-flex gap-2 mr-2">
+                              <button
+                                type="button"
+                                onClick={() => handleQuoteDecision(q, 'approve')}
+                                disabled={decisionLoadingId === q.id}
+                                className="text-sm font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
+                              >
+                                {decisionLoadingId === q.id ? '...' : '✔ Approve'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuoteDecision(q, 'decline')}
+                                disabled={decisionLoadingId === q.id}
+                                className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                              >
+                                ✖ Decline
+                              </button>
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleDownloadQuote(q)}
@@ -203,38 +268,38 @@ const ClientPortal = () => {
           </div>
         </section>
 
-        {/* My Invoices — only the logged-in client's invoices */}
-        <section className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-            <span className="w-10 h-10 rounded-lg bg-green-100 text-green-600 flex items-center justify-center mr-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </span>
-            My Invoices
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* My Invoices */}
+        <section className="mb-10">
+          <div className="bg-white border border-[var(--aws-card-border)] overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa] flex items-center gap-3">
+              <span className="w-9 h-9 rounded bg-[#f4f4f4] text-[var(--aws-dark)] flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </span>
+              <h2 className="text-base font-semibold text-[var(--aws-dark)]">My Invoices</h2>
+            </div>
             {invoices.length === 0 ? (
               <div className="p-10 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-50 text-green-500 mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded bg-[#f4f4f4] text-[#737373] mb-4">
                   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">No invoices yet</h3>
-                <p className="text-gray-500 max-w-sm mx-auto">Invoices are created after your quote is approved. When you have one, it will appear here for download.</p>
+                <h3 className="text-lg font-semibold text-[var(--aws-dark)] mb-1">No invoices yet</h3>
+                <p className="text-[#545b64] max-w-sm mx-auto">Invoices are created after your quote is approved. When you have one, it will appear here for download.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-[var(--aws-card-border)]">
+                  <thead className="bg-[#fafafa]">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Invoice #</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Total</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Due date</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Invoice #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Total</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#545b64] uppercase tracking-wider">Due date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[#545b64] uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-[var(--aws-card-border)]">
                     {invoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50">
+                      <tr key={inv.id} className="hover:bg-[#fafafa]">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{inv.invoice_number || inv.id}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInvoiceStatusClass(inv.status)}`}>{inv.status}</span>
@@ -245,7 +310,7 @@ const ClientPortal = () => {
                           <button
                             type="button"
                             onClick={() => setSelectedInvoice(inv)}
-                            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                            className="text-sm font-medium text-[var(--aws-dark)] hover:text-[var(--aws-orange)]"
                           >
                             View
                           </button>
@@ -253,7 +318,7 @@ const ClientPortal = () => {
                             type="button"
                             onClick={() => handleDownloadInvoice(inv)}
                             disabled={downloadingId === inv.id}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                            className="text-sm font-medium text-[var(--aws-orange)] hover:underline disabled:opacity-50"
                           >
                             {downloadingId === inv.id ? 'Downloading...' : 'Download PDF'}
                           </button>
@@ -267,36 +332,36 @@ const ClientPortal = () => {
           </div>
         </section>
 
-        {/* My Projects — only the logged-in client's projects */}
+        {/* My Projects */}
         <section>
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-            <span className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mr-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            </span>
-            My Projects
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white border border-[var(--aws-card-border)] overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa] flex items-center gap-3">
+              <span className="w-9 h-9 rounded bg-[#f4f4f4] text-[var(--aws-dark)] flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              </span>
+              <h2 className="text-base font-semibold text-[var(--aws-dark)]">My Projects</h2>
+            </div>
             {projects.length === 0 ? (
               <div className="p-10 text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-50 text-purple-500 mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded bg-[#f4f4f4] text-[#737373] mb-4">
                   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">No projects yet</h3>
-                <p className="text-gray-500 max-w-sm mx-auto">Projects are created automatically when an invoice is paid. Once you have an active project, it will show up here.</p>
+                <h3 className="text-lg font-semibold text-[var(--aws-dark)] mb-1">No projects yet</h3>
+                <p className="text-[#545b64] max-w-sm mx-auto">Projects are created automatically when an invoice is paid. Once you have an active project, it will show up here.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-200">
+              <ul className="divide-y divide-[var(--aws-card-border)]">
                 {projects.map((p) => (
-                  <li key={p.id} className="px-6 py-4 hover:bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+                  <li key={p.id} className="px-6 py-4 hover:bg-[#fafafa] flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <p className="font-medium text-gray-900">{p.name || p.quote_project_title || 'Project'}</p>
-                      {p.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
+                      <p className="font-medium text-[var(--aws-dark)]">{p.name || p.quote_project_title || 'Project'}</p>
+                      {p.description && <p className="text-sm text-[#545b64] mt-0.5 line-clamp-2">{p.description}</p>}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getProjectStatusClass(p.status)}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getProjectStatusClass(p.status)}`}>
                         {p.status === 'in_progress' ? 'In Progress' : p.status === 'completed' ? 'Completed' : p.status || 'Pending'}
                       </span>
-                      <Link to="/my-projects" className="text-sm font-medium text-blue-600 hover:text-blue-800">View details</Link>
+                      <Link to="/my-projects" className="text-sm font-medium text-[var(--aws-orange)] hover:underline">View details</Link>
                     </div>
                   </li>
                 ))}
@@ -305,8 +370,8 @@ const ClientPortal = () => {
           </div>
         </section>
 
-        <div className="mt-10 text-center">
-          <Link to="/profile" className="text-blue-600 hover:text-blue-800 font-medium">Back to Profile</Link>
+        <div className="mt-8 pt-6 border-t border-[var(--aws-card-border)]">
+          <Link to="/profile" className="text-sm font-medium text-[var(--aws-orange)] hover:underline">← Back to Profile</Link>
         </div>
       </div>
 

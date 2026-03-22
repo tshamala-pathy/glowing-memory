@@ -2,7 +2,7 @@ import React from 'react';
 
 const DataTable = ({ columns, data, onEdit, onDelete, onView, emptyMessage = 'No data available' }) => {
   return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+    <div className="bg-white shadow-sm rounded-lg overflow-hidden min-w-0">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -10,7 +10,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, emptyMessage = 'No
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-0"
                 >
                   {column.header}
                 </th>
@@ -25,7 +25,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, emptyMessage = 'No
           <tbody className="bg-white divide-y divide-gray-200">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (onEdit || onDelete || onView ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={columns.length + (onEdit || onDelete || onView ? 1 : 0)} className="px-4 sm:px-6 py-12 text-center text-gray-500">
                   {emptyMessage}
                 </td>
               </tr>
@@ -33,13 +33,25 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, emptyMessage = 'No
               data.map((row, rowIndex) => (
                 <tr key={row.id || rowIndex} className="hover:bg-gray-50">
                   {columns.map((column, colIndex) => (
-                    <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td key={colIndex} className="px-3 sm:px-6 py-4 text-sm text-gray-900 min-w-0 sm:whitespace-nowrap break-words">
                       {column.render ? column.render(row[column.accessor], row) : row[column.accessor]}
                     </td>
                   ))}
-                  {(onEdit || onDelete) && (
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
+                  {(onEdit || onDelete || onView) && (
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        {onView && (
+                          <button
+                            onClick={() => onView(row)}
+                            className="text-slate-600 hover:text-slate-900"
+                            title="View details"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        )}
                         {onEdit && (
                           <button
                             onClick={() => onEdit(row)}

@@ -40,8 +40,8 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# Migrations folder (optional, sometimes you want to commit migrations)
-*/migrations/
+# Migrations: we commit them so deployments can run migrate (uncomment to ignore)
+# */migrations/
 
 # Byte-compiled / optimized / DLL files
 *.so

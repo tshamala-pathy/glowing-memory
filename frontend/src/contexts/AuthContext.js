@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return userData;
     } catch (error) {
-      console.error('Error fetching user:', error);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       return null;
@@ -47,13 +46,18 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post('/users/login/', { email, password });
-      const { access, refresh } = response.data;
-      
+      const { access, refresh, user: loginUser } = response.data;
+
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      
-      const userData = await fetchUser();
-      return { success: true, user: userData };
+
+      // Use user from login response so all authenticated users (admin and non-admin) succeed.
+      // Do not call fetchUser() here: it clears tokens on any error and would break login
+      // when GET /users/profile/ fails (e.g. for some users or envs).
+      if (loginUser) {
+        setUser(loginUser);
+      }
+      return { success: true, user: loginUser };
     } catch (error) {
       // Handle different error formats
       const errorMessage = error.response?.data?.detail || 
@@ -71,13 +75,15 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/users/register/', userData);
-      const { access, refresh } = response.data;
-      
+      const { access, refresh, user: registerUser } = response.data;
+
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      
-      const fetchedUser = await fetchUser();
-      return { success: true, user: fetchedUser };
+
+      if (registerUser) {
+        setUser(registerUser);
+      }
+      return { success: true, user: registerUser };
     } catch (error) {
       // Handle different error formats from Django
       const errorMessage = error.response?.data?.detail || 
@@ -95,10 +101,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
+  const logout = async () => {
+    try {
+      await api.post('/users/logout/');
+    } catch {
+      // Ignore errors - we still clear tokens
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      setUser(null);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/users/profile/');
+      setUser(res.data);
+      return res.data;
+    } catch {
+      return null;
+    }
   };
 
   const value = {
@@ -106,6 +128,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
     loading,
     isAuthenticated: !!user,
   };

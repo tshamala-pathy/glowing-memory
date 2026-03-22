@@ -62,10 +62,6 @@ const SearchBar = () => {
         setSelectedIndex(-1);
         setError(null);
       } catch (err) {
-        console.error('Search error:', err);
-        if (err.response) {
-          console.error('Error response:', err.response.data);
-        }
         setError(err.response?.data?.detail || 'Failed to search. Please try again.');
         setResults(null);
         setIsOpen(true); // Still show error state
@@ -203,7 +199,7 @@ const SearchBar = () => {
               setIsOpen(true);
             }
           }}
-          className="w-full md:w-72 lg:w-96 px-4 py-2.5 pl-11 pr-11 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:shadow-md transition-shadow duration-200 placeholder:text-gray-400"
+          className="w-full md:w-56 lg:w-72 px-4 py-2.5 pl-11 pr-11 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:shadow-md transition-shadow duration-200 placeholder:text-gray-400"
         />
         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
           <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

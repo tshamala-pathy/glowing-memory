@@ -4,12 +4,15 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
-from .models import Client, Project, CaseStudy, Task
+from users.activity import log_activity
+from .models import Client, Project, ProjectFile, CaseStudy, Task
+import csv
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
+    ProjectFileSerializer,
     CaseStudySerializer,
     CaseStudyDetailSerializer,
     TaskSerializer,
@@ -54,6 +57,14 @@ class ClientViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
 
+    def perform_create(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'client_created', object_type='client', object_id=serializer.instance.id, details=serializer.instance.name)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'client_updated', object_type='client', object_id=serializer.instance.id, details=serializer.instance.name)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def export_csv(self, request):
         """
@@ -62,8 +73,6 @@ class ClientViewSet(viewsets.ModelViewSet):
         """
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="clients.csv"'
-
-        import csv
 
         writer = csv.writer(response)
         writer.writerow(
@@ -166,7 +175,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    
+
+    def perform_create(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'project_created', object_type='project', object_id=serializer.instance.id, details=serializer.instance.name)
+
+    def perform_update(self, serializer):
+        serializer.save()
+        log_activity(self.request.user, 'project_updated', object_type='project', object_id=serializer.instance.id, details=serializer.instance.name)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def export_csv(self, request):
         """
@@ -175,8 +192,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="projects.csv"'
-
-        import csv
 
         writer = csv.writer(response)
         writer.writerow(
@@ -239,6 +254,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 models.Q(description__icontains=search_query) |
                 models.Q(tech_stack__icontains=search_query)
             )
+
+        status_filter = request.query_params.get('status', None)
+        if status_filter:
+            public_projects = public_projects.filter(status=status_filter)
         
         ordering = request.query_params.get('ordering', '-created_at')
         public_projects = public_projects.order_by(ordering)
@@ -256,7 +275,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     Admin-only: only staff/superuser can list, create, update, delete.
     Tasks are not exposed to clients (not included in Project serializer).
     """
-    queryset = Task.objects.all().select_related("project").order_by("-created_at")
+    queryset = Task.objects.all().select_related("project", "project__client", "project__quote").order_by("-created_at")
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["project", "status", "priority"]
@@ -269,6 +288,77 @@ class TaskViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def export_csv(self, request):
+        """Export all tasks as CSV. Admin/staff only."""
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="tasks.csv"'
+        writer = csv.writer(response)
+        writer.writerow(
+            ["ID", "Project", "Title", "Status", "Priority", "Due Date", "Created At"]
+        )
+        for task in Task.objects.select_related("project", "project__client").all().order_by("id"):
+            writer.writerow(
+                [
+                    task.id,
+                    task.project.name if task.project else "",
+                    task.title,
+                    task.status,
+                    task.priority,
+                    task.due_date.isoformat() if task.due_date else "",
+                    task.created_at.isoformat() if task.created_at else "",
+                ]
+            )
+        return response
+
+
+# ================================
+# ProjectFile ViewSet (file sharing: client + admin)
+# ================================
+class ProjectFileViewSet(viewsets.ModelViewSet):
+    """
+    Project files: upload, list, download. Only the project's client and admins can access.
+    List: GET /api/clients/project-files/?project=<id>
+    Create: POST /api/clients/project-files/ (multipart: project, file, description)
+    Download: GET /api/clients/project-files/<id>/download/
+    """
+    serializer_class = ProjectFileSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['project']
+    ordering_fields = ['uploaded_at']
+    ordering = ['-uploaded_at']
+
+    def get_queryset(self):
+        """Only files for projects the user can access: own projects (client) or all (admin)."""
+        qs = ProjectFile.objects.all().select_related('project', 'project__client', 'uploaded_by')
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return qs
+        profile = getattr(self.request.user, 'client_profile', None)
+        if profile:
+            return qs.filter(project__client=profile)
+        return qs.none()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    @action(detail=True, methods=['get'], url_path='download')
+    def download(self, request, pk=None):
+        """Serve the file; access already restricted by get_queryset."""
+        project_file = self.get_object()
+        if not project_file.file:
+            return Response({'error': 'File not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            file_handle = project_file.file.open('rb')
+            response = FileResponse(file_handle, content_type='application/octet-stream')
+            name = project_file.file.name.split('/')[-1] if project_file.file.name else 'download'
+            response['Content-Disposition'] = f'attachment; filename="{name}"'
+            return response
+        except OSError:
+            return Response({'error': 'File not found on disk.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # ================================

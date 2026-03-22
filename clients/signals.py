@@ -13,6 +13,7 @@ from django.conf import settings
 from invoices.models import Invoice
 from quotes.models import Quote
 from .models import Client, Project
+from users.activity import log_activity
 import logging
 
 User = get_user_model()
@@ -104,10 +105,14 @@ def create_project_on_invoice_paid(sender, instance, **kwargs):
                     client=client,
                     quote=quote,
                     invoice=instance,
-                    status='in_progress',
+                    status='planning',
+                    start_date=timezone.now().date(),
                     tech_stack=quote.service_type or '',
                     is_public=False,
                 )
+                user = getattr(client, 'user', None)
+                if user:
+                    log_activity(user, 'project_created', object_type='project', object_id=project.id, details=project.name)
                 
         except Invoice.DoesNotExist:
             # This is a new invoice, not an update
@@ -145,6 +150,10 @@ def handle_project_completion(sender, instance, **kwargs):
         # Set completion timestamp if not already set
         if not instance.completed_at:
             instance.completed_at = timezone.now()
+
+        user = getattr(instance.client, "user", None) if instance.client else None
+        if user:
+            log_activity(user, "project_completed", object_type="project", object_id=instance.id, details=instance.name)
 
         # Send client notification email (best-effort)
         client = instance.client

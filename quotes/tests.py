@@ -25,10 +25,10 @@ class QuoteInvoiceAutomationTests(TestCase):
             email="admin@example.com",
             password="password",
         )
-        self.client_profile = Client.objects.create(
-            user=self.client_user,
-            name="ClientCo",
-        )
+        # Use client profile auto-created by clients.signals (one per user)
+        self.client_profile = Client.objects.get(user=self.client_user)
+        self.client_profile.name = "ClientCo"
+        self.client_profile.save()
 
     def _create_replied_quote(self):
         return Quote.objects.create(
@@ -42,7 +42,8 @@ class QuoteInvoiceAutomationTests(TestCase):
             estimated_amount=Decimal("1234.56"),
         )
 
-    def test_client_approval_creates_draft_invoice_and_marks_quote_invoiced(self):
+    def test_client_approval_marks_quote_approved_no_invoice_until_payment(self):
+        """Approve sets status=approved; invoice is created only after payment at /payment/{quote_id}."""
         quote = self._create_replied_quote()
         api_client = APIClient()
         api_client.force_authenticate(user=self.client_user)
@@ -51,21 +52,15 @@ class QuoteInvoiceAutomationTests(TestCase):
         response = api_client.post(url, {"decision": "approve"}, format="json")
         self.assertEqual(response.status_code, 200)
 
-        # Refresh instances from DB
         quote.refresh_from_db()
         invoices = Invoice.objects.filter(quote=quote)
 
-        self.assertEqual(quote.status, "invoiced")
-        self.assertEqual(invoices.count(), 1)
+        self.assertEqual(quote.status, "approved")
+        self.assertEqual(invoices.count(), 0)
+        self.assertTrue(quote.payment_url or "/payment/" in (quote.payment_url or ""))
 
-        invoice = invoices.first()
-        self.assertEqual(invoice.status, "draft")
-        self.assertEqual(invoice.client, self.client_profile)
-        self.assertEqual(invoice.client_email, quote.client_email)
-        self.assertEqual(invoice.subtotal, quote.estimated_amount)
-        self.assertGreater(invoice.total_amount, invoice.subtotal)
-
-    def test_admin_approve_creates_draft_invoice_and_marks_quote_invoiced(self):
+    def test_admin_approve_marks_quote_approved_no_invoice_until_payment(self):
+        """Admin approve sets status=approved; invoice is created when client completes payment."""
         quote = self._create_replied_quote()
         api_client = APIClient()
         api_client.force_authenticate(user=self.admin_user)
@@ -77,12 +72,5 @@ class QuoteInvoiceAutomationTests(TestCase):
         quote.refresh_from_db()
         invoices = Invoice.objects.filter(quote=quote)
 
-        self.assertEqual(quote.status, "invoiced")
-        self.assertEqual(invoices.count(), 1)
-
-        invoice = invoices.first()
-        self.assertEqual(invoice.status, "draft")
-        self.assertEqual(invoice.client, self.client_profile)
-        self.assertEqual(invoice.client_email, quote.client_email)
-        self.assertEqual(invoice.subtotal, quote.estimated_amount)
-        self.assertGreater(invoice.total_amount, invoice.subtotal)
+        self.assertEqual(quote.status, "approved")
+        self.assertEqual(invoices.count(), 0)

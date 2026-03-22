@@ -44,6 +44,25 @@ class Service(models.Model):
         blank=True,
         help_text="Optional: FontAwesome class or custom icon name for frontend display (e.g., 'fas fa-code')"
     )
+    short_description = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Brief teaser for cards and listings (max 300 chars)"
+    )
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Show this service prominently on the homepage"
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Lower numbers appear first"
+    )
+    image = models.ImageField(
+        upload_to='services/',
+        blank=True,
+        null=True,
+        help_text="Optional service image for cards"
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Timestamp automatically set when the service is created"

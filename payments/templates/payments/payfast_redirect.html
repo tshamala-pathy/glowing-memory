@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting to PayFast...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f9fafb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+            padding: 2rem 2.5rem;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+        }
+        .logo {
+            height: 48px;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: .5rem;
+            color: #0f172a;
+        }
+        p {
+            font-size: .9rem;
+            color: #6b7280;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            border: 3px solid #d1d5db;
+            border-top-color: #2563eb;
+            animation: spin 0.8s linear infinite;
+            margin: 1rem auto 0;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <img src="/pathycode-logo.png" alt="PathyCode logo" class="logo">
+    <h1>Redirecting to PayFast</h1>
+    <p>Please wait while we securely redirect you to our payment provider.</p>
+    <div class="spinner"></div>
+    <form id="payfast-form" action="{{ payfast_url }}" method="post">
+        {% for key, value in data.items %}
+            <input type="hidden" name="{{ key }}" value="{{ value|escape }}">
+        {% endfor %}
+    </form>
+    <p style="margin-top: 1.5rem; font-size: 0.75rem; color: #9ca3af;">
+        If you are not redirected automatically, click the button below.
+    </p>
+    <button onclick="document.getElementById('payfast-form').submit()" style="
+        margin-top: .75rem;
+        background: linear-gradient(to right, #2563eb, #4f46e5);
+        color: #ffffff;
+        border: none;
+        padding: .6rem 1.4rem;
+        border-radius: .5rem;
+        font-size: .85rem;
+        cursor: pointer;
+    ">
+        Continue to PayFast
+    </button>
+</div>
+<script>
+    // Auto-submit the PayFast form as soon as the page loads
+    window.addEventListener('load', function () {
+        document.getElementById('payfast-form').submit();
+    });
+</script>
+</body>
+</html>
+

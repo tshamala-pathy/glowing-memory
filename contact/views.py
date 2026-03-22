@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from PathyCodeback.permissions import IsSuperuser
+from users.activity import log_activity
 from .models import ContactMessage
 from .serializers import ContactMessageSerializer
 
@@ -32,6 +33,7 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
             if profile:
                 msg.client = profile
                 msg.save(update_fields=['client'])
+            log_activity(self.request.user, 'contact_submitted', object_type='contact', object_id=msg.id, details=msg.subject or 'Contact form')
 
     @action(detail=False, methods=['get'])
     def my_messages(self, request):

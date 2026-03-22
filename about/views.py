@@ -1,9 +1,8 @@
 from rest_framework import generics, permissions, viewsets
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from PathyCodeback.permissions import IsSuperuser
-from .models import AboutUs, Value
-from .serializers import AboutUsSerializer, ValueSerializer
+from .models import AboutUs, Value, Solution
+from .serializers import AboutUsSerializer, ValueSerializer, SolutionSerializer
 
 class AboutUsView(generics.RetrieveAPIView):
     """
@@ -63,6 +62,20 @@ class ValueViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter values by about_us if provided."""
+        queryset = super().get_queryset()
+        about_us_id = self.request.query_params.get('about_us', None)
+        if about_us_id:
+            queryset = queryset.filter(about_us_id=about_us_id)
+        return queryset
+
+
+class SolutionViewSet(viewsets.ModelViewSet):
+    """Admin API for CRUD on Solutions. Superuser only."""
+    queryset = Solution.objects.all()
+    serializer_class = SolutionSerializer
+    permission_classes = [IsSuperuser]
+
+    def get_queryset(self):
         queryset = super().get_queryset()
         about_us_id = self.request.query_params.get('about_us', None)
         if about_us_id:

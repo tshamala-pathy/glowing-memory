@@ -10,11 +10,14 @@ const AdminAbout = () => {
   const navigate = useNavigate();
   const [aboutData, setAboutData] = useState(null);
   const [values, setValues] = useState([]);
+  const [solutions, setSolutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showValueForm, setShowValueForm] = useState(false);
+  const [showSolutionForm, setShowSolutionForm] = useState(false);
   const [editingValue, setEditingValue] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, value: null });
+  const [editingSolution, setEditingSolution] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, type: null, item: null });
   const [formData, setFormData] = useState({
     title: '',
     hero_title: '',
@@ -29,13 +32,10 @@ const AdminAbout = () => {
     why_choose_us_content: '',
     image: null,
   });
-  const [valueFormData, setValueFormData] = useState({
-    title: '',
-    description: '',
-    icon: '',
-    order: 0,
-  });
+  const [valueFormData, setValueFormData] = useState({ title: '', description: '', icon: '', order: 0 });
+  const [solutionFormData, setSolutionFormData] = useState({ title: '', description: '', icon: '', order: 0 });
   const [imagePreview, setImagePreview] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -51,32 +51,19 @@ const AdminAbout = () => {
 
   const fetchAboutData = async () => {
     try {
-      // Try admin endpoint first, fallback to public endpoint
-      let response;
       let data = null;
       try {
-        response = await api.get('/about/admin/');
-        const responseData = response.data.results || response.data;
-        const aboutData = Array.isArray(responseData) && responseData.length > 0 ? responseData[0] : (Array.isArray(responseData) ? null : responseData);
-        if (aboutData && aboutData.id) {
-          data = aboutData;
-          setAboutData(aboutData);
-          setValues(aboutData.values || []);
-        } else {
-          // Fallback to public endpoint
-          response = await api.get('/about/');
-          data = response.data;
-          setAboutData(data);
-          setValues(data.values || []);
-        }
-      } catch (err) {
-        // Fallback to public endpoint if admin endpoint fails
-        response = await api.get('/about/');
-        data = response.data;
-        setAboutData(data);
-        setValues(data.values || []);
+        const res = await api.get('/about/admin/');
+        const raw = res.data.results || res.data;
+        data = Array.isArray(raw) && raw.length > 0 ? raw[0] : (Array.isArray(raw) ? null : raw);
+      } catch {
+        const res = await api.get('/about/');
+        data = res.data;
       }
       if (data) {
+        setAboutData(data);
+        setValues(data.values || []);
+        setSolutions(data.solutions || []);
         setFormData({
           title: data.title || '',
           hero_title: data.hero_title || '',
@@ -93,8 +80,8 @@ const AdminAbout = () => {
         });
         setImagePreview(data.image ? getMediaUrl(data.image) : null);
       }
-    } catch (error) {
-      console.error('Error fetching about data:', error);
+    } catch {
+      setAboutData(null);
     } finally {
       setLoading(false);
     }
@@ -102,6 +89,7 @@ const AdminAbout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
       const submitData = new FormData();
       Object.keys(formData).forEach((key) => {
@@ -109,11 +97,9 @@ const AdminAbout = () => {
           submitData.append(key, formData[key]);
         }
       });
-      if (formData.image) {
-        submitData.append('image', formData.image);
-      }
+      if (formData.image) submitData.append('image', formData.image);
 
-      if (aboutData && aboutData.id) {
+      if (aboutData?.id) {
         await api.put(`/about/admin/${aboutData.id}/`, submitData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -124,65 +110,104 @@ const AdminAbout = () => {
       }
       fetchAboutData();
       setShowForm(false);
-    } catch (error) {
-      console.error('Error saving about data:', error);
+    } catch {
       alert('Failed to save about data');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleValueSubmit = async (e) => {
     e.preventDefault();
+    if (!aboutData?.id) return;
+    setSaving(true);
     try {
-      const submitData = { ...valueFormData, about_us: aboutData.id };
+      const payload = { ...valueFormData, about_us: aboutData.id };
       if (editingValue) {
-        await api.put(`/about/values/${editingValue.id}/`, submitData);
+        await api.put(`/about/values/${editingValue.id}/`, payload);
       } else {
-        await api.post('/about/values/', submitData);
+        await api.post(`/about/values/`, payload);
       }
       fetchAboutData();
       setShowValueForm(false);
       setEditingValue(null);
       setValueFormData({ title: '', description: '', icon: '', order: 0 });
-    } catch (error) {
-      console.error('Error saving value:', error);
+    } catch {
       alert('Failed to save value');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleEditValue = (value) => {
-    setEditingValue(value);
+  const handleSolutionSubmit = async (e) => {
+    e.preventDefault();
+    if (!aboutData?.id) return;
+    setSaving(true);
+    try {
+      const payload = { ...solutionFormData, about_us: aboutData.id };
+      if (editingSolution) {
+        await api.put(`/about/solutions/${editingSolution.id}/`, payload);
+      } else {
+        await api.post(`/about/solutions/`, payload);
+      }
+      fetchAboutData();
+      setShowSolutionForm(false);
+      setEditingSolution(null);
+      setSolutionFormData({ title: '', description: '', icon: '', order: 0 });
+    } catch {
+      alert('Failed to save solution');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditValue = (v) => {
+    setEditingValue(v);
     setValueFormData({
-      title: value.title || '',
-      description: value.description || '',
-      icon: value.icon || '',
-      order: value.order || 0,
+      title: v.title || '',
+      description: v.description || '',
+      icon: v.icon || '',
+      order: v.order ?? 0,
     });
     setShowValueForm(true);
   };
 
-  const handleDeleteValue = (value) => {
-    setDeleteDialog({ open: true, value });
+  const handleEditSolution = (s) => {
+    setEditingSolution(s);
+    setSolutionFormData({
+      title: s.title || '',
+      description: s.description || '',
+      icon: s.icon || '',
+      order: s.order ?? 0,
+    });
+    setShowSolutionForm(true);
   };
 
-  const confirmDeleteValue = async () => {
+  const handleDeleteValue = (v) => setDeleteDialog({ open: true, type: 'value', item: v });
+  const handleDeleteSolution = (s) => setDeleteDialog({ open: true, type: 'solution', item: s });
+
+  const confirmDelete = async () => {
+    const { type, item } = deleteDialog;
+    if (!item) return;
     try {
-      await api.delete(`/about/values/${deleteDialog.value.id}/`);
+      if (type === 'value') {
+        await api.delete(`/about/values/${item.id}/`);
+      } else if (type === 'solution') {
+        await api.delete(`/about/solutions/${item.id}/`);
+      }
       fetchAboutData();
-      setDeleteDialog({ open: false, value: null });
-    } catch (error) {
-      console.error('Error deleting value:', error);
-      alert('Failed to delete value');
+      setDeleteDialog({ open: false, type: null, item: null });
+    } catch {
+      alert('Failed to delete');
     }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData({ ...formData, image: file });
+      setFormData((prev) => ({ ...prev, image: file }));
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
@@ -190,8 +215,11 @@ const AdminAbout = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">Loading...</div>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-600 font-medium">Loading...</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -199,178 +227,197 @@ const AdminAbout = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">About Us</h1>
-            <p className="text-gray-600 mt-1">Manage About Us page content</p>
+      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg flex-shrink-0">
+                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </span>
+                <h1 className="text-xl sm:text-3xl font-bold tracking-tight">About Us</h1>
+              </div>
+              <p className="text-slate-100 text-sm sm:text-base">Manage About page content, values, and solutions.</p>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              {aboutData ? 'Edit About' : 'Create About'}
+            </button>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {aboutData ? 'Edit About Us' : 'Create About Us'}
-          </button>
         </div>
 
-        {/* About Us Form Modal */}
+        {/* Main Content Form Modal */}
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowForm(false)}></div>
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Edit About Us</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Title</label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 sm:p-0">
+              <div className="fixed inset-0 bg-gray-900/50" onClick={() => !saving && setShowForm(false)} />
+              <div className="relative inline-block bg-white rounded-2xl shadow-2xl sm:my-8 sm:max-w-4xl sm:w-full max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-slate-600 to-slate-600 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-white">Edit About Us</h3>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                    />
+                  </div>
 
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Hero Section</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Hero Title</label>
-                          <input
-                            type="text"
-                            value={formData.hero_title}
-                            onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Hero Subtitle</label>
-                          <textarea
-                            rows={3}
-                            value={formData.hero_subtitle}
-                            onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Hero Image</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                          />
-                          {imagePreview && (
-                            <img src={imagePreview} alt="Preview" className="mt-2 h-32 w-32 object-cover rounded" />
-                          )}
-                        </div>
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium text-gray-900 mb-3">Hero Section</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Hero Title</label>
+                        <input
+                          type="text"
+                          value={formData.hero_title}
+                          onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Hero Subtitle</label>
+                        <textarea
+                          rows={3}
+                          value={formData.hero_subtitle}
+                          onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Hero Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-50 file:text-slate-700"
+                        />
+                        {imagePreview && (
+                          <img src={imagePreview} alt="Preview" className="mt-2 h-32 w-32 object-cover rounded-lg" />
+                        )}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Our Story</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Story Title</label>
-                          <input
-                            type="text"
-                            value={formData.our_story_title}
-                            onChange={(e) => setFormData({ ...formData, our_story_title: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Story Content</label>
-                          <textarea
-                            rows={4}
-                            value={formData.our_story_content}
-                            onChange={(e) => setFormData({ ...formData, our_story_content: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium text-gray-900 mb-3">Our Story</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Story Title</label>
+                        <input
+                          type="text"
+                          value={formData.our_story_title}
+                          onChange={(e) => setFormData({ ...formData, our_story_title: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Story Content</label>
+                        <textarea
+                          rows={4}
+                          value={formData.our_story_content}
+                          onChange={(e) => setFormData({ ...formData, our_story_content: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Mission & Vision</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Mission Title</label>
-                          <input
-                            type="text"
-                            value={formData.mission_title}
-                            onChange={(e) => setFormData({ ...formData, mission_title: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Vision Title</label>
-                          <input
-                            type="text"
-                            value={formData.vision_title}
-                            onChange={(e) => setFormData({ ...formData, vision_title: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium text-gray-900 mb-3">Mission & Vision</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Mission Title</label>
+                        <input
+                          type="text"
+                          value={formData.mission_title}
+                          onChange={(e) => setFormData({ ...formData, mission_title: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
                       </div>
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700">Mission Content</label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Vision Title</label>
+                        <input
+                          type="text"
+                          value={formData.vision_title}
+                          onChange={(e) => setFormData({ ...formData, vision_title: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Mission Content</label>
                         <textarea
                           rows={3}
                           value={formData.mission_content}
                           onChange={(e) => setFormData({ ...formData, mission_content: e.target.value })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
                         />
                       </div>
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700">Vision Content</label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Vision Content</label>
                         <textarea
                           rows={3}
                           value={formData.vision_content}
                           onChange={(e) => setFormData({ ...formData, vision_content: e.target.value })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Why Choose Us</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Title</label>
-                          <input
-                            type="text"
-                            value={formData.why_choose_us_title}
-                            onChange={(e) => setFormData({ ...formData, why_choose_us_title: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Content</label>
-                          <textarea
-                            rows={4}
-                            value={formData.why_choose_us_content}
-                            onChange={(e) => setFormData({ ...formData, why_choose_us_content: e.target.value })}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium text-gray-900 mb-3">Why Choose Us</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Title</label>
+                        <input
+                          type="text"
+                          value={formData.why_choose_us_title}
+                          onChange={(e) => setFormData({ ...formData, why_choose_us_title: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Content</label>
+                        <textarea
+                          rows={4}
+                          value={formData.why_choose_us_content}
+                          onChange={(e) => setFormData({ ...formData, why_choose_us_content: e.target.value })}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                        />
                       </div>
                     </div>
                   </div>
-                  <div className="mt-6 flex justify-end space-x-3">
+
+                  <div className="flex justify-end gap-3 pt-4">
                     <button
                       type="button"
-                      onClick={() => setShowForm(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => !saving && setShowForm(false)}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
+                      disabled={saving}
+                      className="px-4 py-2 rounded-lg bg-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
                     >
-                      Save
+                      {saving ? 'Saving…' : 'Save'}
                     </button>
                   </div>
                 </form>
@@ -380,121 +427,218 @@ const AdminAbout = () => {
         )}
 
         {/* Values Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Company Values</h2>
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-lg font-bold text-gray-900">Company Values</h2>
             <button
               onClick={() => {
                 setEditingValue(null);
                 setValueFormData({ title: '', description: '', icon: '', order: 0 });
                 setShowValueForm(true);
               }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              disabled={!aboutData?.id}
+              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               + Add Value
             </button>
           </div>
-
-          <div className="space-y-3">
+          <div className="p-6">
             {values.length === 0 ? (
-              <p className="text-gray-500">No values added yet.</p>
+              <p className="text-gray-500 py-4">No values yet. Create About content first, then add values.</p>
             ) : (
-              values.map((value) => (
-                <div key={value.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-500">#{value.order}</span>
-                      <h3 className="font-medium text-gray-900">{value.title}</h3>
-                      {value.icon && <span className="text-gray-500">{value.icon}</span>}
+              <div className="space-y-3">
+                {values.map((v) => (
+                  <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">#{v.order}</span>
+                        <h3 className="font-medium text-gray-900">{v.title}</h3>
+                        {v.icon && <span className="text-gray-400 text-sm">{v.icon}</span>}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{v.description}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{value.description}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEditValue(v)} className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteValue(v)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditValue(value)}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteValue(value)}
-                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
 
-        {/* Value Form Modal */}
-        {showValueForm && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowValueForm(false)}></div>
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form onSubmit={handleValueSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    {editingValue ? 'Edit Value' : 'Add Value'}
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={valueFormData.title}
-                        onChange={(e) => setValueFormData({ ...valueFormData, title: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Description</label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={valueFormData.description}
-                        onChange={(e) => setValueFormData({ ...valueFormData, description: e.target.value })}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Icon (FontAwesome class)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g., fas fa-heart"
-                          value={valueFormData.icon}
-                          onChange={(e) => setValueFormData({ ...valueFormData, icon: e.target.value })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
+        {/* Solutions Section */}
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-lg font-bold text-gray-900">Problems We Solve</h2>
+            <button
+              onClick={() => {
+                setEditingSolution(null);
+                setSolutionFormData({ title: '', description: '', icon: '', order: 0 });
+                setShowSolutionForm(true);
+              }}
+              disabled={!aboutData?.id}
+              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + Add Solution
+            </button>
+          </div>
+          <div className="p-6">
+            {solutions.length === 0 ? (
+              <p className="text-gray-500 py-4">No solutions yet. Add items to show on the About page.</p>
+            ) : (
+              <div className="space-y-3">
+                {solutions.map((s) => (
+                  <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">#{s.order}</span>
+                        <h3 className="font-medium text-gray-900">{s.title}</h3>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Order</label>
-                        <input
-                          type="number"
-                          value={valueFormData.order}
-                          onChange={(e) => setValueFormData({ ...valueFormData, order: parseInt(e.target.value) || 0 })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{s.description}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEditSolution(s)} className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteSolution(s)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Delete
+                      </button>
                     </div>
                   </div>
-                  <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowValueForm(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Value Modal */}
+        {showValueForm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+              <div className="fixed inset-0 bg-gray-900/50" onClick={() => !saving && setShowValueForm(false)} />
+              <div className="relative bg-white rounded-2xl shadow-2xl sm:max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-slate-600 to-slate-600 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-white">{editingValue ? 'Edit Value' : 'Add Value'}</h3>
+                </div>
+                <form onSubmit={handleValueSubmit} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={valueFormData.title}
+                      onChange={(e) => setValueFormData({ ...valueFormData, title: e.target.value })}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={valueFormData.description}
+                      onChange={(e) => setValueFormData({ ...valueFormData, description: e.target.value })}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Icon (e.g. fas fa-heart)</label>
+                      <input
+                        type="text"
+                        value={valueFormData.icon}
+                        onChange={(e) => setValueFormData({ ...valueFormData, icon: e.target.value })}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+                      <input
+                        type="number"
+                        value={valueFormData.order}
+                        onChange={(e) => setValueFormData({ ...valueFormData, order: parseInt(e.target.value) || 0 })}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => !saving && setShowValueForm(false)} disabled={saving} className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">
                       Cancel
                     </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700"
-                    >
+                    <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-slate-600 text-white hover:bg-slate-700">
                       {editingValue ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Solution Modal */}
+        {showSolutionForm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+              <div className="fixed inset-0 bg-gray-900/50" onClick={() => !saving && setShowSolutionForm(false)} />
+              <div className="relative bg-white rounded-2xl shadow-2xl sm:max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-slate-600 to-slate-600 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-white">{editingSolution ? 'Edit Solution' : 'Add Solution'}</h3>
+                </div>
+                <form onSubmit={handleSolutionSubmit} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title (Problem)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Outdated Systems"
+                      value={solutionFormData.title}
+                      onChange={(e) => setSolutionFormData({ ...solutionFormData, title: e.target.value })}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description (How we solve it)</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={solutionFormData.description}
+                      onChange={(e) => setSolutionFormData({ ...solutionFormData, description: e.target.value })}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Icon (optional)</label>
+                      <input
+                        type="text"
+                        placeholder="fas fa-lightbulb"
+                        value={solutionFormData.icon}
+                        onChange={(e) => setSolutionFormData({ ...solutionFormData, icon: e.target.value })}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+                      <input
+                        type="number"
+                        value={solutionFormData.order}
+                        onChange={(e) => setSolutionFormData({ ...solutionFormData, order: parseInt(e.target.value) || 0 })}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => !saving && setShowSolutionForm(false)} disabled={saving} className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-slate-600 text-white hover:bg-slate-700">
+                      {editingSolution ? 'Update' : 'Create'}
                     </button>
                   </div>
                 </form>
@@ -505,10 +649,10 @@ const AdminAbout = () => {
 
         <ConfirmDialog
           isOpen={deleteDialog.open}
-          onClose={() => setDeleteDialog({ open: false, value: null })}
-          onConfirm={confirmDeleteValue}
-          title="Delete Value"
-          message={`Are you sure you want to delete "${deleteDialog.value?.title}"? This action cannot be undone.`}
+          onClose={() => setDeleteDialog({ open: false, type: null, item: null })}
+          onConfirm={confirmDelete}
+          title={`Delete ${deleteDialog.type === 'value' ? 'Value' : 'Solution'}`}
+          message={`Are you sure you want to delete "${deleteDialog.item?.title}"?`}
         />
       </div>
     </AdminLayout>

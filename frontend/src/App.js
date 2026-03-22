@@ -31,6 +31,7 @@ import AdminContact from './pages/admin/AdminContact';
 import AdminTestimonials from './pages/admin/AdminTestimonials';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminQuotes from './pages/admin/AdminQuotes';
+import AdminMessagingThreads from './pages/admin/AdminMessagingThreads';
 import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminClients from './pages/admin/AdminClients';
@@ -44,6 +45,7 @@ import Quotes from './pages/Quotes';
 import Requirements from './pages/Requirements';
 import QuoteSuccess from './pages/QuoteSuccess';
 import TermsAndPrivacy from './pages/TermsAndPrivacy';
+import NewsletterPage from './pages/NewsletterPage';
 import SearchResults from './pages/SearchResults';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogDetail from './pages/BlogDetail';
@@ -53,14 +55,18 @@ import CaseStudies from './pages/CaseStudies';
 import PublicProjects from './pages/PublicProjects';
 import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
+import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import ActivityLog from './pages/ActivityLog';
+import Messages from './pages/Messages';
+import ThreadChat from './pages/ThreadChat';
 import './App.css';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen w-full overflow-x-hidden">
+        <div className="min-h-screen w-full overflow-x-hidden app-background">
           <Navbar />
           <main className="w-full min-w-0">
             <Routes>
@@ -81,7 +87,9 @@ function App() {
               <Route path="/request-quote" element={<Quotes />} />
               <Route path="/quote-success" element={<QuoteSuccess />} />
               <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
+              <Route path="/newsletter" element={<NewsletterPage />} />
               <Route path="/public-projects" element={<PublicProjects />} />
+              <Route path="/client-projects" element={<PublicProjects />} />
 
               {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
               <Route
@@ -101,6 +109,14 @@ function App() {
                 }
               />
               <Route
+                path="/payment/:quoteId"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <Payment />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/my-projects"
                 element={
                   <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
@@ -109,6 +125,9 @@ function App() {
                 }
               />
               <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+              <Route path="/activity-log" element={<ProtectedRoute requireAuth={true}><ActivityLog /></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute requireAuth={true}><Messages /></ProtectedRoute>} />
+              <Route path="/messages/:threadId" element={<ProtectedRoute requireAuth={true}><ThreadChat /></ProtectedRoute>} />
               <Route path="/blog" element={<ProtectedRoute requireAuth={true}><Blog /></ProtectedRoute>} />
               <Route path="/blog/:id" element={<ProtectedRoute requireAuth={true}><BlogDetail /></ProtectedRoute>} />
               <Route path="/search" element={<ProtectedRoute requireAuth={true}><SearchResults /></ProtectedRoute>} />
@@ -169,6 +188,14 @@ function App() {
                 element={
                   <ProtectedRoute requireSuperuser={true}>
                     <AdminNewsletter />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/messaging-threads" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminMessagingThreads />
                   </ProtectedRoute>
                 } 
               />

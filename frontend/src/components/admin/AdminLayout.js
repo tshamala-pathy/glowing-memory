@@ -6,7 +6,7 @@ const AdminLayout = ({ children, allowStaff = false }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Ensure user is authenticated and is superuser (or staff if allowStaff)
@@ -22,6 +22,8 @@ const AdminLayout = ({ children, allowStaff = false }) => {
   }, [isAuthenticated, user, navigate, allowStaff]);
 
   const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to sign out of the admin panel?');
+    if (!confirmed) return;
     logout();
     navigate('/login');
   };
@@ -93,6 +95,15 @@ const AdminLayout = ({ children, allowStaff = false }) => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Message Threads',
+      path: '/admin/messaging-threads',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
         </svg>
       ),
     },
@@ -201,9 +212,21 @@ const AdminLayout = ({ children, allowStaff = false }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="ml-4 lg:ml-0">
-                <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
-              </div>
+              <Link to="/" className="flex items-center ml-4 lg:ml-0 space-x-2">
+                <img
+                  src="/pathycode-logo.png"
+                  alt="PathyCode logo"
+                  className="h-8 w-auto hidden sm:block"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-gray-900 leading-tight">
+                    PathyCode Admin
+                  </span>
+                  <span className="text-xs text-gray-500 leading-tight hidden sm:inline">
+                    Manage clients, projects and content
+                  </span>
+                </div>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -268,8 +291,8 @@ const AdminLayout = ({ children, allowStaff = false }) => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 lg:ml-0">
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+        <main className="flex-1 min-w-0 lg:ml-0 overflow-x-hidden">
+          <div className="p-4 sm:p-6 lg:p-8 min-w-0">{children}</div>
         </main>
       </div>
     </div>

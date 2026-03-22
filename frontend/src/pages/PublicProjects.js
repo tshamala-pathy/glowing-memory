@@ -26,15 +26,14 @@ const PublicProjects = () => {
       setLoading(true);
       const params = {};
       if (searchTerm) params.search = searchTerm;
-      if (statusFilter) params.status = statusFilter;
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
 
       // Use the public endpoint
       const response = await api.get('/clients/projects/public/', { params });
       const projectsData = response.data || [];
       setProjects(Array.isArray(projectsData) ? projectsData : []);
       setError('');
-    } catch (error) {
-      console.error('Error fetching public projects:', error);
+    } catch {
       setError('Failed to load projects. Please try again later.');
       setProjects([]);
     } finally {
@@ -45,22 +44,32 @@ const PublicProjects = () => {
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'in_progress':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'design':
+      case 'development':
         return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+      case 'testing':
+        return 'bg-purple-100 text-purple-800';
+      case 'planning':
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-amber-100 text-amber-800';
     }
   };
 
+  const getStatusLabel = (status) => {
+    const labels = { planning: 'Planning', design: 'Design', development: 'Development', testing: 'Testing', completed: 'Completed' };
+    return labels[status] || status || 'Planning';
+  };
+
+  const hasImage = (p) => !!(p.hero_image || (p.screenshots && p.screenshots.length > 0));
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-600 text-lg">Loading projects...</div>
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+            <p className="text-slate-600 text-lg font-medium">Loading projects...</p>
           </div>
         </div>
       </div>
@@ -68,24 +77,27 @@ const PublicProjects = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Our Projects
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-200/80 text-slate-700 text-sm font-medium mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Our portfolio
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
+            Client Projects
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Explore our portfolio of completed and ongoing projects. 
-            Each project represents our commitment to quality and innovation.
+          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Browse selected client projects that our team has made public. Visit live demos and explore the work.
           </p>
         </div>
 
         {/* Filters */}
-        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-10 bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-slate-200/80">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Search Projects
               </label>
               <input
@@ -93,22 +105,24 @@ const PublicProjects = () => {
                 placeholder="Search by name, description, or tech stack..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Filter by Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors"
               >
                 <option value="">All Statuses</option>
+                <option value="planning">Planning</option>
+                <option value="design">Design</option>
+                <option value="development">Development</option>
+                <option value="testing">Testing</option>
                 <option value="completed">Completed</option>
-                <option value="in_progress">In Progress</option>
-                <option value="pending">Pending</option>
               </select>
             </div>
           </div>
@@ -116,29 +130,24 @@ const PublicProjects = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center gap-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {error}
           </div>
         )}
 
         {/* Projects Grid */}
         {projects.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No projects found</h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mb-4">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">No projects found</h3>
+            <p className="text-slate-500">
               {searchTerm || statusFilter
                 ? 'Try adjusting your search or filters.'
                 : 'No public projects are available at the moment.'}
@@ -147,36 +156,41 @@ const PublicProjects = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project) => (
-              <div
+              <article
                 key={project.id}
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200"
+                className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden group hover:shadow-xl hover:border-slate-300 transition-all duration-300"
               >
-                {/* Screenshots/Image */}
-                <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                  {project.screenshots && project.screenshots.length > 0 ? (
+                {/* Image */}
+                <div className="relative h-52 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                  {project.hero_image ? (
+                    <img
+                      src={getMediaUrl(project.hero_image)}
+                      alt={project.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const fallback = e.target.nextElementSibling;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : project.screenshots && project.screenshots.length > 0 ? (
                     <img
                       src={getMediaUrl(project.screenshots[0])}
                       alt={project.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
+                        const fallback = e.target.nextElementSibling;
+                        if (fallback) fallback.style.display = 'flex';
                       }}
                     />
                   ) : null}
                   <div
-                    className="w-full h-full flex items-center justify-center text-gray-400"
-                    style={{
-                      display: !project.screenshots || project.screenshots.length === 0 ? 'flex' : 'none',
-                    }}
+                    className="absolute inset-0 w-full h-full flex items-center justify-center text-slate-400"
+                    style={{ display: hasImage(project) ? 'none' : 'flex' }}
                   >
-                    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
+                    <svg className="w-14 h-14 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                   {/* Status Badge */}
@@ -186,34 +200,39 @@ const PublicProjects = () => {
                         project.status
                       )}`}
                     >
-                      {project.status === 'in_progress' ? 'In Progress' : project.status === 'completed' ? 'Completed' : 'Pending'}
+                      {getStatusLabel(project.status)}
                     </span>
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
+                  <h3 className="text-xl font-bold text-slate-900 mb-1 group-hover:text-slate-700 transition-colors">
                     {project.name}
                   </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                  {project.client_name && (
+                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-3">
+                      Client: <span className="font-semibold text-slate-600">{project.client_name}</span>
+                    </p>
+                  )}
+
+                  <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-3">
                     {project.description}
                   </p>
 
-                  {/* Tech Stack */}
                   {project.tech_stack && project.tech_stack.length > 0 && (
                     <div className="mb-4">
                       <div className="flex flex-wrap gap-2">
                         {project.tech_stack.slice(0, 4).map((tech, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md font-medium"
+                            className="px-2.5 py-1 text-xs bg-slate-100 text-slate-700 rounded-lg font-medium"
                           >
                             {tech}
                           </span>
                         ))}
                         {project.tech_stack.length > 4 && (
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">
+                          <span className="px-2.5 py-1 text-xs bg-slate-50 text-slate-500 rounded-lg">
                             +{project.tech_stack.length - 4}
                           </span>
                         )}
@@ -221,42 +240,25 @@ const PublicProjects = () => {
                     </div>
                   )}
 
-                  {/* Links */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    {project.live_url && (
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                    {project.live_url ? (
                       <a
                         href={project.live_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
-                        Live Demo
+                        Visit project
                       </a>
-                    )}
-                    {project.repo_url && (
-                      <a
-                        href={project.repo_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center gap-1"
-                      >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                        </svg>
-                        Code
-                      </a>
+                    ) : (
+                      <span className="text-sm text-slate-400">Project link coming soon</span>
                     )}
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

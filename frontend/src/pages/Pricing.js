@@ -83,7 +83,7 @@ const Pricing = () => {
             <img
               src="/pricing-hero.png"
               alt="Transparent pricing — choose the right plan for your project"
-              className="w-full h-auto object-cover object-center"
+              className="w-full max-w-full h-auto object-cover object-center"
               style={{ maxHeight: '320px' }}
             />
           </div>
@@ -99,9 +99,9 @@ const Pricing = () => {
                 key={index}
                 className={`relative bg-white rounded-3xl border ${
                   plan.highlight
-                    ? 'border-blue-500 shadow-xl scale-105'
+                    ? 'border-blue-500 shadow-xl md:scale-105'
                     : 'border-slate-200 shadow-md'
-                } p-8 md:p-10 transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}
+                } p-6 sm:p-8 md:p-10 transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}
               >
                 {/* Recommended Badge */}
                 {plan.highlight && (

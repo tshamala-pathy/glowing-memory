@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>invoices.utils &#8212; PathyCode Internal Business System 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for invoices.utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.lib.pagesizes</span><span class="w"> </span><span class="kn">import</span> <span class="n">letter</span><span class="p">,</span> <span class="n">A4</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.lib</span><span class="w"> </span><span class="kn">import</span> <span class="n">colors</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.lib.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">inch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.platypus</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimpleDocTemplate</span><span class="p">,</span> <span class="n">Table</span><span class="p">,</span> <span class="n">TableStyle</span><span class="p">,</span> <span class="n">Paragraph</span><span class="p">,</span> <span class="n">Spacer</span><span class="p">,</span> <span class="n">Image</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.lib.styles</span><span class="w"> </span><span class="kn">import</span> <span class="n">getSampleStyleSheet</span><span class="p">,</span> <span class="n">ParagraphStyle</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reportlab.lib.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">TA_RIGHT</span><span class="p">,</span> <span class="n">TA_LEFT</span><span class="p">,</span> <span class="n">TA_CENTER</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.conf</span><span class="w"> </span><span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_company_logo</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Try to resolve a company logo path for branding.</span>
+<span class="sd">    - Uses settings.COMPANY_LOGO_PATH if defined, otherwise falls back to /media/clients/logos/logo.png.</span>
+<span class="sd">    - Returns filesystem path or None if not available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logo_path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s2">&quot;COMPANY_LOGO_PATH&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">logo_path</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">logo_path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">logo_path</span>
+    <span class="c1"># Fallback: common logo location under MEDIA_ROOT</span>
+    <span class="n">candidate</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">MEDIA_ROOT</span><span class="p">,</span> <span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="s2">&quot;logos&quot;</span><span class="p">,</span> <span class="s2">&quot;logo.png&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">candidate</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">candidate</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="generate_invoice_pdf">
+<a class="viewcode-back" href="../../source/modules/services.html#invoices.utils.generate_invoice_pdf">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_invoice_pdf</span><span class="p">(</span><span class="n">invoice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a PDF invoice using ReportLab.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">buffer</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
+    <span class="n">doc</span> <span class="o">=</span> <span class="n">SimpleDocTemplate</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">pagesize</span><span class="o">=</span><span class="n">A4</span><span class="p">,</span> <span class="n">rightMargin</span><span class="o">=</span><span class="mi">72</span><span class="p">,</span> <span class="n">leftMargin</span><span class="o">=</span><span class="mi">72</span><span class="p">,</span> <span class="n">topMargin</span><span class="o">=</span><span class="mi">72</span><span class="p">,</span> <span class="n">bottomMargin</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+    
+    <span class="c1"># Container for the &#39;Flowable&#39; objects</span>
+    <span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="c1"># Define styles</span>
+    <span class="n">styles</span> <span class="o">=</span> <span class="n">getSampleStyleSheet</span><span class="p">()</span>
+    <span class="n">title_style</span> <span class="o">=</span> <span class="n">ParagraphStyle</span><span class="p">(</span>
+        <span class="s1">&#39;CustomTitle&#39;</span><span class="p">,</span>
+        <span class="n">parent</span><span class="o">=</span><span class="n">styles</span><span class="p">[</span><span class="s1">&#39;Heading1&#39;</span><span class="p">],</span>
+        <span class="n">fontSize</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span>
+        <span class="n">textColor</span><span class="o">=</span><span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s1">&#39;#1e40af&#39;</span><span class="p">),</span>
+        <span class="n">spaceAfter</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="n">alignment</span><span class="o">=</span><span class="n">TA_LEFT</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Optional logo + brand header</span>
+    <span class="n">logo_path</span> <span class="o">=</span> <span class="n">_get_company_logo</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">logo_path</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">logo_img</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">logo_path</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">inch</span><span class="p">)</span>
+            <span class="n">brand_table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="p">[</span>
+                        <span class="n">logo_img</span><span class="p">,</span>
+                        <span class="n">Paragraph</span><span class="p">(</span>
+                            <span class="nb">getattr</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="s2">&quot;BRAND_NAME&quot;</span><span class="p">,</span> <span class="s2">&quot;PathyCode&quot;</span><span class="p">),</span>
+                            <span class="n">ParagraphStyle</span><span class="p">(</span>
+                                <span class="s2">&quot;BrandName&quot;</span><span class="p">,</span>
+                                <span class="n">parent</span><span class="o">=</span><span class="n">styles</span><span class="p">[</span><span class="s2">&quot;Heading2&quot;</span><span class="p">],</span>
+                                <span class="n">fontSize</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span>
+                                <span class="n">textColor</span><span class="o">=</span><span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s2">&quot;#111827&quot;</span><span class="p">),</span>
+                                <span class="n">alignment</span><span class="o">=</span><span class="n">TA_RIGHT</span><span class="p">,</span>
+                            <span class="p">),</span>
+                        <span class="p">),</span>
+                    <span class="p">]</span>
+                <span class="p">],</span>
+                <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mf">1.2</span> <span class="o">*</span> <span class="n">inch</span><span class="p">,</span> <span class="mf">3.8</span> <span class="o">*</span> <span class="n">inch</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">brand_table</span><span class="o">.</span><span class="n">setStyle</span><span class="p">(</span>
+                <span class="n">TableStyle</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="p">(</span><span class="s2">&quot;VALIGN&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;MIDDLE&quot;</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s2">&quot;ALIGN&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s2">&quot;RIGHT&quot;</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s2">&quot;BOX&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">colors</span><span class="o">.</span><span class="n">white</span><span class="p">),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">brand_table</span><span class="p">)</span>
+            <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="n">inch</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># If logo fails to load, just continue without it</span>
+            <span class="k">pass</span>
+
+    <span class="c1"># Title</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Paragraph</span><span class="p">(</span><span class="s2">&quot;INVOICE&quot;</span><span class="p">,</span> <span class="n">title_style</span><span class="p">))</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="n">inch</span><span class="p">))</span>
+    
+    <span class="c1"># Invoice details table</span>
+    <span class="n">invoice_data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="s1">&#39;Invoice Number:&#39;</span><span class="p">,</span> <span class="n">invoice</span><span class="o">.</span><span class="n">invoice_number</span><span class="p">],</span>
+        <span class="p">[</span><span class="s1">&#39;Issue Date:&#39;</span><span class="p">,</span> <span class="n">invoice</span><span class="o">.</span><span class="n">issue_date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%B </span><span class="si">%d</span><span class="s1">, %Y&#39;</span><span class="p">)],</span>
+        <span class="p">[</span><span class="s1">&#39;Due Date:&#39;</span><span class="p">,</span> <span class="n">invoice</span><span class="o">.</span><span class="n">due_date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%B </span><span class="si">%d</span><span class="s1">, %Y&#39;</span><span class="p">)],</span>
+        <span class="p">[</span><span class="s1">&#39;Status:&#39;</span><span class="p">,</span> <span class="n">invoice</span><span class="o">.</span><span class="n">status</span><span class="p">],</span>
+    <span class="p">]</span>
+    
+    <span class="n">invoice_table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">invoice_data</span><span class="p">,</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mi">3</span><span class="o">*</span><span class="n">inch</span><span class="p">])</span>
+    <span class="n">invoice_table</span><span class="o">.</span><span class="n">setStyle</span><span class="p">(</span><span class="n">TableStyle</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s1">&#39;#f3f4f6&#39;</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s1">&#39;TEXTCOLOR&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">black</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;LEFT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTNAME&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;Helvetica&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTSIZE&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">10</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;BOTTOMPADDING&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;TOPPADDING&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;GRID&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">colors</span><span class="o">.</span><span class="n">grey</span><span class="p">),</span>
+    <span class="p">]))</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">invoice_table</span><span class="p">)</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.3</span><span class="o">*</span><span class="n">inch</span><span class="p">))</span>
+    
+    <span class="c1"># Provider and Client information side by side</span>
+    <span class="n">provider_data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="s1">&#39;From:&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">invoice</span><span class="o">.</span><span class="n">provider_name</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">],</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">provider_address</span><span class="p">:</span>
+        <span class="n">provider_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">invoice</span><span class="o">.</span><span class="n">provider_address</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">provider_phone</span><span class="p">:</span>
+        <span class="n">provider_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;Phone: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">provider_phone</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">provider_email</span><span class="p">:</span>
+        <span class="n">provider_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;Email: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">provider_email</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">provider_vat_number</span><span class="p">:</span>
+        <span class="n">provider_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;VAT: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">provider_vat_number</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    
+    <span class="n">client_data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="s1">&#39;To:&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">],</span>
+        <span class="p">[</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">],</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">client_company</span><span class="p">:</span>
+        <span class="n">client_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_company</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">client_address</span><span class="p">:</span>
+        <span class="n">client_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_address</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">client_phone</span><span class="p">:</span>
+        <span class="n">client_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;Phone: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_phone</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="n">client_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;Email: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_email</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">client_vat_number</span><span class="p">:</span>
+        <span class="n">client_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;VAT: </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">client_vat_number</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    
+    <span class="n">info_table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">([</span>
+        <span class="p">[</span><span class="n">Table</span><span class="p">(</span><span class="n">provider_data</span><span class="p">,</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mf">2.5</span><span class="o">*</span><span class="n">inch</span><span class="p">]),</span> <span class="n">Table</span><span class="p">(</span><span class="n">client_data</span><span class="p">,</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mf">2.5</span><span class="o">*</span><span class="n">inch</span><span class="p">])]</span>
+    <span class="p">],</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mf">2.5</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mf">2.5</span><span class="o">*</span><span class="n">inch</span><span class="p">])</span>
+    
+    <span class="n">info_table</span><span class="o">.</span><span class="n">setStyle</span><span class="p">(</span><span class="n">TableStyle</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;LEFT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;VALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;TOP&#39;</span><span class="p">),</span>
+    <span class="p">]))</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info_table</span><span class="p">)</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.3</span><span class="o">*</span><span class="n">inch</span><span class="p">))</span>
+    
+    <span class="c1"># Items table</span>
+    <span class="n">items_data</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;Description&#39;</span><span class="p">,</span> <span class="s1">&#39;Quantity&#39;</span><span class="p">,</span> <span class="s1">&#39;Unit Price&#39;</span><span class="p">,</span> <span class="s1">&#39;Total&#39;</span><span class="p">]]</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">invoice</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">quantity</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;quantity&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">unit_price</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;price&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="n">quantity</span> <span class="o">*</span> <span class="n">unit_price</span>
+        <span class="n">items_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
+            <span class="n">description</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">quantity</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="n">unit_price</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="n">total</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">])</span>
+    
+    <span class="n">items_table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">items_data</span><span class="p">,</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mi">1</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mf">1.5</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mf">1.5</span><span class="o">*</span><span class="n">inch</span><span class="p">])</span>
+    <span class="n">items_table</span><span class="o">.</span><span class="n">setStyle</span><span class="p">(</span><span class="n">TableStyle</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s1">&#39;#1e40af&#39;</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s1">&#39;TEXTCOLOR&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">whitesmoke</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;LEFT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;RIGHT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTNAME&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;Helvetica-Bold&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTSIZE&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;BOTTOMPADDING&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">beige</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;GRID&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">colors</span><span class="o">.</span><span class="n">grey</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;ROWBACKGROUNDS&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">[</span><span class="n">colors</span><span class="o">.</span><span class="n">white</span><span class="p">,</span> <span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s1">&#39;#f9fafb&#39;</span><span class="p">)]),</span>
+    <span class="p">]))</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">items_table</span><span class="p">)</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.3</span><span class="o">*</span><span class="n">inch</span><span class="p">))</span>
+    
+    <span class="c1"># Totals</span>
+    <span class="n">totals_data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="s1">&#39;Subtotal:&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">invoice</span><span class="o">.</span><span class="n">subtotal</span><span class="p">)</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;VAT (</span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">vat_rate</span><span class="si">}</span><span class="s1">%):&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">invoice</span><span class="o">.</span><span class="n">vat_amount</span><span class="p">)</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s1">&#39;Total Amount:&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">invoice</span><span class="o">.</span><span class="n">total_amount</span><span class="p">)</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s1">&#39;Amount Paid:&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">invoice</span><span class="o">.</span><span class="n">amount_paid</span><span class="p">)</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s1">&#39;Amount Due:&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;R </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">invoice</span><span class="o">.</span><span class="n">amount_due</span><span class="p">)</span><span class="si">:</span><span class="s2">,.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+    <span class="p">]</span>
+    
+    <span class="n">totals_table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">totals_data</span><span class="p">,</span> <span class="n">colWidths</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">inch</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">inch</span><span class="p">])</span>
+    <span class="n">totals_table</span><span class="o">.</span><span class="n">setStyle</span><span class="p">(</span><span class="n">TableStyle</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;RIGHT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;ALIGN&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;RIGHT&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTNAME&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;Helvetica-Bold&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;FONTSIZE&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;BACKGROUND&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">colors</span><span class="o">.</span><span class="n">HexColor</span><span class="p">(</span><span class="s1">&#39;#dbeafe&#39;</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s1">&#39;GRID&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">colors</span><span class="o">.</span><span class="n">grey</span><span class="p">),</span>
+    <span class="p">]))</span>
+    <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">totals_table</span><span class="p">)</span>
+    
+    <span class="c1"># Notes</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">notes</span><span class="p">:</span>
+        <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.3</span><span class="o">*</span><span class="n">inch</span><span class="p">))</span>
+        <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Paragraph</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&lt;b&gt;Notes:&lt;/b&gt; </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">notes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">styles</span><span class="p">[</span><span class="s1">&#39;Normal&#39;</span><span class="p">]))</span>
+    
+    <span class="c1"># Payment information</span>
+    <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">payment_method</span><span class="p">:</span>
+        <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Spacer</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.2</span><span class="o">*</span><span class="n">inch</span><span class="p">))</span>
+        <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Paragraph</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;&lt;b&gt;Payment Method:&lt;/b&gt; </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">payment_method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">styles</span><span class="p">[</span><span class="s1">&#39;Normal&#39;</span><span class="p">]</span>
+        <span class="p">))</span>
+        <span class="k">if</span> <span class="n">invoice</span><span class="o">.</span><span class="n">payment_reference</span><span class="p">:</span>
+            <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Paragraph</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&lt;b&gt;Payment Reference:&lt;/b&gt; </span><span class="si">{</span><span class="n">invoice</span><span class="o">.</span><span class="n">payment_reference</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">styles</span><span class="p">[</span><span class="s1">&#39;Normal&#39;</span><span class="p">]</span>
+            <span class="p">))</span>
+    
+    <span class="c1"># Build PDF</span>
+    <span class="n">doc</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+    <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">buffer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">PathyCode Internal Business System</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/index.html">PathyCode Internal Business System</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, PathyCode.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

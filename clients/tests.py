@@ -17,10 +17,9 @@ class ProjectCompletionAutomationTests(TestCase):
             email="client@example.com",
             password="password",
         )
-        self.client_profile = Client.objects.create(
-            user=self.user,
-            name="ClientCo",
-        )
+        self.client_profile = Client.objects.get(user=self.user)
+        self.client_profile.name = "ClientCo"
+        self.client_profile.save()
         self.quote = Quote.objects.create(
             client=self.client_profile,
             client_name="Client Name",

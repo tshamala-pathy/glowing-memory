@@ -12,6 +12,7 @@ from django.http import HttpResponse
 from PathyCodeback.permissions import IsSuperuser
 from .models import Quote
 from .serializers import QuoteSerializer
+from users.activity import log_activity
 from .utils import generate_quote_pdf
 import logging
 import csv
@@ -20,89 +21,26 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-def _auto_create_invoice_for_quote(quote, created_by=None):
-    """
-    Automatically create a draft invoice for an approved quote.
-
-    This function is idempotent and safe to call multiple times. It only creates
-    a new invoice when the quote is in the ``approved`` state and no invoice
-    exists yet. After successful invoice creation it attempts to move the quote
-    status to ``invoiced``, but failures there are logged and do not abort the
-    overall approval flow.
-
-    Args:
-        quote (Quote): Quote instance that has just been approved.
-        created_by (User | None): Admin user responsible for the invoice, used
-            to populate ``Invoice.created_by``. Optional.
-
-    Returns:
-        Invoice | None: The created invoice instance, or ``None`` if no invoice
-        was created (for example because the quote was not approved or an
-        invoice already exists).
-    """
-    try:
-        from invoices.models import Invoice
-
-        # Only run when quote is approved
-        if quote.status != 'approved':
-            return None
-
-        # Idempotency: do nothing if an invoice already exists
-        if Invoice.objects.filter(quote=quote).exists():
-            return None
-
-        # Create draft invoice; Invoice.save() will copy items, totals, and client
-        invoice = Invoice(
-            quote=quote,
-            status='draft',
-            created_by=created_by,
-        )
-        invoice.save()
-
-        # Move quote to "invoiced" after successful invoice creation
-        try:
-            from .models import Quote as QuoteModel
-
-            QuoteModel.validate_status_transition(quote.status, 'invoiced')
-            quote.status = 'invoiced'
-            quote.save(update_fields=['status'])
-        except Exception as e:
-            logger.warning(
-                "Auto-create invoice: failed to set quote %s status to 'invoiced': %s",
-                getattr(quote, "id", None),
-                e,
-                exc_info=True,
-            )
-        return invoice
-    except Exception as e:
-        logger.warning(
-            "Auto-create invoice for quote %s failed: %s",
-            getattr(quote, "id", None),
-            e,
-            exc_info=True,
-        )
-        return None
-
-
 def get_quote_payment_url(quote):
     """
-    Build a payment URL for a quote.
+    Build payment page URL for an approved quote.
 
-    The URL is used by the frontend to redirect the client from the quote
-    approval step to the payment experience.
+    After client approves a quote they are redirected to the Payment page
+    at /payment/{quote_id} to complete payment. Invoice and Project are
+    created only after successful payment.
 
     Args:
         quote (Quote): Quote instance for which a payment link is needed.
 
     Returns:
-        str: Absolute URL using ``settings.FRONTEND_URL`` if configured,
-        otherwise a relative ``/portal`` path with the quote id as a query
-        parameter.
+        str: Absolute URL to payment page if FRONTEND_URL is set,
+        otherwise relative path /payment/{quote.id}.
     """
     base = getattr(settings, 'FRONTEND_URL', '').strip().rstrip('/')
+    path = f"/payment/{quote.id}"
     if base:
-        return f"{base}/portal?quote={quote.id}"
-    return f"/portal?quote={quote.id}"
+        return f"{base}{path}"
+    return path
 
 
 def send_quote_confirmation_email(quote):
@@ -324,6 +262,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
             if profile:
                 quote.client = profile
                 quote.save(update_fields=['client'])
+            log_activity(request.user, 'quote_submitted', object_type='quote', object_id=quote.id, details=quote.project_title)
         
         # Send emails
         send_quote_confirmation_email(quote)
@@ -361,45 +300,57 @@ class QuoteViewSet(viewsets.ModelViewSet):
         admin_response = request.data.get('admin_response', instance.admin_response)
         quote = serializer.save()
 
+        # When admin sets status to reviewed, set responded_at and payment_url (for post-approval redirect)
+        if new_status == 'reviewed' and admin_response and old_status != 'reviewed':
+            quote.responded_at = timezone.now()
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['responded_at', 'payment_url'])
+            send_quote_response_email(quote)
+            log_activity(request.user, 'quote_reviewed', object_type='quote', object_id=quote.id, details=quote.project_title)
+        # Legacy: same for 'replied' for existing data
         if new_status == 'replied' and admin_response and old_status != 'replied':
             quote.responded_at = timezone.now()
             quote.payment_url = get_quote_payment_url(quote)
             quote.save(update_fields=['responded_at', 'payment_url'])
             send_quote_response_email(quote)
+            log_activity(request.user, 'quote_reviewed', object_type='quote', object_id=quote.id, details=quote.project_title)
 
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def send_response(self, request, pk=None):
         """
-        Manually trigger sending of admin response email to client (admin only).
-        Enforces pending → replied. Requires admin_response to be set.
+        Send admin response to client (admin only). Sets status to 'reviewed'.
+        Requires proposed price (estimated_amount) and admin_response. Client then
+        sees the response in Client Portal and can Approve or Decline.
         """
         quote = self.get_object()
         if not quote.admin_response:
             return Response(
-                {'error': 'Admin response must be set before sending email.'},
+                {'error': 'Admin notes (admin_response) must be set before sending.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            Quote.validate_status_transition(quote.status, 'replied')
+            Quote.validate_status_transition(quote.status, 'reviewed')
         except Exception as e:
             if hasattr(e, 'message_dict'):
                 return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
 
         send_quote_response_email(quote)
-        if quote.status != 'replied':
-            quote.status = 'replied'
+        log_activity(request.user, 'quote_reviewed', object_type='quote', object_id=quote.id, details=quote.project_title)
+        if quote.status != 'reviewed':
+            quote.status = 'reviewed'
+            quote.responded_at = timezone.now()
             quote.payment_url = get_quote_payment_url(quote)
-            quote.save(update_fields=['status', 'payment_url'])
+            quote.save(update_fields=['status', 'responded_at', 'payment_url'])
         elif not quote.payment_url:
             quote.payment_url = get_quote_payment_url(quote)
             quote.save(update_fields=['payment_url'])
 
         serializer = self.get_serializer(quote)
         return Response({
-            'message': 'Response email sent successfully.',
+            'message': 'Response sent successfully. Client can now view and approve/decline in their portal.',
             'quote': serializer.data
         })
     
@@ -421,7 +372,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
                 {'decision': ['Must be "approve" or "decline".']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Client can only approve/decline from 'replied'
+        # Client can only approve/decline from 'reviewed' (or legacy 'replied')
         try:
             Quote.validate_status_transition(quote.status, 'approved' if decision == 'approve' else 'declined')
         except Exception as e:
@@ -436,20 +387,22 @@ class QuoteViewSet(viewsets.ModelViewSet):
             quote.approved_at = now
             quote.assigned_to = request.user
             quote.save(update_fields=['status', 'client_decision_at', 'approved_at', 'assigned_to'])
-            # Ensure payment_url exists so frontend can redirect to payment (set when admin replied; fallback here)
+            log_activity(request.user, 'quote_approved', object_type='quote', object_id=quote.id, details=quote.project_title)
+            # Payment URL for redirect to /payment/{quote_id}; Invoice is created only after payment success
             if not quote.payment_url:
                 quote.payment_url = get_quote_payment_url(quote)
                 quote.save(update_fields=['payment_url'])
-            _auto_create_invoice_for_quote(quote, created_by=request.user)
+            # Do NOT create invoice here — invoice is created automatically after successful payment
         else:
             quote.status = 'declined'
             quote.save(update_fields=['status', 'client_decision_at'])
+            log_activity(request.user, 'quote_declined', object_type='quote', object_id=quote.id, details=quote.project_title)
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """Approve a quote (admin only). Enforces replied → approved and auto-creates invoice."""
+        """Approve a quote (admin only). Enforces reviewed/replied → approved. Invoice is created after client pays."""
         quote = self.get_object()
         try:
             Quote.validate_status_transition(quote.status, 'approved')
@@ -461,10 +414,11 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote.approved_at = timezone.now()
         quote.client_decision_at = timezone.now()
         quote.assigned_to = request.user
-        quote.save(update_fields=['status', 'approved_at', 'client_decision_at', 'assigned_to'])
-
-        # Auto-create draft invoice and move quote to "invoiced" if possible
-        _auto_create_invoice_for_quote(quote, created_by=request.user)
+        if not quote.payment_url:
+            quote.payment_url = get_quote_payment_url(quote)
+        quote.save(update_fields=['status', 'approved_at', 'client_decision_at', 'assigned_to', 'payment_url'])
+        log_activity(request.user, 'quote_approved', object_type='quote', object_id=quote.id, details=f'{quote.project_title} (admin)')
+        # Invoice is created automatically when client completes payment at /payment/{quote_id}
 
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
@@ -482,6 +436,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
         quote.status = 'declined'
         quote.client_decision_at = timezone.now()
         quote.save(update_fields=['status', 'client_decision_at'])
+        log_activity(request.user, 'quote_declined', object_type='quote', object_id=quote.id, details=f'{quote.project_title} (admin)')
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 

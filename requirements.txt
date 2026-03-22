@@ -1,3 +1,4 @@
+# Core
 asgiref==3.8.1
 Django==5.2.3
 djangorestframework==3.16.0
@@ -12,6 +13,10 @@ sqlparse==0.5.3
 tzdata==2025.2
 gunicorn
 reportlab==4.2.5
+
+# PayFast: No extra package required. Uses standard library (hashlib, urllib).
+# Features: redirect flow, ITN callback, signature verification (PAYFAST_PASSPHRASE),
+# simulate-itn for local dev. See payments/README.md and PathyCodeback/settings.py.
 
 # Documentation
 Sphinx>=7.0.0

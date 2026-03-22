@@ -19,8 +19,10 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 if os.environ.get('DJANGO_DEBUG_PATHS', '').lower() == 'true':
-    print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
-    print(f"[DEBUG] MEDIA_ROOT will be: {BASE_DIR / 'media'}")
+    import logging
+    logging.getLogger(__name__).info(
+        "[DEBUG] BASE_DIR: %s, MEDIA_ROOT: %s", BASE_DIR, BASE_DIR / 'media'
+    )
 
 
 # Quick-start development settings - unsuitable for production
@@ -59,6 +61,8 @@ INSTALLED_APPS = [
     'quotes',  # Quotes/Estimates app
     'invoices',  # Invoices app
     'clients',  # Clients and case studies app
+    'messaging',  # Internal messaging (threads per project)
+    'payments',  # Payments and Stripe integration
 ]
 
 MIDDLEWARE = [
@@ -239,3 +243,25 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 # Base URL for API/media when building absolute URLs (e.g. in serializers when request is missing)
 # Used so the frontend receives absolute media URLs even from scripts/celery.
 PROJECT_BASE_URL = config('PROJECT_BASE_URL', default='http://localhost:8000')
+
+# PayFast configuration (sandbox defaults; replace with real values in production)
+# NOTE: PAYFAST_NOTIFY_URL must be publicly reachable. PayFast sends ITN (Instant Transaction
+# Notification) from their servers. For local dev, use ngrok: run `ngrok http 8000` and set
+# PROJECT_BASE_URL to the ngrok URL (e.g. https://abc123.ngrok-free.app).
+PAYFAST_MERCHANT_ID = config("PAYFAST_MERCHANT_ID", default="10000100")
+PAYFAST_MERCHANT_KEY = config("PAYFAST_MERCHANT_KEY", default="46f0cd694581a")
+PAYFAST_RETURN_URL = config(
+    "PAYFAST_RETURN_URL", default=f"{PROJECT_BASE_URL}/payments/success/"
+)
+PAYFAST_CANCEL_URL = config(
+    "PAYFAST_CANCEL_URL", default=f"{PROJECT_BASE_URL}/payments/cancel/"
+)
+PAYFAST_NOTIFY_URL = config(
+    "PAYFAST_NOTIFY_URL", default=f"{PROJECT_BASE_URL}/payments/notify/"
+)
+PAYFAST_SANDBOX_URL = config(
+    "PAYFAST_SANDBOX_URL", default="https://sandbox.payfast.co.za/eng/process"
+)
+# Passphrase for ITN signature verification (set in PayFast merchant settings). Empty = skip verification.
+PAYFAST_PASSPHRASE = config("PAYFAST_PASSPHRASE", default="")
+

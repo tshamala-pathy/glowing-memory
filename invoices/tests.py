@@ -19,7 +19,9 @@ class InvoiceModelTests(TestCase):
         self.user = User.objects.create_user(
             username="admin", email="admin@example.com", password="password"
         )
-        self.client_profile = Client.objects.create(user=self.user, name="ACME Corp")
+        self.client_profile = Client.objects.get(user=self.user)
+        self.client_profile.name = "ACME Corp"
+        self.client_profile.save()
         self.quote = Quote.objects.create(
             client=self.client_profile,
             client_name="John Doe",
@@ -46,10 +48,9 @@ class InvoiceModelTests(TestCase):
         self.assertEqual(invoice.amount_paid, Decimal("0.00"))
         self.assertEqual(invoice.amount_due, invoice.total_amount)
         self.assertIsNotNone(invoice.due_date)
-        self.assertEqual(
-            (invoice.due_date - invoice.issue_date).days,
-            30,
-        )
+        issue = invoice.issue_date.date() if hasattr(invoice.issue_date, 'date') else invoice.issue_date
+        due = invoice.due_date.date() if hasattr(invoice.due_date, 'date') else invoice.due_date
+        self.assertEqual((due - issue).days, 30)
 
     def test_invoice_overdue_status_set_when_due_past_and_unpaid(self):
         invoice = Invoice.objects.create(
@@ -73,7 +74,9 @@ class InvoiceWorkflowTests(TestCase):
             email="admin@example.com",
             password="password",
         )
-        self.client_profile = Client.objects.create(user=self.admin, name="Client Ltd")
+        self.client_profile = Client.objects.get(user=self.admin)
+        self.client_profile.name = "Client Ltd"
+        self.client_profile.save()
         self.quote = Quote.objects.create(
             client=self.client_profile,
             client_name="Client User",
@@ -110,7 +113,7 @@ class InvoiceWorkflowTests(TestCase):
         project = Project.objects.get(invoice=self.invoice)
         self.assertEqual(project.client, self.client_profile)
         self.assertEqual(project.quote, self.quote)
-        self.assertEqual(project.status, "in_progress")
+        self.assertEqual(project.status, "planning")
 
 
 class FinancialDashboardTests(TestCase):
@@ -120,9 +123,9 @@ class FinancialDashboardTests(TestCase):
             email="dash@example.com",
             password="password",
         )
-        self.client_profile = Client.objects.create(
-            user=self.admin, name="Dashboard Client"
-        )
+        self.client_profile = Client.objects.get(user=self.admin)
+        self.client_profile.name = "Dashboard Client"
+        self.client_profile.save()
 
         today = timezone.now().date()
         # Current month paid invoice
@@ -215,14 +218,14 @@ class FinancialDashboardTests(TestCase):
         overdue_invoice.calculate_totals()
         overdue_invoice.save()
 
-        # Active and completed projects
+        # Active and completed projects (clients.Project uses planning, design, development, testing, completed)
         Project.objects.create(
             name="Active Project",
             description="Desc",
             client=self.client_profile,
             quote=self.paid_invoice_current.quote,
             invoice=self.paid_invoice_current,
-            status="in_progress",
+            status="development",
         )
         Project.objects.create(
             name="Completed Project",
@@ -278,5 +281,5 @@ class FinancialDashboardTests(TestCase):
         self.assertGreater(data["unpaid_invoices_total"], 0.0)
         self.assertGreater(data["overdue_invoices_total"], 0.0)
 
-        # Active projects count (pending + in_progress)
+        # Active projects count (all except completed)
         self.assertEqual(data["active_projects_count"], 1)

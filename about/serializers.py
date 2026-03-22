@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import AboutUs, Value
+from .models import AboutUs, Value, Solution
+
+
+class SolutionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Solution
+        fields = ['id', 'about_us', 'title', 'description', 'icon', 'order']
+
 
 class ValueSerializer(serializers.ModelSerializer):
     """
@@ -11,9 +18,10 @@ class ValueSerializer(serializers.ModelSerializer):
 
 class AboutUsSerializer(serializers.ModelSerializer):
     """
-    Serializer for About Us model. Includes related values and absolute image URL.
+    Serializer for About Us model. Includes related values, solutions, and absolute image URL.
     """
     values = ValueSerializer(many=True, read_only=True)
+    solutions = SolutionSerializer(many=True, read_only=True)
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -24,7 +32,7 @@ class AboutUsSerializer(serializers.ModelSerializer):
             'mission_title', 'mission_content',
             'vision_title', 'vision_content',
             'why_choose_us_title', 'why_choose_us_content',
-            'image', 'values', 'created_at', 'updated_at'
+            'image', 'values', 'solutions', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 

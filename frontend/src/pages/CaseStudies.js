@@ -21,7 +21,6 @@ const CaseStudies = () => {
       setCaseStudies(publicCaseStudies);
       setError('');
     } catch (error) {
-      console.error('Error fetching case studies:', error);
       if (error.isNetworkError) {
         setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
       } else {

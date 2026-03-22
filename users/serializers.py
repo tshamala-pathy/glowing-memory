@@ -1,7 +1,9 @@
+import logging
 from rest_framework import serializers
-from .models import CustomUser
+from .models import CustomUser, Notification, ActivityLog
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
+
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -9,6 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 # ================================
 # Serializer for User Registration
@@ -76,10 +79,73 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for retrieving user profile information.
     """
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomUser
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login')
-        read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'avatar', 'avatar_url', 'email_verified', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login')
+        read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login', 'email_verified')
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.avatar.url)
+        return obj.avatar.url
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for authenticated user profile update (first name, last name, bio, avatar).
+    """
+    class Meta:
+        model = CustomUser
+        fields = ('first_name', 'last_name', 'bio', 'avatar')
+        extra_kwargs = {
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
+            'bio': {'required': False, 'allow_blank': True},
+            'avatar': {'required': False, 'allow_null': True},
+        }
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Change password: requires current password, new password, and confirmation."""
+    current_password = serializers.CharField(required=True, write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(required=True, write_only=True, validators=[validate_password])
+    confirm_new_password = serializers.CharField(required=True, write_only=True, trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        user = self.context.get('request').user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Current password is incorrect.')
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_new_password']:
+            raise serializers.ValidationError({'confirm_new_password': ['New password and confirmation do not match.']})
+        return attrs
+
+
+class ChangeEmailSerializer(serializers.Serializer):
+    """Change email: requires password and new email (validated for uniqueness)."""
+    new_email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True, trim_whitespace=False)
+
+    def validate_new_email(self, value):
+        user = self.context.get('request').user
+        if value.lower() == user.email.lower():
+            raise serializers.ValidationError('New email is the same as your current email.')
+        if CustomUser.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return value.lower()
+
+    def validate_password(self, value):
+        user = self.context.get('request').user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Password is incorrect.')
+        return value
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -139,6 +205,44 @@ class AdminUserSerializer(serializers.ModelSerializer):
         return instance
 
 
+class NotificationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for in-app notifications.
+    """
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'link', 'is_read', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for activity log entries.
+    """
+    action_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ActivityLog
+        fields = ['id', 'action', 'action_display', 'timestamp', 'object_type', 'object_id', 'details']
+        read_only_fields = ['id', 'timestamp']
+
+    def get_action_display(self, obj):
+        labels = {
+            'login': 'Signed in',
+            'logout': 'Signed out',
+            'register': 'Account created',
+            'profile_update': 'Profile updated',
+            'password_change': 'Password changed',
+            'email_change': 'Email changed',
+            'quote_submitted': 'Quote request submitted',
+            'quote_approved': 'Quote approved',
+            'quote_declined': 'Quote declined',
+            'quote_reviewed': 'Quote reviewed by admin',
+            'project_created': 'Project created',
+        }
+        return labels.get(obj.action, obj.action.replace('_', ' ').title())
+
+
 # ================================
 # Custom Token Serializer for Email-based Login
 # ================================
@@ -148,7 +252,7 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
     Custom token serializer that allows login with email instead of username.
     """
     email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True, trim_whitespace=False)
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
 
@@ -170,8 +274,19 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'email': ['No active account found with the given credentials.']}
             )
-        
-        if not user.check_password(password):
+
+        # Registration stores the trimmed password (CharField trim_whitespace=True).
+        # Use stripped value for check so login matches.
+        password_to_check = password.strip() if password else ''
+
+        _check_ok = user.check_password(password_to_check)
+        _usable = getattr(user, 'has_usable_password', lambda: True)()
+
+        if not _check_ok:
+            if not _usable:
+                raise serializers.ValidationError(
+                    {'password': ['This account has no password set. Please use “Forgot password” to set one.']}
+                )
             raise serializers.ValidationError(
                 {'password': ['Invalid password.']}
             )
@@ -260,10 +375,9 @@ PathyCode Team
                 fail_silently=False,
             )
         except Exception as e:
-            # Log error but don't reveal to user
-            print(f"Error sending password reset email: {e}")
+            logger.exception("Error sending password reset email")
         
-        return {'message': 'If an account exists with this email, a password reset link has been sent.'}
+        return {'message': 'If an account exists with this email, a password reset link has been sent.', 'user': user}
 
 
 class ResetPasswordSerializer(serializers.Serializer):

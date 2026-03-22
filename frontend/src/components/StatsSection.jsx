@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Rocket, Users, Briefcase, Headphones } from "lucide-react"; // make sure lucide-react is installed
+import { Rocket, Users, Briefcase, Headphones } from "lucide-react";
 
 const StatCard = ({ icon: Icon, value, label, suffix = "" }) => {
   const [count, setCount] = useState(0);

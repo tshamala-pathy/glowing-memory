@@ -1,0 +1,170 @@
+/**
+ * Internal messaging: list threads (conversations per project).
+ * Click a thread to open the chat view (same page with thread detail).
+ */
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
+import api from '../services/api';
+import { formatDateTime } from '../utils/formatters';
+
+const Messages = () => {
+  const { isAuthenticated } = useAuth();
+  const [threads, setThreads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    const fetchThreads = async () => {
+      try {
+        const res = await api.get('/messaging/threads/');
+        let data = res.data?.results ?? res.data ?? [];
+        data = Array.isArray(data) ? data : [];
+        // Ensure a thread exists for each of the user's projects (create if missing)
+        try {
+          const projectsRes = await api.get('/clients/projects/my_projects/');
+          const projects = projectsRes.data?.results ?? projectsRes.data ?? [];
+          const projectIds = (Array.isArray(projects) ? projects : []).map((p) => p.id);
+          const threadProjectIds = new Set(data.map((t) => t.project_id ?? t.project));
+          for (const pid of projectIds) {
+            if (threadProjectIds.has(pid)) continue;
+            const createRes = await api.post('/messaging/threads/', { project: pid });
+            const newThread = createRes.data;
+            if (newThread) {
+              data = [newThread, ...data];
+              threadProjectIds.add(newThread.project_id ?? newThread.project);
+            }
+          }
+        } catch (_) {
+          // ignore: my_projects or create may fail
+        }
+        setThreads(data);
+        setError('');
+      } catch (err) {
+        setError('Failed to load conversations.');
+        setThreads([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchThreads();
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-slate-900/70 border border-slate-700 rounded-2xl p-8 shadow-2xl backdrop-blur">
+          <h1 className="text-2xl font-bold text-white mb-2 text-center">Sign in to view messages</h1>
+          <p className="text-slate-300 mb-6 text-center text-sm">
+            Your secure conversations with the team live here. Please log in to access them.
+          </p>
+          <div className="flex justify-center">
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition-colors"
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center px-4">
+        <div className="flex flex-col items-center text-slate-200">
+          <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-sm font-medium tracking-wide">Loading your conversations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-blue-400/80 mb-1">
+              Messaging
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white">Messages</h1>
+            <p className="text-sm text-slate-300 mt-2">
+              One conversation per project. Chat with the team, share files, and keep everything in one place.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-300/80 bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Secure, private client portal messaging</span>
+          </div>
+        </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg">{error}</div>
+        )}
+        {threads.length === 0 ? (
+          <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-10 text-center">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-12 -left-16 w-52 h-52 bg-violet-500/10 rounded-full blur-3xl" />
+            <p className="text-slate-200 text-sm max-w-md mx-auto">
+              No conversations yet. Once a project is active, a dedicated thread with our team will appear here.
+            </p>
+            <Link
+              to="/my-projects"
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30"
+            >
+              View my projects
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {threads.map((t) => (
+              <Link
+                key={t.id}
+                to={`/messages/${t.id}`}
+                className="group relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/70 p-4 sm:p-5 flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-blue-500/70 transition-all"
+              >
+                <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute -top-16 -right-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl" />
+                  <div className="absolute -bottom-20 -left-10 w-44 h-44 bg-violet-500/10 rounded-full blur-3xl" />
+                </div>
+                <div className="relative">
+                  <h2 className="font-semibold text-slate-50 text-base sm:text-lg line-clamp-1">
+                    {t.project_name}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t.client_name}
+                  </p>
+                  {t.last_message_preview && (
+                    <p className="text-sm text-slate-200/90 mt-2 line-clamp-2">
+                      {t.last_message_preview}
+                    </p>
+                  )}
+                </div>
+                <div className="relative flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="inline-flex h-6 px-2 items-center justify-center rounded-full bg-slate-800/80 border border-slate-700 text-[11px] font-medium">
+                      {formatDateTime(t.last_message_at)}
+                    </span>
+                  </div>
+                  {t.message_count > 0 && (
+                    <span className="inline-flex items-center justify-center rounded-full bg-blue-500/15 text-blue-200 text-xs font-semibold px-2.5 py-1 border border-blue-500/40">
+                      {t.message_count} msg{t.message_count !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Messages;

@@ -1,75 +1,87 @@
-# Quote → Payment → Project Workflow
+# Quote → Payment → Invoice → Project Workflow
 
-## Overall goal
-
-The program implements this **exact loop** with strict permission checks:
-
-1. **Client submits quote**
-2. **Admin replies**
-3. **Client approves**
-4. **Redirect to payment**
-5. **Payment confirmed**
-6. **Invoice created** (created automatically when client approves, so there is an invoice to pay)
-7. **Invoice marked paid**
-8. **Project created and linked to client**
-
-Clients never access other clients’ data; admin has full control. See [PERMISSIONS.md](PERMISSIONS.md).
+SaaS-style business flow: client requests a quote, admin reviews and replies, client approves or declines, then pays; invoice and project are created automatically.
 
 ---
 
-## Flow (implementation)
+## Flow overview
 
 ```
-Client submits quote
-        ⬇
-    Admin replies (status → replied, payment_url set)
-        ⬇
-Client sees reply in Profile / Portal → clicks Approve
-        ⬇
-   Invoice created (Draft, auto) — backend on approve
-        ⬇
-  Redirect to payment (payment_url; fallback set on approve if missing)
-        ⬇
-   Payment confirmed (external gateway or manual)
-        ⬇
-   Invoice marked paid (POST /api/invoices/<id>/mark_paid/)
-        ⬇
-  Project created and linked to client (signal on invoice Paid)
+1. Client submits quote request          → status = pending
+2. Admin reviews and replies              → proposed_price, admin_notes, estimated_delivery_time; status = reviewed
+3. Client sees reply in Client Portal     → My Quotes (admin response, price, notes)
+4. Client approves or declines            → Approve → status = approved, redirect to Payment page
+                                          → Decline → status = declined, workflow ends
+5. Client completes payment               → /payment/{quote_id}; only if quote.status == approved
+6. Payment recorded                       → Payment (paid), then Invoice created automatically (status = paid)
+7. Invoice paid                           → clients.signals creates Project (status = planning, start_date set)
+8. Client sees                            → My Invoices, My Projects (Client Portal + Admin Dashboard)
 ```
 
----
-
-## Implementation Map
-
-| Step | Where it happens |
-|------|------------------|
-| **1. Client submits quote** | Public or profile: **POST /api/quotes/** (`quotes/views.py` – `QuoteViewSet.create`). Status set to `pending`. |
-| **2. Admin replies** | Admin: set `admin_response`, set status to `replied`, set `responded_at` and `payment_url` (`quotes/views.py` – update / `send_response`; `quotes/admin.py`). |
-| **3. Quote status = replied** | Stored on `Quote.status`; `payment_url` set when admin marks as replied (`get_quote_payment_url` in `quotes/views.py`). |
-| **4. Client sees reply in profile** | **GET /api/profile/** returns client’s quotes with `admin_response`, `status`, `payment_url` (`users/views.py` – `ProfileAggregateView`; `ProfileQuoteSerializer`). Profile page shows reply and Approve/Decline for `replied` quotes. |
-| **5. Client clicks Approve** | Profile: **POST /api/quotes/<id>/decision/** with `{ "decision": "approve" }` (`quotes/views.py` – `decision`). Owner-only via `get_queryset`. |
-| **6. Redirect to payment** | Frontend uses `payment_url` from decision response; `window.location.href = payment_url` (`frontend/src/pages/Profile.js` – `handleQuoteApprove`). If no `payment_url`, shows “No payment link available”. |
-| **7. Invoice created** | On approve, backend calls `_auto_create_invoice_for_quote(quote)` in `quotes/views.py` (inside `decision`). Invoice is created with status `Draft`; details copied from quote (`invoices/models.py` – `_populate_from_quote`). |
-| **8. Invoice paid** | After successful payment: admin calls **POST /api/invoices/<id>/mark_paid/** (superuser only). A payment gateway webhook can call the same logic to mark paid without manual admin action. |
-| **9. Project starts** | When an invoice’s status changes to `Paid`, signal `create_project_on_invoice_paid` in `clients/signals.py` automatically creates a **Project** linked to the invoice’s quote and client. Client sees it under Profile/Portal “My Projects”. |
+**Relationship chain:** `Client → Quotes → Payment → Invoice → Project`
 
 ---
 
-## Key endpoints (client-facing)
+## Quote statuses
 
-- **GET /api/profile/** – Quotes, invoices, projects for logged-in client.
-- **POST /api/quotes/** – Submit quote (public or authenticated).
-- **POST /api/quotes/<id>/decision/** – Approve or decline (owner only); returns `payment_url` on approve.
-- **GET /api/invoices/<id>/pdf/** – Download invoice PDF (own invoices only).
+| Status    | Who sets it | Next allowed |
+|-----------|-------------|--------------|
+| `pending` | System (on submit) | `reviewed` |
+| `reviewed`| Admin (after reply) | `approved`, `declined` |
+| `approved`| Client (approve) | — (client goes to payment) |
+| `declined`| Client (decline) | — |
 
-## Key endpoints (admin)
+Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kept for existing data.
 
-- **PATCH /api/quotes/<id>/** – Update quote, set `admin_response`, set status to `replied` (and thus `payment_url`). Superuser only.
-- **POST /api/quotes/<id>/send_response/** – Send reply email and set replied + `payment_url`. Superuser only.
-- **POST /api/invoices/<id>/mark_paid/** – Mark invoice paid (triggers project creation). Superuser only. Can be called from a payment gateway webhook with a service account.
+---
 
-## Architecture notes
+## Implementation map
 
-- **Permission checks:** Queries are scoped by `get_queryset()` so clients only see their own quotes/invoices; admin has full access. See [PERMISSIONS.md](PERMISSIONS.md).
-- **Invoice on approve:** The invoice is created when the client approves (status Draft) so there is a concrete invoice to pay; when that invoice is marked paid, the project is created automatically.
-- **Clean separation:** Quotes (quotes app), Invoices (invoices app), Projects (clients app); signal in `clients/signals.py` couples invoice paid → project creation without circular imports.
+| Step | Where |
+|------|--------|
+| **1. Client submits quote** | `POST /api/quotes/` (public or authenticated). Status = `pending`. |
+| **2. Admin replies** | Admin: set `estimated_amount`, `admin_response`, `estimated_delivery_time`, then `POST /api/quotes/<id>/send_response/` or set status to `reviewed` in admin. `payment_url` set to `/payment/{id}`. |
+| **3. Client sees reply** | `GET /api/profile/` returns quotes with `admin_response`, `total_price`, `estimated_delivery_time`, `status`. Client Portal shows Approve/Decline for `reviewed` or `replied`. |
+| **4. Client approves/declines** | `POST /api/quotes/<id>/decision/` with `{ "decision": "approve" }` or `"decline"`. Owner-only. On approve, frontend redirects to `/payment/{quote_id}`. |
+| **5. Payment page** | Frontend `/payment/:quoteId`. `GET /api/payment/quote/<id>/` returns amount and eligibility (quote must be `approved`, user must be quote owner). |
+| **6. Record payment** | PayFast flow: `POST /api/payment/quote/<id>/start-pay/` creates `Payment` (pending), returns `redirect_url`. User pays on PayFast. PayFast ITN (`POST /payments/notify/`) or local-dev `simulate_itn` creates Invoice (paid). |
+| **7. Project created** | `clients.signals.create_project_on_invoice_paid`: on invoice save with status `paid`, creates `Project` (client, quote, invoice, status=`planning`, start_date=today). |
+
+---
+
+## Key endpoints
+
+### Client-facing
+
+- `GET /api/profile/` — Quotes, invoices, projects for logged-in client.
+- `POST /api/quotes/` — Submit quote.
+- `POST /api/quotes/<id>/decision/` — Approve or decline (owner only). Returns quote with `payment_url` on approve.
+- `GET /api/payment/quote/<id>/` — Payment page data (amount, project title). Only if quote is approved and user is owner.
+- `POST /api/payment/quote/<id>/start-pay/` — Start PayFast payment; creates Payment (pending), returns redirect_url. After payment, PayFast ITN (`/payments/notify/`) or local-dev `/payments/simulate-itn/` creates Invoice (paid); Project created via signal.
+- `GET /api/invoices/<id>/pdf/` — Download invoice PDF (own only).
+
+### Admin
+
+- `PATCH /api/quotes/<id>/` — Update quote (e.g. set status to `reviewed`, add response fields). Superuser.
+- `POST /api/quotes/<id>/send_response/` — Send reply email and set status to `reviewed`. Superuser.
+- `POST /api/invoices/<id>/mark_paid/` — Mark invoice paid (e.g. manual or webhook). Triggers project creation. Superuser.
+- `GET /payments/simulate-itn/?quote_id=X&payment_id=Y` — Local dev only (DEBUG): simulate PayFast ITN when notify_url unreachable (localhost).
+- `GET /payments/cancel/?quote_id=X` — Cancel page; shows "Try again" link when quote_id present.
+
+---
+
+## Models
+
+- **Quote:** `client`, `service_type`, `project_title`, `project_description`, `estimated_budget`/`budget_range`, `timeline`, `status`; admin: `estimated_amount` (proposed price), `admin_response`, `estimated_delivery_time`.
+- **Payment (payments app):** `client`, `user`, `quote`, `amount`, `currency`, `payment_status`, `provider_reference`. Created on start-pay; updated by ITN. See payments/README.md.
+- **Invoice:** `invoice_number`, `client`, `quote`, `service` (from quote), `amount`, `status` (unpaid/paid), `issue_date`. Created when payment is completed.
+- **Project:** `client`, `quote`, `invoice`, `name`, `description`, `status` (default `planning`), `start_date`. Created when invoice becomes paid.
+
+---
+
+## Permissions
+
+- **Clients:** See only their own quotes, invoices, projects (by `client` or `client_email`).
+- **Admins:** Full access to all quotes, invoices, projects, payments.
+
+See [PERMISSIONS.md](PERMISSIONS.md) for details.

@@ -120,7 +120,7 @@ response back to the client.
 
       - Status moves from ``replied`` → ``approved``.
       - Timestamps and audit fields are updated.
-      - Helper ``_auto_create_invoice_for_quote`` may prepare a draft invoice.
+      - Client is redirected to payment; invoice and project are created when payment completes.
 
     - On decline:
 
@@ -192,25 +192,12 @@ failed.
 **Goal:** Create an invoice that formalises the financial agreement and is
 linked to the quote and client.
 
-- **Automatic creation from quotes**
+- **Automatic creation on payment**
 
-  - Helper function: ``_auto_create_invoice_for_quote`` in ``quotes.views``.
-  - Triggered when:
-
-    - A quote is approved by the client (``decision`` action).
-    - An admin explicitly approves a quote (``approve`` action).
-
-  - It:
-
-    - Checks that the quote is approved.
-    - Finds or creates a draft ``invoices.Invoice`` associated with the quote.
-    - Calls model methods to copy:
-
-      - Client details.
-      - Project summary.
-      - A default line item based on ``estimated_amount``.
-
-    - Attempts to move quote status to ``invoiced``.
+  - Invoice and Project are created when payment is confirmed (PayFast ITN,
+    simulate_itn, or ``PaymentQuoteView.post`` for direct payment recording).
+  - The ``clients.signals.create_project_on_invoice_paid`` signal creates the
+    Project when an invoice transitions to ``paid``.
 
 - **Manual editing**
 
