@@ -2,6 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 
+/**
+ * Stock photos (Unsplash) paired with each section theme. Replace URLs if you host your own assets.
+ */
+const SECTION_IMAGES = {
+  hero: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2400&q=80',
+  story: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1600&q=80',
+  problems: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=2000&q=80',
+  services: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=2000&q=80',
+  mission: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80',
+  vision: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80',
+  values: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=2000&q=80',
+  howWeWork: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=2000&q=80',
+  whyUs: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=2000&q=80',
+  tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2000&q=80',
+  stats: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80',
+  founder: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80',
+  cta: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=2400&q=80',
+};
+
+const defaultHeroTitle = 'About PathyCode';
+const defaultHeroSubtitle =
+  'We are passionate about creating innovative solutions and delivering exceptional results.';
+
 const defaultSolutions = [
   { title: 'Outdated or Fragile Systems', description: 'We modernize legacy applications and rebuild unreliable systems with clean architecture, automated tests, and maintainable code.' },
   { title: 'Scalability Bottlenecks', description: 'We design and implement scalable backends, APIs, and databases that grow with your business.' },
@@ -89,16 +112,29 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900 text-white">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.06%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-60" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6">
-            {aboutData.hero_title || 'About PathyCode'}
+      {/* Hero — full-bleed photo + gradient for readability */}
+      <section className="relative overflow-hidden text-white">
+        <div className="absolute inset-0">
+          <img
+            src={SECTION_IMAGES.hero}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+            aria-hidden
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-900/88 to-slate-950/95" />
+          <div
+            className="absolute inset-0 opacity-[0.12] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.06%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]"
+            aria-hidden
+          />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 text-center">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 drop-shadow-sm">
+            {aboutData.hero_title || defaultHeroTitle}
           </h1>
           <p className="text-lg md:text-xl text-slate-100 max-w-3xl mx-auto leading-relaxed">
-            {aboutData.hero_subtitle ||
-              'We build reliable, scalable software that solves real business problems.'}
+            {aboutData.hero_subtitle || defaultHeroSubtitle}
           </p>
         </div>
       </section>
@@ -115,26 +151,37 @@ const About = () => {
                 'PathyCode was founded with a vision to empower businesses through technology that actually works—clear, maintainable, and built to last.'}
             </p>
           </div>
-          {aboutData.image && (
+          <div className="relative overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200/80">
             <img
-              src={getMediaUrl(aboutData.image)}
-              alt="About PathyCode"
-              className="rounded-2xl shadow-xl w-full max-w-full h-auto object-cover"
+              src={aboutData.image ? getMediaUrl(aboutData.image) : SECTION_IMAGES.story}
+              alt="About PathyCode — our team and workspace"
+              className="w-full h-full min-h-[260px] sm:min-h-[320px] object-cover"
+              loading="lazy"
+              decoding="async"
             />
-          )}
+          </div>
         </div>
       </section>
 
       {/* Problems We Solve / Solutions */}
       <section className="py-20 lg:py-28 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
               Problems We Solve
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
               We help businesses overcome technical challenges and build solutions that scale.
             </p>
+          </div>
+          <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
+            <img
+              src={SECTION_IMAGES.problems}
+              alt="Planning and solving business challenges together"
+              className="h-48 w-full object-cover sm:h-56 md:h-64"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {solutions.map((item, i) => (
@@ -158,11 +205,20 @@ const About = () => {
       {/* What We Do */}
       <section className="py-16 sm:py-20 lg:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16">
+          <div className="text-center mb-10 sm:mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">What We Do</h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
               We build reliable, scalable, and well-crafted digital solutions.
             </p>
+          </div>
+          <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
+            <img
+              src={SECTION_IMAGES.services}
+              alt="Building software and digital products"
+              className="h-48 w-full object-cover sm:h-56 md:h-64"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {defaultServices.map((s, i) => (
@@ -196,9 +252,12 @@ const About = () => {
             <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
                 <img
-                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=80"
-                  alt="Mission"
+                  src={SECTION_IMAGES.mission}
+                  alt=""
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  aria-hidden
                 />
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90" />
               </div>
@@ -220,9 +279,12 @@ const About = () => {
             <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
                 <img
-                  src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80"
-                  alt="Vision"
+                  src={SECTION_IMAGES.vision}
+                  alt=""
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  aria-hidden
                 />
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90" />
               </div>
@@ -250,6 +312,15 @@ const About = () => {
       {aboutData.values && aboutData.values.length > 0 && (
         <section className="py-20 lg:py-28 bg-white">
           <div className="max-w-7xl mx-auto px-6">
+            <div className="max-w-5xl mx-auto mb-12 overflow-hidden rounded-2xl shadow-md ring-1 ring-slate-200/80">
+              <img
+                src={SECTION_IMAGES.values}
+                alt="Collaboration and shared values"
+                className="h-40 w-full object-cover sm:h-48"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">Our Values</h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -279,11 +350,20 @@ const About = () => {
       {/* How We Work */}
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">How We Work</h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
               A clear, structured approach from idea to delivery.
             </p>
+          </div>
+          <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
+            <img
+              src={SECTION_IMAGES.howWeWork}
+              alt="Discovery, design, build, and delivery"
+              className="h-44 w-full object-cover sm:h-52"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {['Discover & Plan', 'Design & Architecture', 'Build & Test', 'Deploy & Support'].map((step, i) => (
@@ -304,7 +384,7 @@ const About = () => {
       {/* Why Choose Us */}
       <section className="py-20 lg:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
               {aboutData.why_choose_us_title || 'Why Choose Us'}
             </h2>
@@ -312,6 +392,15 @@ const About = () => {
               {aboutData.why_choose_us_content ||
                 'We combine expertise, innovation, and dedication to deliver exceptional results.'}
             </p>
+          </div>
+          <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
+            <img
+              src={SECTION_IMAGES.whyUs}
+              alt="Partnership and successful collaboration"
+              className="h-44 w-full object-cover sm:h-52"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
@@ -334,8 +423,18 @@ const About = () => {
       </section>
 
       {/* Tech Stack */}
-      <section className="py-20 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-6 text-center">
+      <section className="relative overflow-hidden py-20 bg-slate-50">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.18]">
+          <img
+            src={SECTION_IMAGES.tech}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            aria-hidden
+          />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6">Technologies We Use</h2>
           <p className="text-slate-600 mb-12 max-w-xl mx-auto">
             Modern, proven, and scalable technologies.
@@ -354,8 +453,19 @@ const About = () => {
       </section>
 
       {/* Stats */}
-      <section className="py-20 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+      <section className="relative overflow-hidden py-20 text-white">
+        <div className="absolute inset-0">
+          <img
+            src={SECTION_IMAGES.stats}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            aria-hidden
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/94 via-slate-900/90 to-slate-950/94" />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
           {[
             { label: 'Projects Delivered', value: '10+' },
             { label: 'Client Commitment', value: '100%' },
@@ -373,20 +483,42 @@ const About = () => {
       {/* Founder */}
       <section className="py-20 lg:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-6">Meet the Founder</h2>
-          <div className="rounded-2xl bg-slate-50 border border-slate-200 p-8 lg:p-12">
-            <p className="text-lg text-slate-600 leading-relaxed">
-              <strong className="text-slate-800">Tshamala Pathy</strong> is a software engineer specializing in
-              backend development, APIs, and scalable web applications. He focuses on building clean,
-              maintainable, and reliable solutions that help businesses grow with confidence.
-            </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-10">Meet the Founder</h2>
+          <div className="grid gap-8 text-left sm:grid-cols-[minmax(0,220px)_1fr] sm:items-center sm:gap-10">
+            <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200/80 sm:mx-0">
+              <img
+                src={SECTION_IMAGES.founder}
+                alt="Tshamala Pathy"
+                className="aspect-[4/5] w-full object-cover object-top"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-8 lg:p-10">
+              <p className="text-lg text-slate-600 leading-relaxed">
+                <strong className="text-slate-800">Tshamala Pathy</strong> is a software engineer specializing in
+                backend development, APIs, and scalable web applications. He focuses on building clean,
+                maintainable, and reliable solutions that help businesses grow with confidence.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+      <section className="relative overflow-hidden py-24">
+        <div className="absolute inset-0">
+          <img
+            src={SECTION_IMAGES.cta}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            aria-hidden
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/93 via-slate-900/90 to-slate-950/93" />
+        </div>
+        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
             Ready to Work Together?
           </h2>

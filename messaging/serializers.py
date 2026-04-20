@@ -1,21 +1,34 @@
+"""
+Serializers for project-scoped messaging threads and chat messages.
+
+Nested thread detail returns messages with absolute attachment URLs when ``request``
+is present in serializer context (see :class:`MessageThreadDetailSerializer`).
+"""
 from rest_framework import serializers
 from .models import MessageThread, Message
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    """Single message with sender info and optional attachment URL. Handles null sender (e.g. admin-added)."""
+    """
+    One chat row: sender display fields, content, file metadata, and download/media URLs.
+
+    ``has_attachment`` lets the client show file UI even when URL shapes differ.
+    Thread detail uses ``MessageThreadDetailSerializer.get_messages`` with ``context=self.context``
+    so nested rows receive ``request`` for absolute media/download URLs.
+    """
     sender_email = serializers.SerializerMethodField()
     sender_name = serializers.SerializerMethodField()
     sender_role = serializers.SerializerMethodField()
     attachment_media_url = serializers.SerializerMethodField()
     attachment_url = serializers.SerializerMethodField()
     attachment_name = serializers.SerializerMethodField()
+    has_attachment = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = [
             'id', 'thread', 'sender', 'sender_email', 'sender_name', 'sender_role',
-            'content', 'attachment', 'attachment_media_url', 'attachment_url', 'attachment_name', 'created_at',
+            'content', 'attachment', 'has_attachment', 'attachment_media_url', 'attachment_url', 'attachment_name', 'created_at',
         ]
         read_only_fields = ['sender', 'created_at']
 
@@ -68,6 +81,10 @@ class MessageSerializer(serializers.ModelSerializer):
             return None
         return obj.attachment.name.split('/')[-1]
 
+    def get_has_attachment(self, obj):
+        """Whether a file is stored (not only placeholder content ``(attachment)``)."""
+        return bool(obj.attachment)
+
     def create(self, validated_data):
         validated_data['sender'] = self.context['request'].user
         return super().create(validated_data)
@@ -92,10 +109,16 @@ class MessageThreadSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
     def get_last_message_preview(self, obj):
+        """Snippet for inbox lists: prefer filename for attachments; map legacy ``(attachment)`` text."""
         last = obj.messages.order_by('-created_at').first()
         if not last:
             return None
+        if last.attachment:
+            name = last.attachment.name.split('/')[-1]
+            return f'📎 {name}' if name else '📎 Attachment'
         text = (last.content or '').strip()
+        if text == '(attachment)':
+            return '📎 Attachment'
         return (text[:80] + '...') if len(text) > 80 else text
 
     def get_last_message_at(self, obj):
@@ -107,8 +130,12 @@ class MessageThreadSerializer(serializers.ModelSerializer):
 
 
 class MessageThreadDetailSerializer(MessageThreadSerializer):
-    """Thread with full message history (timeline)."""
-    messages = MessageSerializer(many=True, read_only=True)
+    """Thread including ordered ``messages`` (timeline). Nested serializer receives parent ``context``."""
+    messages = serializers.SerializerMethodField()
 
     class Meta(MessageThreadSerializer.Meta):
         fields = MessageThreadSerializer.Meta.fields + ['messages']
+
+    def get_messages(self, obj):
+        qs = obj.messages.all().order_by('created_at')
+        return MessageSerializer(qs, many=True, context=self.context).data

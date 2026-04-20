@@ -1,3 +1,10 @@
+"""
+Client-domain models: business :class:`Client`, paid-work :class:`Project`, uploads
+:class:`ProjectFile`, admin :class:`Task`, and marketing :class:`CaseStudy`.
+
+Authentication uses ``AUTH_USER_MODEL``; :class:`Client` links to a user profile via
+``OneToOneField`` (see ``clients.signals``).
+"""
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError

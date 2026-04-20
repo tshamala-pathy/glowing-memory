@@ -29,11 +29,25 @@ const AdminMessagingThreads = () => {
     fetchProjects();
   }, [isAuthenticated, user, navigate]);
 
+  const threadProjectKey = (t) => {
+    const raw = t?.project_id ?? t?.project;
+    if (raw == null) return null;
+    if (typeof raw === 'object') return raw.id != null ? Number(raw.id) : null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const fetchThreads = async () => {
     try {
       const res = await api.get('/messaging/threads/');
-      const data = res.data?.results ?? res.data ?? [];
-      setThreads(Array.isArray(data) ? data : []);
+      let data = res.data?.results ?? res.data ?? [];
+      data = Array.isArray(data) ? data : [];
+      data.sort((a, b) => {
+        const ta = new Date(a.last_message_at || a.updated_at || 0).getTime();
+        const tb = new Date(b.last_message_at || b.updated_at || 0).getTime();
+        return tb - ta;
+      });
+      setThreads(data);
       setError('');
     } catch (err) {
       setError('Failed to load message threads.');
@@ -91,8 +105,9 @@ const AdminMessagingThreads = () => {
   });
 
   const projectOptionsWithoutThread = projects.filter((p) => {
-    const projectId = p.id;
-    return !threads.some((t) => (t.project_id ?? t.project) === projectId);
+    const projectId = Number(p.id);
+    if (!Number.isFinite(projectId)) return true;
+    return !threads.some((t) => threadProjectKey(t) === projectId);
   });
 
   if (loading) {
@@ -228,6 +243,7 @@ const AdminMessagingThreads = () => {
                       <td className="px-4 py-2 text-sm text-right">
                         <Link
                           to={`/messages/${t.id}`}
+                          state={{ from: 'admin' }}
                           className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                         >
                           Open chat

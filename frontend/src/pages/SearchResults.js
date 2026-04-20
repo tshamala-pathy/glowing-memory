@@ -26,7 +26,14 @@ const SearchResults = () => {
       });
       setResults(response.data);
     } catch (err) {
-      setError('Failed to search. Please try again.');
+      const detail = err.response?.data?.detail;
+      const msg =
+        typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]
+            : err.response?.data?.message || 'Failed to search. Please try again.';
+      setError(msg);
       setResults(null);
     } finally {
       setLoading(false);

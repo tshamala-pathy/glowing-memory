@@ -22,6 +22,7 @@ const AdminClientProjects = () => {
   const [clients, setClients] = useState([]);
   const [projectFilesForModal, setProjectFilesForModal] = useState([]);
   const [uploadingFileForProject, setUploadingFileForProject] = useState(null);
+  const [galleryFiles, setGalleryFiles] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -73,6 +74,7 @@ const AdminClientProjects = () => {
 
   const handleCreate = () => {
     setEditingProject(null);
+    setGalleryFiles([]);
     setFormData({
       name: '',
       description: '',
@@ -102,6 +104,7 @@ const AdminClientProjects = () => {
 
   const handleEdit = (project) => {
     setEditingProject(project);
+    setGalleryFiles([]);
     fetchProjectFilesForProject(project.id);
     setFormData({
       name: project.name || '',
@@ -134,6 +137,16 @@ const AdminClientProjects = () => {
     }
   };
 
+  const uploadGalleryImages = async (projectId, files) => {
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post(`/clients/projects/${projectId}/upload_screenshot/`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -142,14 +155,15 @@ const AdminClientProjects = () => {
         description: formData.description,
         client: formData.client || null,
         status: formData.status,
-        tech_stack: formData.tech_stack ? formData.tech_stack.split(',').map(t => t.trim()).filter(t => t).join(',') : '',
+        tech_stack: formData.tech_stack ? formData.tech_stack.split(',').map((t) => t.trim()).filter(t => t).join(',') : '',
         quote: formData.quote || null,
         invoice: formData.invoice || null,
         repo_url: formData.repo_url || '',
         live_url: formData.live_url || '',
         is_public: formData.is_public,
-        screenshots: formData.screenshots || [],
       };
+
+      let projectId = editingProject?.id;
 
       if (formData.hero_image) {
         const fd = new FormData();
@@ -163,24 +177,31 @@ const AdminClientProjects = () => {
         fd.append('repo_url', submitData.repo_url);
         fd.append('live_url', submitData.live_url);
         fd.append('is_public', submitData.is_public);
-        fd.append('screenshots', JSON.stringify(submitData.screenshots));
         fd.append('hero_image', formData.hero_image);
 
         if (editingProject) {
-          await api.patch(`/clients/projects/${editingProject.id}/`, fd);
+          const { data } = await api.patch(`/clients/projects/${editingProject.id}/`, fd);
+          projectId = data?.id ?? editingProject.id;
         } else {
-          await api.post('/clients/projects/', fd);
+          const { data } = await api.post('/clients/projects/', fd);
+          projectId = data.id;
         }
+      } else if (editingProject) {
+        const { data } = await api.put(`/clients/projects/${editingProject.id}/`, submitData);
+        projectId = data?.id ?? editingProject.id;
       } else {
-        if (editingProject) {
-          await api.put(`/clients/projects/${editingProject.id}/`, submitData);
-        } else {
-          await api.post('/clients/projects/', submitData);
-        }
+        const { data } = await api.post('/clients/projects/', submitData);
+        projectId = data.id;
       }
+
+      if (galleryFiles.length > 0 && projectId) {
+        await uploadGalleryImages(projectId, galleryFiles);
+      }
+
       fetchData();
       setShowForm(false);
       setEditingProject(null);
+      setGalleryFiles([]);
     } catch (err) {
       alert('Failed to save project: ' + (err.response?.data?.detail || err.message || 'Unknown error'));
     }
@@ -372,7 +393,13 @@ const AdminClientProjects = () => {
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowForm(false)} />
+              <div
+                className="fixed inset-0 transition-opacity bg-slate-900/50 backdrop-blur-sm"
+                onClick={() => {
+                  setShowForm(false);
+                  setGalleryFiles([]);
+                }}
+              />
               <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200">
                 <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
                   <h3 className="text-xl font-bold text-slate-900 mb-6">
@@ -423,6 +450,34 @@ const AdminClientProjects = () => {
                       />
                       {editingProject?.hero_image && !formData.hero_image && (
                         <p className="mt-1 text-xs text-gray-500">Current: {editingProject.hero_image}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Gallery images</label>
+                      <p className="text-xs text-gray-500 mt-0.5 mb-1">
+                        Optional. Add images for the client &quot;My Projects&quot; card and public portfolio. Saves after you click Update.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
+                        className="mt-1 block w-full text-sm text-gray-600"
+                      />
+                      {galleryFiles.length > 0 && (
+                        <p className="mt-1 text-xs font-medium text-emerald-700">
+                          {galleryFiles.length} new image(s) will upload after save.
+                        </p>
+                      )}
+                      {editingProject && Array.isArray(formData.screenshots) && formData.screenshots.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs text-gray-500 mb-2">Current gallery</p>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.screenshots.map((src, i) => (
+                              <img key={i} src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -587,7 +642,10 @@ const AdminClientProjects = () => {
                   <div className="mt-6 flex justify-end gap-3">
                     <button
                       type="button"
-                      onClick={() => setShowForm(false)}
+                      onClick={() => {
+                        setShowForm(false);
+                        setGalleryFiles([]);
+                      }}
                       className="px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Cancel

@@ -11,7 +11,7 @@ PyJWT==2.9.0
 python-decouple==3.8
 sqlparse==0.5.3
 tzdata==2025.2
-gunicorn
+gunicorn>=22.0,<24
 reportlab==4.2.5
 
 # PayFast: No extra package required. Uses standard library (hashlib, urllib).

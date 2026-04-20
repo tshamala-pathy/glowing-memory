@@ -57,6 +57,7 @@ import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import ProposalDetail from './pages/ProposalDetail';
 import ActivityLog from './pages/ActivityLog';
 import Messages from './pages/Messages';
 import ThreadChat from './pages/ThreadChat';
@@ -66,9 +67,10 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen w-full overflow-x-hidden app-background">
+        {/* Full-height column: Navbar (4rem) + flex-1 main so pages like Messages/ThreadChat can fill the viewport. */}
+        <div className="flex min-h-screen min-h-[100dvh] w-full flex-col overflow-x-hidden app-background">
           <Navbar />
-          <main className="w-full min-w-0">
+          <main className="flex w-full min-w-0 flex-1 flex-col min-h-0">
             <Routes>
               {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
@@ -113,6 +115,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
                     <Payment />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/proposal/:id"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <ProposalDetail />
                   </ProtectedRoute>
                 }
               />

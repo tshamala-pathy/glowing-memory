@@ -13,6 +13,8 @@ const SearchBar = () => {
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const debounceTimer = useRef(null);
+  const searchRequestId = useRef(0);
+  const searchAbortRef = useRef(null);
 
   // Flatten all results for keyboard navigation
   const allResults = results ? [
@@ -33,12 +35,20 @@ const SearchBar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(
+    () => () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    },
+    []
+  );
+
   // Debounced search function
   const handleSearch = async (searchQuery) => {
     if (!searchQuery.trim()) {
       setResults(null);
       setError(null);
       setIsOpen(false);
+      setLoading(false);
       return;
     }
 
@@ -51,24 +61,36 @@ const SearchBar = () => {
     setLoading(true);
     setError(null);
 
-    // Debounce the API call
+    // Debounce the API call; ignore stale responses if user types again
     debounceTimer.current = setTimeout(async () => {
+      const reqId = ++searchRequestId.current;
       try {
         const response = await api.get('/search/', {
           params: { q: searchQuery.trim() }
         });
+        if (reqId !== searchRequestId.current) return;
         setResults(response.data);
         setIsOpen(true);
         setSelectedIndex(-1);
         setError(null);
       } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to search. Please try again.');
+        if (reqId !== searchRequestId.current) return;
+        const detail = err.response?.data?.detail;
+        const msg =
+          typeof detail === 'string'
+            ? detail
+            : Array.isArray(detail)
+              ? detail[0]
+              : err.response?.data?.message || 'Failed to search. Please try again.';
+        setError(msg);
         setResults(null);
-        setIsOpen(true); // Still show error state
+        setIsOpen(true);
       } finally {
-        setLoading(false);
+        if (reqId === searchRequestId.current) {
+          setLoading(false);
+        }
       }
-    }, 300); // 300ms debounce
+    }, 300);
   };
 
   const handleInputChange = (e) => {
@@ -78,9 +100,13 @@ const SearchBar = () => {
     if (value.trim()) {
       handleSearch(value);
     } else {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      searchAbortRef.current?.abort();
+      searchRequestId.current += 1;
       setResults(null);
       setIsOpen(false);
       setError(null);
+      setLoading(false);
     }
   };
 
@@ -195,7 +221,7 @@ const SearchBar = () => {
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (query && results) {
+            if (query.trim() && (results !== null || error)) {
               setIsOpen(true);
             }
           }}
@@ -213,11 +239,16 @@ const SearchBar = () => {
         )}
         {!loading && query && (
           <button
+            type="button"
             onClick={() => {
+              if (debounceTimer.current) clearTimeout(debounceTimer.current);
+              searchAbortRef.current?.abort();
+              searchRequestId.current += 1;
               setQuery('');
               setResults(null);
               setIsOpen(false);
               setError(null);
+              setLoading(false);
               inputRef.current?.focus();
             }}
             className="absolute inset-y-0 right-0 pr-3.5 flex items-center hover:text-gray-700 text-gray-400 transition-colors"
@@ -231,7 +262,7 @@ const SearchBar = () => {
       </div>
 
       {isOpen && (results !== null || error) && (
-        <div className="absolute top-full mt-2 w-full md:w-[28rem] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[32rem] overflow-hidden">
+        <div className="absolute top-full mt-2 w-full md:w-[28rem] bg-white rounded-xl shadow-2xl border border-gray-200 z-[100] max-h-[32rem] overflow-hidden">
           {error ? (
             <div className="p-4 text-center">
               <div className="flex items-center justify-center mb-2">

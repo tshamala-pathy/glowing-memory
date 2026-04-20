@@ -19,24 +19,28 @@ class Quote(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('reviewed', 'Reviewed'),
+        ('changes_requested', 'Changes Requested'),
         ('approved', 'Approved'),
-        ('declined', 'Declined'),
-        # Legacy: kept for existing rows; new flow uses only the four above
+        ('rejected', 'Rejected'),
+        ('paid', 'Paid'),
+        # Legacy: kept for existing rows
+        ('declined', 'Declined (legacy)'),
         ('replied', 'Replied (legacy)'),
         ('invoiced', 'Invoiced (legacy)'),
-        ('paid', 'Paid (legacy)'),
     ]
 
     # Valid status transitions: from_status -> list of allowed to_status
     VALID_TRANSITIONS = {
         'pending': ['reviewed'],
-        'reviewed': ['approved', 'declined'],
+        'reviewed': ['approved', 'rejected', 'changes_requested'],
+        'changes_requested': ['reviewed'],
         'approved': [],
-        'declined': [],
-        # Legacy transitions for existing data
-        'replied': ['approved', 'declined'],
-        'invoiced': ['paid'],
+        'rejected': [],
         'paid': [],
+        # Legacy
+        'declined': [],
+        'replied': ['approved', 'rejected', 'changes_requested'],
+        'invoiced': ['paid'],
     }
     
     SERVICE_TYPE_CHOICES = [
@@ -136,6 +140,33 @@ class Quote(models.Model):
         blank=True,
         null=True,
         help_text="Admin notes/response to the client (visible in Client Portal when status = reviewed)"
+    )
+    # Proposal fields (admin-defines; shown to client)
+    scope = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Project scope for the proposal"
+    )
+    deliverables = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Deliverables (can store as bullet text)"
+    )
+    proposal_timeline = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Proposed project timeline"
+    )
+    terms = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Terms and conditions for the proposal"
+    )
+    client_response = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Client feedback when requesting changes"
     )
     responded_at = models.DateTimeField(
         blank=True,
