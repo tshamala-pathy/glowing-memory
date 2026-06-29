@@ -57,6 +57,9 @@ import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import Files from './pages/Files';
+import Tasks from './pages/Tasks';
+import Calendar from './pages/Calendar';
 import ProposalDetail from './pages/ProposalDetail';
 import ActivityLog from './pages/ActivityLog';
 import Messages from './pages/Messages';
@@ -118,6 +121,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/files" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Files /></ProtectedRoute>} />
+              <Route path="/tasks" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Tasks /></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Calendar /></ProtectedRoute>} />
               <Route
                 path="/proposal/:id"
                 element={

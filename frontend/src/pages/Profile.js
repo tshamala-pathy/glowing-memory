@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 import { formatDate, formatDateTime, formatCurrency } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
+import ProfileWorkspace from '../components/profile/ProfileWorkspace';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
@@ -149,6 +150,7 @@ const Profile = () => {
   const [emailForm, setEmailForm] = useState({ new_email: '', password: '' });
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailMessage, setEmailMessage] = useState({ type: '', text: '' });
+  const [stats, setStats] = useState(null);
 
   const handleDownloadInvoicePDF = async (inv) => {
     if (invoiceDownloadingId) return;
@@ -198,6 +200,7 @@ const Profile = () => {
       setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
       setProjects(Array.isArray(data.projects) ? data.projects : []);
       setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
+      setStats(data.stats ?? null);
 
       const rawThreads = threadsRes.data?.results ?? threadsRes.data ?? [];
       setThreads(Array.isArray(rawThreads) ? rawThreads : []);
@@ -376,229 +379,19 @@ const Profile = () => {
   const renderTabContent = () => {
     if (activeTab === 'overview') {
       return (
-        <div className={SPACING.section}>
-          <SectionCard
-            title="Personal details"
-            icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            iconBg="bg-teal-50"
-            iconColor="text-teal-700"
-            className="rounded-xl shadow-sm ring-1 ring-slate-900/5"
-          >
-            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              How you appear in our portal and on invoices. Update your photo, name, and email anytime.
-            </p>
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex flex-col sm:flex-row gap-5 sm:items-center min-w-0">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt=""
-                    className="w-20 h-20 sm:w-[5.25rem] sm:h-[5.25rem] rounded-2xl object-cover ring-2 ring-slate-200/90 shadow-md flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-20 h-20 sm:w-[5.25rem] sm:h-[5.25rem] rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white text-2xl sm:text-3xl font-bold flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-slate-200/80">
-                    {user?.first_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Signed in as</p>
-                  <p className="mt-1 text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">{overviewDisplayName}</p>
-                  {user?.username && user.username !== user?.email && (
-                    <p className="text-sm text-slate-500 mt-1">@{user.username}</p>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('settings')}
-                className="inline-flex items-center justify-center gap-2 self-start lg:self-center px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 hover:border-teal-200 hover:text-teal-800 transition-colors"
-              >
-                <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Edit profile
-              </button>
-            </div>
-            <dl className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/60 p-4">
-                <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <svg className="w-3.5 h-3.5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email
-                </dt>
-                <dd className="mt-2 text-sm font-medium text-slate-900 break-all">{user?.email || '—'}</dd>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/60 p-4">
-                <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <svg className="w-3.5 h-3.5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Full name
-                </dt>
-                <dd className="mt-2 text-sm font-medium text-slate-900">{overviewDisplayName}</dd>
-              </div>
-            </dl>
-            {user?.is_superuser && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">Account access</span>
-                <StatusBadge status="admin" label="Administrator" />
-              </div>
-            )}
-          </SectionCard>
-
-          {client && (
-            <SectionCard
-              title="Client details"
-              icon="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              iconBg="bg-sky-50"
-              iconColor="text-sky-700"
-              className="rounded-xl shadow-sm ring-1 ring-slate-900/5"
-            >
-              <p className="text-sm text-slate-600 mb-5 leading-relaxed">
-                The business profile we use on quotes, contracts, and project work—keep it accurate so paperwork matches your organization.
-              </p>
-              <div className="space-y-3">
-                <div className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03]">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Company / organization</p>
-                    <p className="mt-1 text-base font-semibold text-slate-900">{client.name}</p>
-                  </div>
-                </div>
-                {client.industry && (
-                  <div className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03]">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Industry</p>
-                      <p className="mt-1 text-base font-medium text-slate-900">{client.industry}</p>
-                    </div>
-                  </div>
-                )}
-                {client.description && (
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 ring-1 ring-slate-900/[0.03]">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-slate-200/60 text-slate-700">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">About</p>
-                        <p className="mt-1 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{client.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </SectionCard>
-          )}
-
-          <SectionCard title="Summary" icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
-            <p className="text-sm text-[#545b64] mb-4">Counts at a glance: how many message threads, quote requests, invoices, and projects you have.</p>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 ${SPACING.cardGap}`}>
-                {[
-                  { count: threads.length, label: 'Messages', tabId: 'messages', bg: 'bg-blue-100', border: 'border-blue-200', text: 'text-blue-800', num: 'text-blue-700', hover: 'hover:bg-blue-200/80' },
-                  { count: quotes.length, label: 'Quotes', tabId: 'quotes', bg: 'bg-amber-100', border: 'border-amber-200', text: 'text-amber-800', num: 'text-amber-700', hover: 'hover:bg-amber-200/80' },
-                  { count: invoices.length, label: 'Invoices', tabId: 'invoices', bg: 'bg-emerald-100', border: 'border-emerald-200', text: 'text-emerald-800', num: 'text-emerald-700', hover: 'hover:bg-emerald-200/80' },
-                  { count: projects.length, label: 'Projects', tabId: 'projects', bg: 'bg-violet-100', border: 'border-violet-200', text: 'text-violet-800', num: 'text-violet-700', hover: 'hover:bg-violet-200/80' },
-                ].map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => setActiveTab(item.tabId)}
-                    className={`rounded-lg p-4 text-center border w-full cursor-pointer transition-colors ${item.bg} ${item.border} ${item.hover} focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[var(--brand-primary)]`}
-                  >
-                    <p className={`text-2xl sm:text-3xl font-bold ${item.num}`}>{item.count}</p>
-                    <p className={`text-xs sm:text-sm font-medium mt-0.5 ${item.text}`}>{item.label}</p>
-                  </button>
-                ))}
-            </div>
-          </SectionCard>
-
-          {approvedUnpaidQuotes.length > 0 ? (
-              <SectionCard title="Outstanding payments" icon="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" iconBg="bg-[#ccfbf1]" iconColor="text-[var(--brand-primary)]">
-                <p className="text-sm text-[#545b64] mb-4">You have approved quotes waiting for payment. Pay anytime to generate your invoice and create your project.</p>
-                <ul className="space-y-3">
-                  {approvedUnpaidQuotes.map((q) => (
-                    <li key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-4 border border-[var(--aws-card-border)] bg-[#fafafa]">
-                      <div>
-                        <p className="font-semibold text-[var(--aws-dark)]">{q.title || `Quote #${q.id}`}</p>
-                        {(q.total_price != null || q.estimated_amount != null) && (
-                          <p className="text-sm text-[#545b64] mt-0.5">{formatCurrency(q.total_price ?? q.estimated_amount)}</p>
-                        )}
-                      </div>
-                      <Link
-                        to={`/payment/${q.id}`}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--aws-orange)] text-white text-sm font-semibold hover:bg-[var(--aws-orange-hover)] transition-colors shrink-0"
-                      >
-                        Pay now
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </SectionCard>
-          ) : null}
-
-          <SectionCard title="Quick access" icon="M13 10V3L4 14h7v7l9-11h-7z" iconBg="bg-[#f4f4f4]" iconColor="text-[var(--aws-dark)]">
-            <p className="text-sm text-[#545b64] mb-5">Jump to the portal, projects, quotes, or support—everything you need is one click away.</p>
-            <div className="flex flex-wrap gap-2.5">
-              <Link
-                to="/portal"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:bg-[var(--brand-primary-hover)] transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                Client Portal
-              </Link>
-              <Link
-                to="/my-projects"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
-              >
-                <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                My Projects
-              </Link>
-              <Link
-                to="/activity-log"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:border-slate-300 hover:bg-slate-50 transition-colors"
-              >
-                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                Activity Log
-              </Link>
-              <Link
-                to="/request-quote"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:border-amber-200 hover:bg-amber-50/60 transition-colors"
-              >
-                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                Request Quote
-              </Link>
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[var(--aws-card-border)] text-[var(--aws-dark)] text-sm font-medium hover:border-sky-200 hover:bg-sky-50/50 transition-colors"
-              >
-                <svg className="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                Contact
-              </Link>
-              {user?.is_superuser && (
-                <Link
-                  to="/admin"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  Admin Dashboard
-                </Link>
-              )}
-            </div>
-          </SectionCard>
-        </div>
+        <ProfileWorkspace
+          user={user}
+          client={client}
+          avatarUrl={avatarUrl}
+          displayName={overviewDisplayName}
+          stats={stats}
+          threads={threads}
+          quotes={quotes}
+          invoices={invoices}
+          projects={projects}
+          approvedUnpaidQuotes={approvedUnpaidQuotes}
+          setActiveTab={setActiveTab}
+        />
       );
     }
 

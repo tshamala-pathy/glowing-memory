@@ -175,6 +175,12 @@ class ProfileAggregateView(generics.GenericAPIView):
                 testimonials_qs, many=True, context={'request': request}
             ).data
 
+        # Payments count for profile statistics
+        payments_count = 0
+        if profile:
+            from payments.models import Payment as ExternalPayment
+            payments_count = ExternalPayment.objects.filter(client=profile, payment_status='paid').count()
+
         return Response({
             'user': user_data,
             'client': client_data,
@@ -183,6 +189,12 @@ class ProfileAggregateView(generics.GenericAPIView):
             'projects': projects_data,
             'messages': messages_data,
             'testimonials': testimonials_data,
+            'stats': {
+                'total_projects': len(projects_data),
+                'total_quotes': len(quotes_data),
+                'total_invoices': len(invoices_data),
+                'total_payments': payments_count,
+            },
         })
 
 

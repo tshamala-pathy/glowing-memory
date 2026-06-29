@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import SearchBar from './SearchBar';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -118,17 +119,23 @@ const Navbar = () => {
                     Admin
                   </Link>
                 ) : (
-                  <Link
-                    to="/profile"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive('/profile')
-                        ? 'bg-[#ccfbf1] text-[var(--brand-primary)]'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Profile
-                  </Link>
+                  <>
+                    <Link
+                      to="/profile"
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/profile')
+                          ? 'bg-[#ccfbf1] text-[var(--brand-primary)]'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Profile
+                    </Link>
+                    <Link to="/files" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/files') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>Files</Link>
+                    <Link to="/tasks" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/tasks') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>Tasks</Link>
+                    <Link to="/calendar" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/calendar') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>Calendar</Link>
+                  </>
                 )}
+                <NotificationDropdown />
                 <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
