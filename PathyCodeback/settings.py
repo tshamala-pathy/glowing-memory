@@ -84,6 +84,10 @@ INSTALLED_APPS = [
     'clients',  # Clients and case studies app
     'messaging',  # Internal messaging (threads per project)
     'payments',  # Payments and Stripe integration
+    'notifications',  # In-app notifications
+    'files',  # Shared file uploads
+    'tasks',  # Work tasks with assignees
+    'calendar_events',  # Calendar / timeline events
 ]
 
 MIDDLEWARE = [

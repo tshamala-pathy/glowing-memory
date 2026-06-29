@@ -36,6 +36,10 @@ urlpatterns = [
     path('api/invoices/', include('invoices.urls')),
     path('api/clients/', include('clients.urls')),
     path('api/messaging/', include('messaging.urls')),
+    path('api/notifications/', include('notifications.urls')),
+    path('api/files/', include('files.urls')),
+    path('api/tasks/', include('tasks.urls')),
+    path('api/calendar/', include('calendar_events.urls')),
     path('payments/', include('payments.urls', namespace='payments')),
 ]
 
