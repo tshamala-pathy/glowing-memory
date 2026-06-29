@@ -468,18 +468,29 @@ class PaymentQuoteView(APIView):
             return Response({
                 'quote_id': quote.id,
                 'project_title': quote.project_title,
+                'quote_amount': float(quote.estimated_amount or 0),
                 'amount': float(quote.estimated_amount or 0),
+                'invoice_amount': float(existing.total_amount or quote.estimated_amount or 0),
+                'payment_method': 'PayFast',
+                'payment_status': 'paid',
                 'already_paid': True,
                 'invoice_id': existing.id,
                 'invoice_number': existing.invoice_number,
             })
         amount = quote.estimated_amount or Decimal('0.00')
+        from payments.models import Payment as ExternalPayment
+        latest_payment = ExternalPayment.objects.filter(quote=quote).order_by('-created_at').first()
+        payment_status = latest_payment.payment_status if latest_payment else 'awaiting_payment'
         return Response({
             'quote_id': quote.id,
             'project_title': quote.project_title,
             'service_type': quote.service_type,
             'client_name': quote.client_name,
+            'quote_amount': float(amount),
             'amount': float(amount),
+            'invoice_amount': float(amount),
+            'payment_method': 'PayFast',
+            'payment_status': payment_status,
             'already_paid': False,
         })
 
