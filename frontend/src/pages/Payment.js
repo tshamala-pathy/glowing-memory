@@ -9,13 +9,14 @@
  * - After payment, PayFast redirects to success/cancel; Invoice and Project created via ITN
  */
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 const Payment = () => {
   const { quoteId } = useParams();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -161,7 +162,13 @@ const Payment = () => {
           </div>
         </div>
         <p className="mt-6 text-center">
-          <Link to="/profile" className="text-sm font-medium text-[var(--aws-orange)] hover:underline">← Back to Profile</Link>
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            className="text-sm font-medium text-[var(--aws-orange)] hover:underline bg-transparent border-0 cursor-pointer p-0"
+          >
+            ← Back to Profile
+          </button>
         </p>
       </div>
     </div>

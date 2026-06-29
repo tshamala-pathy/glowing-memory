@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 const inputClass =
-  'w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15';
+  'w-full rounded-2xl border border-stone-200/90 bg-white px-4 py-3 text-stone-800 shadow-sm transition placeholder:text-stone-400 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/15';
 
 const Quotes = () => {
   const { isAuthenticated, user } = useAuth();
@@ -96,40 +96,48 @@ const Quotes = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f2eb]">
-      {/* Warm editorial hero — distinct from portal dashboard */}
-      <header className="relative overflow-hidden border-b border-stone-800/20 bg-stone-950 text-stone-100">
+    <div className="min-h-screen bg-[#f6f4f1]">
+      <header className="relative overflow-hidden border-b border-stone-200/80 bg-gradient-to-b from-white via-[#faf9f6] to-[#f3f1ed] text-slate-900">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.45]"
+          className="pointer-events-none absolute inset-0 opacity-[0.85]"
+          aria-hidden
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 90% 60% at 20% -10%, rgba(139, 92, 246, 0.35) 0%, transparent 55%), radial-gradient(ellipse 70% 50% at 100% 100%, rgba(245, 158, 11, 0.12) 0%, transparent 50%)',
+              'radial-gradient(ellipse 100% 80% at 0% 0%, rgba(14, 165, 233, 0.09) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 100% 0%, rgba(20, 184, 166, 0.08) 0%, transparent 50%), radial-gradient(ellipse 70% 50% at 50% 100%, rgba(120, 113, 108, 0.06) 0%, transparent 45%)',
           }}
         />
-        <div className="relative mx-auto max-w-4xl px-4 pb-14 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
-          <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm text-stone-400">
-            <Link to="/" className="transition hover:text-amber-200/90">
-              Home
-            </Link>
-            <span className="text-stone-600" aria-hidden>
-              /
-            </span>
-            <span className="font-medium text-stone-200">Request a quote</span>
+        <div className="relative mx-auto max-w-4xl px-4 pb-12 pt-8 sm:px-6 sm:pb-14 sm:pt-10">
+          <nav className="mb-8" aria-label="Breadcrumb">
+            <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-500">
+              <li>
+                <Link to="/" className="font-medium text-sky-800 transition hover:text-sky-950">
+                  Home
+                </Link>
+              </li>
+              <li className="text-stone-300 select-none" aria-hidden>
+                /
+              </li>
+              <li className="font-medium text-stone-800" aria-current="page">
+                Estimate request
+              </li>
+            </ol>
           </nav>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-violet-300/90">New project</p>
-          <h1 className="font-serif text-3xl font-medium tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.1]">
-            Request a quote
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-800/90">
+            Scoping &amp; estimates
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-[2.5rem] md:leading-[1.12]">
+            Tell us about your project
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-stone-400">
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-stone-600">
             {step < 4
-              ? 'Walk through four short steps—then tell us about your build. We’ll reply with a tailored estimate.'
-              : 'You’re at the final step: share your details and we’ll get back to you within 24–48 hours.'}
+              ? 'A short guided flow helps us understand scope, budget, and timing—so we can respond with a clear, tailored estimate.'
+              : 'Review your details and submit. We typically respond within one to two business days.'}
           </p>
         </div>
       </header>
 
       <div className="relative z-[1] mx-auto max-w-4xl px-4 pb-16 pt-0 sm:px-6">
-        <div className="-mt-10 rounded-3xl border border-stone-200/80 bg-white/90 p-5 shadow-xl shadow-stone-300/40 backdrop-blur-sm sm:p-8 md:p-10">
+        <div className="-mt-8 rounded-3xl border border-stone-200/90 bg-white p-5 shadow-[0_20px_50px_-24px_rgba(15,23,42,0.12)] sm:p-8 md:p-10">
           {/* Step rail: vertical on md+, compact row on small screens */}
           <div className="mb-10 border-b border-stone-100 pb-10">
             <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400 md:text-left">
@@ -143,7 +151,7 @@ const Quotes = () => {
                       <div
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-bold transition-all md:mx-auto ${
                           step >= s.id
-                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                            ? 'bg-gradient-to-br from-sky-600 to-teal-600 text-white shadow-md shadow-sky-900/20'
                             : 'bg-stone-100 text-stone-400'
                         }`}
                       >
@@ -170,7 +178,7 @@ const Quotes = () => {
                   {i < STEPS.length - 1 && (
                     <div
                       className={`hidden h-px flex-1 self-center md:mx-2 md:block md:h-0.5 md:min-w-[2rem] ${
-                        step > s.id ? 'bg-violet-400' : 'bg-stone-200'
+                        step > s.id ? 'bg-sky-400' : 'bg-stone-200'
                       }`}
                       aria-hidden
                     />
@@ -183,7 +191,7 @@ const Quotes = () => {
           {/* Step 1 */}
           {step === 1 && (
             <div>
-              <div className="mb-6 border-l-4 border-amber-400 pl-5">
+              <div className="mb-6 border-l-4 border-sky-500 pl-5">
                 <h2 className="text-xl font-semibold text-stone-900">Service requirements</h2>
                 <p className="mt-1 text-sm text-stone-600">Read what we offer and what we need from you.</p>
               </div>
@@ -210,13 +218,13 @@ const Quotes = () => {
                 </section>
               </div>
               <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-8">
-                <Link to="/requirements" className="text-sm font-semibold text-violet-700 underline-offset-4 hover:underline">
+                <Link to="/requirements" className="text-sm font-semibold text-sky-800 underline-offset-4 hover:text-sky-950 hover:underline">
                   Full requirements page →
                 </Link>
                 <button
                   type="button"
                   onClick={() => goToStep(2)}
-                  className="rounded-2xl bg-violet-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/20 transition hover:bg-violet-500"
+                  className="rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-sky-900/20 transition hover:from-sky-500 hover:to-teal-500"
                 >
                   I have read the requirements
                 </button>
@@ -227,7 +235,7 @@ const Quotes = () => {
           {/* Step 2 */}
           {step === 2 && (
             <div>
-              <div className="mb-6 border-l-4 border-amber-400 pl-5">
+              <div className="mb-6 border-l-4 border-sky-500 pl-5">
                 <h2 className="text-xl font-semibold text-stone-900">Budget & timeline</h2>
                 <p className="mt-1 text-sm text-stone-600">How estimates and dates work before we scope in detail.</p>
               </div>
@@ -257,7 +265,7 @@ const Quotes = () => {
                 <button
                   type="button"
                   onClick={() => goToStep(3)}
-                  className="rounded-2xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/20 transition hover:bg-violet-500"
+                  className="rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-sky-900/20 transition hover:from-sky-500 hover:to-teal-500"
                 >
                   I understand
                 </button>
@@ -268,7 +276,7 @@ const Quotes = () => {
           {/* Step 3 */}
           {step === 3 && (
             <div>
-              <div className="mb-6 border-l-4 border-amber-400 pl-5">
+              <div className="mb-6 border-l-4 border-sky-500 pl-5">
                 <h2 className="text-xl font-semibold text-stone-900">Terms & conditions</h2>
                 <p className="mt-1 text-sm text-stone-600">Please read and confirm before the quote form.</p>
               </div>
@@ -282,13 +290,13 @@ const Quotes = () => {
                   <li>Payment terms and milestones will be agreed when the quote is accepted.</li>
                 </ul>
               </div>
-              <div className="rounded-2xl border border-violet-200/80 bg-violet-50/80 p-5 ring-1 ring-violet-100">
+              <div className="rounded-2xl border border-sky-200/90 bg-sky-50/60 p-5 ring-1 ring-sky-100/80">
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
                     checked={termsAgreed}
                     onChange={(e) => setTermsAgreed(e.target.checked)}
-                    className="mt-1 h-5 w-5 rounded border-stone-300 text-violet-600 focus:ring-violet-500"
+                    className="mt-1 h-5 w-5 rounded border-stone-300 text-sky-600 focus:ring-sky-500"
                   />
                   <span className="font-medium text-stone-900">
                     I agree to the terms above and am ready to submit my quote request.
@@ -307,7 +315,7 @@ const Quotes = () => {
                   type="button"
                   disabled={!termsAgreed}
                   onClick={() => goToStep(4)}
-                  className="rounded-2xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/20 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-sky-900/20 transition hover:from-sky-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Continue to quote form
                 </button>
@@ -333,8 +341,8 @@ const Quotes = () => {
                 )}
 
                 <div className="border-b border-stone-100 px-6 pb-2 pt-6 sm:px-8">
-                  <p className="flex items-start gap-3 text-sm font-medium text-violet-800">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                  <p className="flex items-start gap-3 text-sm font-medium text-teal-900">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-800">
                       <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path
                           fillRule="evenodd"
@@ -350,7 +358,7 @@ const Quotes = () => {
                 <form onSubmit={handleSubmit} className="px-6 py-8 sm:px-8">
                   <div className="mb-10">
                     <div className="mb-6 flex items-center gap-3 border-b border-stone-100 pb-5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-stone-900 text-white">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-sm">
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -419,7 +427,7 @@ const Quotes = () => {
 
                   <div className="mb-10">
                     <div className="mb-6 flex items-center gap-3 border-b border-stone-100 pb-5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/25">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-teal-700 text-white shadow-md shadow-teal-900/15">
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -538,7 +546,7 @@ const Quotes = () => {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex min-w-[220px] flex-1 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-initial"
+                      className="flex min-w-[220px] flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 px-6 py-4 text-sm font-semibold text-white shadow-md shadow-sky-900/20 transition hover:from-sky-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-initial"
                     >
                       {submitting ? (
                         <>
@@ -568,7 +576,7 @@ const Quotes = () => {
                     </button>
                   </div>
                   <p className="mt-5 flex items-center gap-2 text-sm text-stone-500">
-                    <svg className="h-4 w-4 shrink-0 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 shrink-0 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -581,8 +589,8 @@ const Quotes = () => {
                 </form>
               </div>
 
-              <div className="mt-8 rounded-3xl border border-stone-200/90 bg-[#faf7f2] p-6 sm:p-8">
-                <h3 className="font-serif text-lg font-medium text-stone-900">What happens next?</h3>
+              <div className="mt-8 rounded-3xl border border-stone-200/90 bg-gradient-to-br from-white to-stone-50/80 p-6 ring-1 ring-stone-100 sm:p-8">
+                <h3 className="text-lg font-semibold text-stone-900">What happens next?</h3>
                 <ul className="mt-5 space-y-4">
                   {[
                     'You’ll get a confirmation email right away.',
@@ -590,7 +598,7 @@ const Quotes = () => {
                     'We follow up with an estimate and clear next steps.',
                   ].map((line) => (
                     <li key={line} className="flex gap-3 text-sm leading-relaxed text-stone-600">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden />
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
                       {line}
                     </li>
                   ))}

@@ -27,7 +27,7 @@ describe('Login page', () => {
   it('renders login form with email and password fields', () => {
     renderLogin();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
@@ -42,7 +42,7 @@ describe('Login page', () => {
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email address/i), 'user@example.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -55,7 +55,7 @@ describe('Login page', () => {
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email address/i), 'user@example.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'wrong');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {

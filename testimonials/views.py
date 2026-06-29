@@ -35,7 +35,7 @@ class TestimonialViewSet(viewsets.ModelViewSet):
             if profile:
                 testimonial.client = profile
                 testimonial.save(update_fields=['client'])
-            log_activity(self.request.user, 'testimonial_submitted', object_type='testimonial', object_id=testimonial.id, details=testimonial.content[:50] if testimonial.content else '')
+            log_activity(self.request.user, 'testimonial_submitted', object_type='testimonial', object_id=testimonial.id, details=(testimonial.testimonial or '')[:50])
 
     def get_serializer_context(self):
         """Add request to serializer context for building absolute URLs."""

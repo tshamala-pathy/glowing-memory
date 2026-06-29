@@ -338,29 +338,44 @@ const Services = () => {
           </div>
         </header>
 
-        <section className="relative z-20 -mt-6 border-y border-stone-200/80 bg-white/90 shadow-sm shadow-stone-200/30 backdrop-blur-md sm:-mt-10">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-              {DELIVERY_STEPS.map((step, i) => (
-                <div key={step.title} className="relative flex gap-4">
-                  {i < DELIVERY_STEPS.length - 1 && (
-                    <div
-                      className="absolute left-[1.15rem] top-10 hidden h-px w-[calc(100%-2rem)] bg-gradient-to-r from-stone-200 via-stone-200 to-transparent lg:block"
-                      aria-hidden
-                    />
-                  )}
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 text-white shadow-md shadow-sky-900/15">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      {step.icon}
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">{step.title}</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.blurb}</p>
-                  </div>
-                </div>
-              ))}
+        <section
+          className="relative z-20 -mt-6 border-y border-stone-200/80 bg-white/90 shadow-sm shadow-stone-200/30 backdrop-blur-md sm:-mt-10"
+          aria-labelledby="delivery-heading"
+        >
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+            <div className="mx-auto mb-8 max-w-2xl text-center lg:mb-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-800">Process</p>
+              <h2 id="delivery-heading" className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+                How we deliver
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+                Four clear phases so you always know where things stand — from discovery through optional ongoing support.
+              </p>
             </div>
+            <ol className="m-0 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+              {DELIVERY_STEPS.map((step, i) => (
+                <li
+                  key={step.title}
+                  className="relative flex h-full flex-col rounded-2xl border border-stone-200/90 bg-white p-5 shadow-sm ring-1 ring-stone-100 sm:p-6"
+                >
+                  <div className="mb-4 flex items-center gap-3">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 text-white shadow-md shadow-sky-900/15"
+                      aria-hidden
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        {step.icon}
+                      </svg>
+                    </span>
+                    <span className="min-w-0 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold tabular-nums text-slate-600 ring-1 ring-stone-200/80">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-900">{step.title}</h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{step.blurb}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 

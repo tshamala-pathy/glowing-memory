@@ -54,8 +54,13 @@ describe('AuthContext', () => {
   });
 
   it('login stores tokens and updates user on success', async () => {
-    mockPost.mockResolvedValue({ data: { access: 'access', refresh: 'refresh' } });
-    mockGet.mockResolvedValue({ data: { id: 1, email: 'user@test.com', is_superuser: false } });
+    mockPost.mockResolvedValue({
+      data: {
+        access: 'access',
+        refresh: 'refresh',
+        user: { id: 1, email: 'user@test.com', is_superuser: false },
+      },
+    });
 
     render(
       <AuthProvider>

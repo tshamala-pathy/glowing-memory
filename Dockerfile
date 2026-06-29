@@ -24,5 +24,12 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy project files
 COPY . /app/
 
-# Start the app
-CMD ["gunicorn", "PathyCodeback.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Make entrypoint executable
+RUN chmod +x /app/scripts/entrypoint.sh
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health/ || exit 1
+
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
