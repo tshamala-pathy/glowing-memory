@@ -26,7 +26,17 @@ const Files = () => {
     if (isAuthenticated) load();
   }, [isAuthenticated]);
 
-  const handleUpload = async (e) => {
+  const handleDownload = async (id, name) => {
+    try {
+      const res = await api.get(`/files/${id}/download/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name || 'download';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
@@ -73,7 +83,7 @@ const Files = () => {
                   {f.previewable && f.file_url && (
                     <a href={f.file_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">Preview</a>
                   )}
-                  <a href={`/api/files/${f.id}/download/`} className="text-sm font-medium text-slate-700 hover:text-blue-700">Download</a>
+                  <button type="button" onClick={() => handleDownload(f.id, f.name)} className="text-sm font-medium text-slate-700 hover:text-blue-700">Download</button>
                 </div>
               </li>
             ))}
