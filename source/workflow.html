@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Business Workflows &#8212; PathyCode Internal Business System 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Users Module" href="modules/users.html" />
+    <link rel="prev" title="System Architecture" href="architecture.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="business-workflows">
+<h1>Business Workflows<a class="headerlink" href="#business-workflows" title="Link to this heading">¶</a></h1>
+<p>This page documents the main business workflow in the PathyCode Internal
+Business System, from the initial quote request through payment, invoicing and
+project delivery.</p>
+<section id="high-level-flow-text-diagram">
+<h2>High-level Flow (Text Diagram)<a class="headerlink" href="#high-level-flow-text-diagram" title="Link to this heading">¶</a></h2>
+<p>The core flow can be visualised as a simple text-based diagram:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Client submits quote
+     |
+     v
+Admin reviews &amp; replies
+     |
+     v
+Client approves quote
+     |
+     v
+Client is redirected to payment
+     |
+     v
+Payment is confirmed via webhook/callback
+     |
+     v
+Invoice is created/updated
+     |
+     v
+Project is created and started
+</pre></div>
+</div>
+<p>The sections below describe each step in more detail and reference the
+relevant models, views and signals.</p>
+</section>
+<section id="client-submits-quote">
+<h2>1. Client Submits Quote<a class="headerlink" href="#client-submits-quote" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Capture a structured project request from a prospective or existing
+client.</p>
+<ul class="simple">
+<li><p><strong>Entry points</strong></p>
+<ul>
+<li><p>Public quote form in the marketing site.</p></li>
+<li><p>Authenticated client starting a new quote from their profile/portal.</p></li>
+</ul>
+</li>
+<li><p><strong>Backend</strong></p>
+<ul>
+<li><p>Endpoint: <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/quotes/</span></code> (<code class="docutils literal notranslate"><span class="pre">QuoteViewSet.create</span></code>).</p></li>
+<li><p>Model: <code class="docutils literal notranslate"><span class="pre">quotes.models.Quote</span></code>.</p></li>
+<li><p>Typical fields:</p>
+<ul>
+<li><p>Client contact details (name, email).</p></li>
+<li><p>Project summary and requirements.</p></li>
+<li><p>Budget/estimate expectations.</p></li>
+<li><p>Flags for terms of service and privacy agreement.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>A new <code class="docutils literal notranslate"><span class="pre">Quote</span></code> instance is created with status <code class="docutils literal notranslate"><span class="pre">pending</span></code>.</p></li>
+<li><p>Notifications can be sent to admins (e.g. email or dashboard alert).</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="admin-replies-to-quote">
+<h2>2. Admin Replies to Quote<a class="headerlink" href="#admin-replies-to-quote" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Admin reviews the request, estimates the work, and sends a formal
+response back to the client.</p>
+<ul class="simple">
+<li><p><strong>Admin tooling</strong></p>
+<ul>
+<li><p>Django admin (<code class="docutils literal notranslate"><span class="pre">quotes.admin.QuoteAdmin</span></code>) for quick internal updates.</p></li>
+<li><p>React admin page (e.g. <code class="docutils literal notranslate"><span class="pre">AdminQuotes</span></code>) listing incoming and active quotes.</p></li>
+</ul>
+</li>
+<li><p><strong>Actions</strong></p>
+<ul>
+<li><p>Admin fills in:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">estimated_amount</span></code> (proposed price).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">admin_response</span></code> (detailed message/conditions).</p></li>
+</ul>
+</li>
+<li><p>Status usually moves from:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">pending</span></code> → <code class="docutils literal notranslate"><span class="pre">replied</span></code> or directly to <code class="docutils literal notranslate"><span class="pre">approved</span></code> for simple cases.</p></li>
+</ul>
+</li>
+<li><p>Status transitions are validated by
+<code class="docutils literal notranslate"><span class="pre">Quote.validate_status_transition</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>The client receives an email (or portal notification) with the admin
+response and a link back into the portal to approve or decline.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="client-approves-quote">
+<h2>3. Client Approves Quote<a class="headerlink" href="#client-approves-quote" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Client explicitly accepts or declines the proposal.</p>
+<ul>
+<li><p><strong>Frontend</strong></p>
+<ul class="simple">
+<li><p>Client logs into the portal and reviews the quote, or follows a secure
+link from the email.</p></li>
+<li><p>UI presents two clear actions: <em>Approve</em> or <em>Decline</em>.</p></li>
+</ul>
+</li>
+<li><p><strong>Backend</strong></p>
+<ul>
+<li><p>Endpoint: <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/quotes/{id}/decision/</span></code> (<code class="docutils literal notranslate"><span class="pre">QuoteViewSet.decision</span></code>).</p></li>
+<li><p>Payload example:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;decision&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;approve&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p>Logic:</p>
+<ul class="simple">
+<li><p>On approval:</p>
+<ul>
+<li><p>Status moves from <code class="docutils literal notranslate"><span class="pre">replied</span></code> → <code class="docutils literal notranslate"><span class="pre">approved</span></code>.</p></li>
+<li><p>Timestamps and audit fields are updated.</p></li>
+<li><p>Client is redirected to payment; invoice and project are created when payment completes.</p></li>
+</ul>
+</li>
+<li><p>On decline:</p>
+<ul>
+<li><p>Status becomes <code class="docutils literal notranslate"><span class="pre">declined</span></code>, and the workflow ends for this quote.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul class="simple">
+<li><p>The system now has an <em>approved</em> quote that can be invoiced and paid.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="redirect-to-payment">
+<h2>4. Redirect to Payment<a class="headerlink" href="#redirect-to-payment" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Take the client from an approved quote to a payment experience.</p>
+<ul class="simple">
+<li><p><strong>Payment URL</strong></p>
+<ul>
+<li><p>The quote stores a <code class="docutils literal notranslate"><span class="pre">payment_url</span></code> or similar field that points to:</p>
+<ul>
+<li><p>An internal payment page (e.g. <code class="docutils literal notranslate"><span class="pre">/pay/{quote_or_invoice_id}</span></code>).</p></li>
+<li><p>Or an external payment provider checkout URL.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Frontend behaviour</strong></p>
+<ul>
+<li><p>After the client approves, the UI redirects them to the payment screen.</p></li>
+<li><p>If the user returns later, the portal can still offer a <em>Pay now</em> button
+using the same stored URL.</p></li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>The user is now in the hands of the payment provider / payment page.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="payment-webhook-callback">
+<h2>5. Payment Webhook / Callback<a class="headerlink" href="#payment-webhook-callback" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Receive authoritative confirmation that a payment succeeded or
+failed.</p>
+<ul class="simple">
+<li><p><strong>External payment provider</strong></p>
+<ul>
+<li><p>The provider (Stripe, PayPal, or a manual bank transfer process) sends a
+webhook/callback when payment status changes.</p></li>
+<li><p>In simpler setups, an admin may manually mark an invoice as paid in the
+admin interface instead of using a full webhook.</p></li>
+</ul>
+</li>
+<li><p><strong>Backend handling</strong></p>
+<ul>
+<li><p>Webhook or admin action ultimately calls into logic equivalent to:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">InvoiceViewSet.mark_paid</span></code>, or</p></li>
+<li><p>A dedicated service that sets the invoice status to <code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Effects:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">status</span></code> becomes <code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">amount_paid</span></code> and <code class="docutils literal notranslate"><span class="pre">paid_at</span></code>/<code class="docutils literal notranslate"><span class="pre">paid_date</span></code> are set.</p></li>
+<li><p>Related <code class="docutils literal notranslate"><span class="pre">Quote</span></code> moves from <code class="docutils literal notranslate"><span class="pre">invoiced</span></code>/<code class="docutils literal notranslate"><span class="pre">approved</span></code> → <code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>The system now recognises the invoice as paid and can advance to project
+work.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="invoice-creation">
+<h2>6. Invoice Creation<a class="headerlink" href="#invoice-creation" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Create an invoice that formalises the financial agreement and is
+linked to the quote and client.</p>
+<ul class="simple">
+<li><p><strong>Automatic creation on payment</strong></p>
+<ul>
+<li><p>Invoice and Project are created when payment is confirmed (PayFast ITN,
+simulate_itn, or <code class="docutils literal notranslate"><span class="pre">PaymentQuoteView.post</span></code> for direct payment recording).</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">clients.signals.create_project_on_invoice_paid</span></code> signal creates the
+Project when an invoice transitions to <code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Manual editing</strong></p>
+<ul>
+<li><p>Admins can refine invoice details, add line items or adjust totals in:</p>
+<ul>
+<li><p>Django admin (<code class="docutils literal notranslate"><span class="pre">InvoiceAdmin</span></code>).</p></li>
+<li><p>React AdminInvoices page.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>A consistent Invoice object exists with a clear link back to the original
+quote and the owning client.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="project-creation">
+<h2>7. Project Creation<a class="headerlink" href="#project-creation" title="Link to this heading">¶</a></h2>
+<p><strong>Goal:</strong> Automatically create an actionable project once the financial
+agreement is settled and payment is confirmed.</p>
+<ul>
+<li><p><strong>Signals</strong></p>
+<ul class="simple">
+<li><p>A signal in <code class="docutils literal notranslate"><span class="pre">clients.signals</span></code> watches for invoices transitioning to
+<code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+<li><p>When triggered:</p>
+<ul>
+<li><p>If no project yet exists for that invoice, it creates a new
+<code class="docutils literal notranslate"><span class="pre">clients.Project</span></code> linked to:</p>
+<ul>
+<li><p>The same Client.</p></li>
+<li><p>The related Quote (if present).</p></li>
+<li><p>The paid Invoice.</p></li>
+</ul>
+</li>
+<li><p>Sets initial project status to <code class="docutils literal notranslate"><span class="pre">in_progress</span></code> and copies descriptive
+details from the quote/invoice.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Admin tooling</strong></p>
+<ul class="simple">
+<li><p>Admins manage the resulting project via:</p>
+<ul>
+<li><p>Django admin (<code class="docutils literal notranslate"><span class="pre">ProjectAdmin</span></code> with inline <code class="docutils literal notranslate"><span class="pre">Task</span></code> objects).</p></li>
+<li><p>React admin pages listing active and completed projects.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Completion</strong></p>
+<ul class="simple">
+<li><p>When the project reaches completion:</p>
+<ul>
+<li><p>Status is set to <code class="docutils literal notranslate"><span class="pre">completed</span></code>.</p></li>
+<li><p>Another signal sets <code class="docutils literal notranslate"><span class="pre">completed_at</span></code> and optionally sends an email asking
+for a testimonial or case study.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Result</strong></p>
+<ul>
+<li><p>The system now holds a full chain:</p>
+<p><code class="docutils literal notranslate"><span class="pre">Client</span></code> → <code class="docutils literal notranslate"><span class="pre">Quote</span></code> → <code class="docutils literal notranslate"><span class="pre">Invoice</span></code> → <code class="docutils literal notranslate"><span class="pre">Project</span></code>, with automation at
+each stage to minimise manual work and keep data consistent.</p>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PathyCode Internal Business System</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">PathyCode Internal Business System</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#modules">Modules</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">PathyCode Internal Business System</a><ul>
+      <li>Previous: <a href="architecture.html" title="previous chapter">System Architecture</a></li>
+      <li>Next: <a href="modules/users.html" title="next chapter">Users Module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, PathyCode.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/source/workflow.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

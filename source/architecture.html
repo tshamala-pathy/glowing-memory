@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>System Architecture &#8212; PathyCode Internal Business System 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Business Workflows" href="workflow.html" />
+    <link rel="prev" title="PathyCode Internal Business System" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="system-architecture">
+<h1>System Architecture<a class="headerlink" href="#system-architecture" title="Link to this heading">¶</a></h1>
+<p>This document explains how the PathyCode Internal Business System is structured
+at a high level, and how core concepts (User vs Client, dashboards, and
+business workflows) map onto the codebase.</p>
+<section id="user-vs-client">
+<h2>User vs Client<a class="headerlink" href="#user-vs-client" title="Link to this heading">¶</a></h2>
+<p>The system clearly separates <strong>authentication</strong> from the <strong>business entity</strong>:</p>
+<ul class="simple">
+<li><p><strong>User</strong> (Django <code class="docutils literal notranslate"><span class="pre">AUTH_USER_MODEL</span></code> in the <code class="docutils literal notranslate"><span class="pre">users</span></code> app)</p>
+<ul>
+<li><p>Represents the authenticated account (login credentials, email, password).</p></li>
+<li><p>Used for permissions and roles (superuser, staff vs normal user).</p></li>
+<li><p>Each user <strong>may</strong> have exactly one related Client profile.</p></li>
+</ul>
+</li>
+<li><p><strong>Client</strong> (<code class="docutils literal notranslate"><span class="pre">clients.Client</span></code> model)</p>
+<ul>
+<li><p>Represents the <em>business/customer entity</em> that owns quotes, invoices and
+projects.</p></li>
+<li><p>Linked to a user via <code class="docutils literal notranslate"><span class="pre">Client.user</span></code> (<code class="docutils literal notranslate"><span class="pre">OneToOneField</span></code> with
+<code class="docutils literal notranslate"><span class="pre">related_name='client_profile'</span></code>).</p></li>
+<li><p>Is the owner of:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Client.projects</span></code> (client projects / portfolio)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Client.quotes</span></code> (quote requests)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Client.invoices</span></code> (billing documents)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>This separation keeps authentication concerns (users, passwords, roles) cleanly
+isolated from domain concepts (clients, projects, revenue).</p>
+</section>
+<section id="dashboard-vs-profile">
+<h2>Dashboard vs Profile<a class="headerlink" href="#dashboard-vs-profile" title="Link to this heading">¶</a></h2>
+<p>There are two main entry points for authenticated users, depending on their
+role:</p>
+<ul class="simple">
+<li><p><strong>Admin Dashboard</strong> (<code class="docutils literal notranslate"><span class="pre">/admin</span></code> in the React frontend, Django admin, and
+dedicated API endpoints)</p>
+<ul>
+<li><p>Accessible only to <strong>superusers</strong> (and some staff-only views such as the
+financial dashboard).</p></li>
+<li><p>Used to manage:</p>
+<ul>
+<li><p>Service catalog, blog posts, marketing content.</p></li>
+<li><p>Incoming quotes and estimates.</p></li>
+<li><p>Invoices, payments, financial dashboards.</p></li>
+<li><p>Client projects, case studies, and internal tasks.</p></li>
+</ul>
+</li>
+<li><p>Implemented in the frontend under <code class="docutils literal notranslate"><span class="pre">frontend/src/pages/admin/*</span></code> and
+powered by REST endpoints like:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/quotes/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/invoices/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/clients/projects/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/clients/clients/</span></code></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Client Profile &amp; Portal</strong> (<code class="docutils literal notranslate"><span class="pre">/profile</span></code>, <code class="docutils literal notranslate"><span class="pre">/portal</span></code>, <code class="docutils literal notranslate"><span class="pre">/my-projects</span></code>)</p>
+<ul>
+<li><p>Accessible to authenticated <strong>non-admin</strong> users (clients).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/profile</span></code> is the main hub for a logged-in client.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/portal</span></code> (Client Portal) surfaces:</p>
+<ul>
+<li><p>The client’s own quotes (via <code class="docutils literal notranslate"><span class="pre">/api/profile/</span></code>).</p></li>
+<li><p>The client’s own invoices (with PDF download).</p></li>
+<li><p>The client’s own projects.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/my-projects</span></code> is a client-friendly listing of projects associated with
+that client profile.</p></li>
+</ul>
+</li>
+</ul>
+<p>In short:</p>
+<ul class="simple">
+<li><p><strong>Admins / staff</strong> work primarily in the <strong>Admin Dashboard</strong> and Django
+admin.</p></li>
+<li><p><strong>Clients</strong> work in the <strong>Profile</strong> and <strong>Client Portal</strong>, which expose only
+their own business data and hide internal notes and admin-only fields.</p></li>
+</ul>
+</section>
+<section id="quote-payment-invoice-project-workflow">
+<h2>Quote → Payment → Invoice → Project Workflow<a class="headerlink" href="#quote-payment-invoice-project-workflow" title="Link to this heading">¶</a></h2>
+<p>The core business workflow is implemented across the <code class="docutils literal notranslate"><span class="pre">quotes</span></code>, <code class="docutils literal notranslate"><span class="pre">invoices</span></code>
+and <code class="docutils literal notranslate"><span class="pre">clients</span></code> apps:</p>
+<ol class="arabic simple">
+<li><p><strong>Quote Request</strong></p>
+<ul class="simple">
+<li><p>A client (authenticated or public) submits a quote via the public API
+(<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/quotes/</span></code>).</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">quotes.Quote</span></code> model records project details, contact information,
+and acceptance of requirements.</p></li>
+<li><p>Status flow starts at <code class="docutils literal notranslate"><span class="pre">pending</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Admin Review &amp; Response</strong></p>
+<ul class="simple">
+<li><p>Admins view and update quotes via:</p>
+<ul>
+<li><p>Django admin (<code class="docutils literal notranslate"><span class="pre">quotes.admin.QuoteAdmin</span></code>)</p></li>
+<li><p>React admin UI (<code class="docutils literal notranslate"><span class="pre">AdminQuotes</span></code> page, <code class="docutils literal notranslate"><span class="pre">/admin/quotes</span></code>)</p></li>
+</ul>
+</li>
+<li><p>Admins set:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">estimated_amount</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">admin_response</span></code> (text that is emailed to the client)</p></li>
+<li><p>Status transitions from <code class="docutils literal notranslate"><span class="pre">pending</span></code> → <code class="docutils literal notranslate"><span class="pre">replied</span></code> → <code class="docutils literal notranslate"><span class="pre">approved</span></code> or
+<code class="docutils literal notranslate"><span class="pre">declined</span></code> are enforced by <code class="docutils literal notranslate"><span class="pre">Quote.validate_status_transition</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Client Decision and Payment</strong></p>
+<ul class="simple">
+<li><p>The client decides via the <code class="docutils literal notranslate"><span class="pre">decision</span></code> action on <code class="docutils literal notranslate"><span class="pre">QuoteViewSet</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/quotes/{id}/decision/</span></code> with <code class="docutils literal notranslate"><span class="pre">{&quot;decision&quot;:</span> <span class="pre">&quot;approve&quot;}</span></code> or
+<code class="docutils literal notranslate"><span class="pre">{&quot;decision&quot;:</span> <span class="pre">&quot;decline&quot;}</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Approval moves the quote to <code class="docutils literal notranslate"><span class="pre">approved</span></code>, records timestamps, and assigns
+it to a user (admin).</p></li>
+<li><p>A <strong>payment URL</strong> (<code class="docutils literal notranslate"><span class="pre">payment_url</span></code>) is stored on the quote so the
+frontend can redirect the client to payment/portal flows.</p></li>
+</ul>
+</li>
+<li><p><strong>Invoice and Project Creation on Payment</strong></p>
+<ul class="simple">
+<li><p>When payment is confirmed (PayFast ITN, simulate_itn, or direct payment
+recording via <code class="docutils literal notranslate"><span class="pre">PaymentQuoteView</span></code>), the system creates an Invoice and
+marks it paid.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">clients.signals.create_project_on_invoice_paid</span></code> signal creates a
+Project when an invoice transitions to <code class="docutils literal notranslate"><span class="pre">paid</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Invoice Payment</strong></p>
+<ul class="simple">
+<li><p>Admins manage invoices via:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">InvoiceViewSet</span></code> (<code class="docutils literal notranslate"><span class="pre">/api/invoices/</span></code>)</p></li>
+<li><p>React AdminInvoices page and Django admin.</p></li>
+</ul>
+</li>
+<li><p>When an invoice is marked as paid (<code class="docutils literal notranslate"><span class="pre">mark_paid</span></code> action):</p>
+<ul>
+<li><p>The invoice status is set to <code class="docutils literal notranslate"><span class="pre">paid</span></code>, <code class="docutils literal notranslate"><span class="pre">amount_paid</span></code> equals
+<code class="docutils literal notranslate"><span class="pre">total_amount</span></code>, and timestamps (<code class="docutils literal notranslate"><span class="pre">paid_date</span></code>, <code class="docutils literal notranslate"><span class="pre">paid_at</span></code>) are
+recorded.</p></li>
+<li><p>The linked quote status is moved from <code class="docutils literal notranslate"><span class="pre">invoiced</span></code> (or <code class="docutils literal notranslate"><span class="pre">approved</span></code>) to
+<code class="docutils literal notranslate"><span class="pre">paid</span></code> using the quote state machine.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Automatic Project Creation</strong></p>
+<ul class="simple">
+<li><p>A signal in <code class="docutils literal notranslate"><span class="pre">clients.signals</span></code> watches for Invoice status changes.</p></li>
+<li><p>When an invoice transitions to <code class="docutils literal notranslate"><span class="pre">paid</span></code>:</p>
+<ul>
+<li><p>A new <code class="docutils literal notranslate"><span class="pre">clients.Project</span></code> is created (if one does not already exist for
+that invoice).</p></li>
+<li><p>The project is linked to the same Client and Quote, with status
+<code class="docutils literal notranslate"><span class="pre">in_progress</span></code> (active project).</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Project Completion &amp; Testimonials</strong></p>
+<ul class="simple">
+<li><p>When a project status changes to <code class="docutils literal notranslate"><span class="pre">completed</span></code> (via admin tools):</p>
+<ul>
+<li><p>A signal sets <code class="docutils literal notranslate"><span class="pre">completed_at</span></code> (timestamp).</p></li>
+<li><p>A courtesy email to the client invites them to leave a testimonial or
+case-study content.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p>This workflow ensures a clean, auditable chain:</p>
+<p><strong>Quote → Invoice → Payment → Project</strong>, with automatic transitions implemented
+in views, serializers, and signals.</p>
+</section>
+<section id="service-layer-design-pattern">
+<h2>Service-layer Design Pattern<a class="headerlink" href="#service-layer-design-pattern" title="Link to this heading">¶</a></h2>
+<p>The codebase follows a <em>service-layer-oriented</em> structure while leveraging
+Django REST Framework and Django’s ORM:</p>
+<ul class="simple">
+<li><p><strong>Models</strong> (Domain Layer)</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">quotes.models.Quote</span></code> encodes the status state machine and domain rules
+(e.g., valid transitions).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">invoices.models.Invoice</span></code> encapsulates:</p>
+<ul>
+<li><p>Calculation logic (<code class="docutils literal notranslate"><span class="pre">calculate_totals</span></code>).</p></li>
+<li><p>Auto-generation of invoice numbers.</p></li>
+<li><p>Deriving line items and notes from quotes.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clients.models.Project</span></code> and related classes (<code class="docutils literal notranslate"><span class="pre">Task</span></code>, <code class="docutils literal notranslate"><span class="pre">CaseStudy</span></code>)
+encode ownership and validation rules (e.g. a project’s invoice must be
+paid).</p></li>
+</ul>
+</li>
+<li><p><strong>Views / ViewSets</strong> (Service Layer)</p>
+<ul>
+<li><p>REST viewsets (<code class="docutils literal notranslate"><span class="pre">QuoteViewSet</span></code>, <code class="docutils literal notranslate"><span class="pre">InvoiceViewSet</span></code>, <code class="docutils literal notranslate"><span class="pre">ProjectViewSet</span></code>,
+etc.) act as the <em>service layer</em>:</p>
+<ul>
+<li><p>They orchestrate calls to model methods, signals, and utilities.</p></li>
+<li><p>They enforce permissions, validate inputs, and coordinate multi-step
+operations (e.g., creating invoices from quotes, marking invoices paid).</p></li>
+</ul>
+</li>
+<li><p>Helper functions in views (e.g. <code class="docutils literal notranslate"><span class="pre">send_invoice_email</span></code>,
+<code class="docutils literal notranslate"><span class="pre">get_quote_payment_url</span></code>) group reusable
+operations into small service-like functions.</p></li>
+</ul>
+</li>
+<li><p><strong>Serializers</strong> (Boundary Layer)</p>
+<ul>
+<li><p>Serializers (e.g. <code class="docutils literal notranslate"><span class="pre">QuoteSerializer</span></code>, <code class="docutils literal notranslate"><span class="pre">InvoiceSerializer</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ProjectSerializer</span></code>):</p>
+<ul>
+<li><p>Define which fields are exposed to which actors (e.g. hide internal
+notes from non-admins).</p></li>
+<li><p>Provide additional read-only projections (e.g. <code class="docutils literal notranslate"><span class="pre">quote_project_title</span></code>,
+<code class="docutils literal notranslate"><span class="pre">invoice_number</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Utilities &amp; Docs</strong></p>
+<ul>
+<li><p>Utility modules (e.g. <code class="docutils literal notranslate"><span class="pre">invoices.utils.generate_invoice_pdf</span></code>,
+<code class="docutils literal notranslate"><span class="pre">quotes.utils.generate_quote_pdf</span></code>) implement cross-cutting concerns like
+PDF generation, keeping views and models focused on domain logic.</p></li>
+<li><p>Sphinx documentation (this file and related pages) documents the
+architecture and workflows, helping maintain alignment between
+implementation and design.</p></li>
+</ul>
+</li>
+</ul>
+<p>This combination keeps responsibilities well separated:</p>
+<ul class="simple">
+<li><p><strong>Models</strong> encapsulate core domain rules.</p></li>
+<li><p><strong>ViewSets and helpers</strong> act as a focused service layer.</p></li>
+<li><p><strong>Serializers</strong> define the public API surface.</p></li>
+<li><p><strong>Signals and utilities</strong> handle side effects and automation (auto-creating
+invoices and projects, sending emails, generating documents).</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PathyCode Internal Business System</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">PathyCode Internal Business System</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#modules">Modules</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">PathyCode Internal Business System</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">PathyCode Internal Business System</a></li>
+      <li>Next: <a href="workflow.html" title="next chapter">Business Workflows</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, PathyCode.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/source/architecture.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
