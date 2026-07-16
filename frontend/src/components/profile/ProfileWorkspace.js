@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatDate, formatCurrency, formatRelativeTime } from '../utils/formatters';
+import { formatDate, formatCurrency, formatRelativeTime } from '../../utils/formatters';
 
 /**
  * Modern SaaS workspace overview for the Profile page.

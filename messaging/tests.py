@@ -78,3 +78,90 @@ class MessagingTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         results = response.data.get('results', response.data)
         self.assertEqual(len(results), 1)
+
+    def test_client_can_update_background_preset(self):
+        self.api.force_authenticate(user=self.client_user)
+        url = reverse('messaging-thread-detail', args=[self.thread.id])
+        response = self.api.patch(url, {'background_preset': 'creative'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['background_preset'], 'creative')
+        self.assertFalse(response.data['has_custom_background'])
+        self.assertEqual(response.data['wallpaper_preset'], 'workspace')
+        self.assertTrue(response.data['can_edit_background'])
+        self.assertIn('unsplash.com', response.data['background_display_url'])
+
+    def test_client_can_update_wallpaper_separately(self):
+        self.api.force_authenticate(user=self.client_user)
+        url = reverse('messaging-thread-detail', args=[self.thread.id])
+        self.api.patch(url, {'background_preset': 'minimal'}, format='json')
+        response = self.api.patch(url, {'wallpaper_preset': 'collaboration'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['background_preset'], 'minimal')
+        self.assertEqual(response.data['wallpaper_preset'], 'collaboration')
+        self.assertIn('unsplash.com', response.data['wallpaper_display_url'])
+
+    def test_admin_can_update_thread_background(self):
+        self.api.force_authenticate(user=self.admin_user)
+        url = reverse('messaging-thread-detail', args=[self.thread.id])
+        detail = self.api.get(url)
+        self.assertTrue(detail.data['can_edit_background'])
+        response = self.api.patch(url, {'background_preset': 'minimal'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['background_preset'], 'minimal')
+
+    def test_staff_client_owner_can_update_background(self):
+        self.client_user.is_staff = True
+        self.client_user.save(update_fields=['is_staff'])
+        self.api.force_authenticate(user=self.client_user)
+        url = reverse('messaging-thread-detail', args=[self.thread.id])
+        detail = self.api.get(url)
+        self.assertTrue(detail.data['can_edit_background'])
+        response = self.api.patch(url, {'background_preset': 'minimal'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['background_preset'], 'minimal')
+
+    def test_viewing_thread_marks_one_message_notification_read(self):
+        from notifications.models import InAppNotification
+        from notifications.services import notify_user, mark_link_notifications_read
+
+        notify_user(
+            self.client_user,
+            title='New message',
+            message='Hello 1',
+            event_type=InAppNotification.EVENT_NEW_MESSAGE,
+            link=f'/messages/{self.thread.id}',
+        )
+        notify_user(
+            self.client_user,
+            title='New message',
+            message='Hello 2',
+            event_type=InAppNotification.EVENT_NEW_MESSAGE,
+            link=f'/messages/{self.thread.id}',
+        )
+        other_n = notify_user(
+            self.client_user,
+            title='Quote reviewed',
+            message='Unrelated',
+            event_type=InAppNotification.EVENT_QUOTE_REVIEWED,
+            link='/profile',
+        )
+
+        updated = mark_link_notifications_read(
+            self.client_user,
+            f'/messages/{self.thread.id}',
+            event_types=[
+                InAppNotification.EVENT_NEW_MESSAGE,
+                InAppNotification.EVENT_THREAD_CREATED,
+            ],
+            limit=1,
+        )
+        self.assertEqual(updated, 1)
+
+        other_n.refresh_from_db()
+        read_count = InAppNotification.objects.filter(
+            user=self.client_user,
+            link=f'/messages/{self.thread.id}',
+            is_read=True,
+        ).count()
+        self.assertEqual(read_count, 1)
+        self.assertFalse(other_n.is_read)

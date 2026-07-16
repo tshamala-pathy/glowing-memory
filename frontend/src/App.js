@@ -9,7 +9,7 @@
  * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
  */
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -66,15 +66,15 @@ import Messages from './pages/Messages';
 import ThreadChat from './pages/ThreadChat';
 import './App.css';
 
-function App() {
+function AppShell() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
-    <AuthProvider>
-      <Router>
-        {/* Full-height column: Navbar (4rem) + flex-1 main so pages like Messages/ThreadChat can fill the viewport. */}
-        <div className="flex min-h-screen min-h-[100dvh] w-full flex-col overflow-x-hidden app-background">
-          <Navbar />
-          <main className="flex w-full min-w-0 flex-1 flex-col min-h-0">
-            <Routes>
+    <div className="flex min-h-screen min-h-[100dvh] w-full flex-col overflow-x-hidden app-background">
+      {!isAdminRoute && <Navbar />}
+      <main className={`flex w-full min-w-0 flex-1 flex-col min-h-0 ${isAdminRoute ? 'min-h-screen' : ''}`}>
+        <Routes>
               {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -288,10 +288,18 @@ function App() {
                 } 
               />
               {/* Legacy route - same as /request-quote */}
-              <Route path="/quotes" element={<Quotes />} />
-            </Routes>
-          </main>
-        </div>
+            <Route path="/quotes" element={<Quotes />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppShell />
       </Router>
     </AuthProvider>
   );

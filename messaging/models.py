@@ -23,6 +23,28 @@ class MessageThread(models.Model):
         related_name='message_threads',
         help_text="Client (participant) for this thread",
     )
+    background_preset = models.CharField(
+        max_length=32,
+        default='workspace',
+        help_text="Sidebar cover preset when background_image is empty",
+    )
+    background_image = models.ImageField(
+        upload_to='messaging/covers/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text="Custom sidebar cover photo",
+    )
+    wallpaper_preset = models.CharField(
+        max_length=32,
+        default='workspace',
+        help_text="Chat wallpaper preset when wallpaper_image is empty",
+    )
+    wallpaper_image = models.ImageField(
+        upload_to='messaging/wallpapers/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text="Custom chat box wallpaper",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

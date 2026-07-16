@@ -13,19 +13,24 @@ const Tasks = () => {
   const { isAuthenticated } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/tasks/');
+      setTasks(Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []);
+    } catch {
+      setTasks([]);
+      setError('We couldn\'t load your tasks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    (async () => {
-      try {
-        const { data } = await api.get('/tasks/');
-        setTasks(data?.results ?? data ?? []);
-      } catch {
-        setTasks([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (isAuthenticated) load();
   }, [isAuthenticated]);
 
   if (!isAuthenticated) return null;
@@ -37,6 +42,11 @@ const Tasks = () => {
         <p className="text-slate-600 text-sm mt-1 mb-8">Track progress, due dates, and assignments.</p>
         {loading ? (
           <p className="text-center py-16 text-slate-500">Loading tasks…</p>
+        ) : error ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+            <p className="text-slate-600">{error}</p>
+            <button type="button" onClick={load} className="mt-4 text-sm font-semibold text-blue-700 hover:underline">Try again</button>
+          </div>
         ) : tasks.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-500">No tasks yet</div>
         ) : (

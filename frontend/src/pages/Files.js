@@ -7,16 +7,19 @@ const Files = () => {
   const { isAuthenticated } = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await api.get('/files/');
-      setFiles(data?.results ?? data ?? []);
+      setFiles(Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []);
     } catch {
       setFiles([]);
+      setError('We couldn\'t load your files. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -37,12 +40,16 @@ const Files = () => {
       window.URL.revokeObjectURL(url);
     } catch { /* ignore */ }
   };
+
+  const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setUploading(true);
     const form = new FormData();
     form.append('file', file);
     form.append('name', file.name);
+
     try {
       await api.post('/files/', form);
       await load();
@@ -69,6 +76,11 @@ const Files = () => {
         </div>
         {loading ? (
           <div className="text-center py-16 text-slate-500">Loading files…</div>
+        ) : error ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+            <p className="text-slate-600">{error}</p>
+            <button type="button" onClick={load} className="mt-4 text-sm font-semibold text-blue-700 hover:underline">Try again</button>
+          </div>
         ) : files.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-500">No files yet</div>
         ) : (

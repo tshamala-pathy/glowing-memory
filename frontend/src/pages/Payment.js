@@ -46,7 +46,7 @@ const Payment = () => {
       try {
         const { data: res } = await api.get(`/payment/quote/${quoteId}/`);
         setData(res);
-        if (res?.already_paid) setScreen('success');
+        if (res?.already_paid || res?.payment_status === 'paid') setScreen('success');
       } catch (err) {
         const msg = err.response?.data?.error || 'Unable to load payment details.';
         setError(msg);
@@ -84,6 +84,7 @@ const Payment = () => {
   const invoiceAmount = data?.invoice_amount ?? data?.amount;
   const paymentStatus = data?.payment_status || 'awaiting_payment';
   const statusLabel = STATUS_LABELS[paymentStatus] || paymentStatus;
+  const hasPaid = data?.already_paid || paymentStatus === 'paid';
 
   if (!isAuthenticated) {
     return (
@@ -132,7 +133,7 @@ const Payment = () => {
   }
 
   /* ── Confirmation screens ── */
-  if (screen === 'success' || data?.already_paid) {
+  if (screen === 'success' || hasPaid) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 flex items-center justify-center py-12 px-4">
         <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden">

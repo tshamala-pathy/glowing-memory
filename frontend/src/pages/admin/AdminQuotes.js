@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api from '../../services/api';
-import { getQuoteStatusClass, getQuoteStatusLabel, formatDate, formatCurrency } from '../../utils/formatters';
+import { getQuoteStatusClass, getQuoteStatusLabel, formatDate, formatCurrency, formatApiError } from '../../utils/formatters';
 
 const QUOTE_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -38,6 +38,14 @@ const defaultFormData = {
   deliverables: '',
   proposal_timeline: '',
   terms: '',
+};
+
+const prepareQuoteSubmitData = (formData) => {
+  const submitData = { ...formData };
+  if (submitData.assigned_to === '') submitData.assigned_to = null;
+  if (submitData.estimated_amount === '') submitData.estimated_amount = null;
+  if (submitData.deadline === '') submitData.deadline = null;
+  return submitData;
 };
 
 const AdminQuotes = () => {
@@ -176,15 +184,14 @@ const AdminQuotes = () => {
       fetchQuotes();
       if (selectedQuote?.id === quote.id && res?.data?.quote) setSelectedQuote(res.data.quote);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send response email');
+      alert(formatApiError(err, 'Failed to send response email'));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = { ...formData };
-      if (submitData.assigned_to === '') submitData.assigned_to = null;
+      const submitData = prepareQuoteSubmitData(formData);
       if (editingQuote) {
         const { data } = await api.put(`/quotes/${editingQuote.id}/`, submitData);
         if (selectedQuote?.id === editingQuote.id) setSelectedQuote(data);
@@ -194,8 +201,8 @@ const AdminQuotes = () => {
       fetchQuotes();
       setShowForm(false);
       setEditingQuote(null);
-    } catch {
-      alert('Failed to save quote');
+    } catch (err) {
+      alert(formatApiError(err, 'Failed to save quote'));
     }
   };
 

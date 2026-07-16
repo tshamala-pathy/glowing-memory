@@ -114,3 +114,32 @@ export const getQuoteStatusLabel = (status) => {
 export const getQuoteStatusClass = (status) => quoteStatusColors[status] || 'bg-gray-100 text-gray-800';
 export const getInvoiceStatusClass = (status) => invoiceStatusColors[status] || 'bg-gray-100 text-gray-800';
 export const getProjectStatusClass = (status) => projectStatusColors[status] || 'bg-gray-100 text-gray-800';
+
+/** Turn DRF/axios error payloads into a readable message for alerts and forms. */
+export const formatApiError = (err, fallback = 'Something went wrong.') => {
+  const data = err?.response?.data;
+  if (!data) {
+    return err?.message || fallback;
+  }
+  if (typeof data === 'string') return data;
+  if (data.detail) {
+    return typeof data.detail === 'string' ? data.detail : String(data.detail);
+  }
+  if (data.error) {
+    return typeof data.error === 'string' ? data.error : String(data.error);
+  }
+  if (Array.isArray(data.errors)) {
+    return data.errors.join('\n');
+  }
+  const parts = [];
+  Object.entries(data).forEach(([key, value]) => {
+    if (key === 'detail' || key === 'error') return;
+    const label = key.replace(/_/g, ' ');
+    if (Array.isArray(value)) {
+      parts.push(`${label}: ${value.join(', ')}`);
+    } else if (typeof value === 'string') {
+      parts.push(`${label}: ${value}`);
+    }
+  });
+  return parts.length ? parts.join('\n') : fallback;
+};

@@ -457,11 +457,6 @@ class PaymentQuoteView(APIView):
             return Response({'error': 'Quote not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not _user_can_access_quote(request, quote):
             return Response({'error': 'You do not have access to this quote.'}, status=status.HTTP_403_FORBIDDEN)
-        if quote.status != 'approved':
-            return Response(
-                {'error': 'Payment is only available for approved quotes.', 'quote_status': quote.status},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         # Idempotent: if invoice already exists (payment already completed), return success with invoice info
         existing = Invoice.objects.filter(quote=quote).first()
         if existing:
@@ -477,6 +472,11 @@ class PaymentQuoteView(APIView):
                 'invoice_id': existing.id,
                 'invoice_number': existing.invoice_number,
             })
+        if quote.status != 'approved':
+            return Response(
+                {'error': 'Payment is only available for approved quotes.', 'quote_status': quote.status},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         amount = quote.estimated_amount or Decimal('0.00')
         from payments.models import Payment as ExternalPayment
         latest_payment = ExternalPayment.objects.filter(quote=quote).order_by('-created_at').first()

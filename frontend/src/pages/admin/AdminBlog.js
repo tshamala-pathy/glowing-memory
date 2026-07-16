@@ -3,14 +3,28 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api, { getMediaUrl } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=1920&q=85';
 
 const AdminBlog = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [deletePost, setDeletePost] = useState(null);
@@ -24,8 +38,9 @@ const AdminBlog = () => {
   });
   const [imagePreview, setImagePreview] = useState(null);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/blog/');
       const data = response.data.results || response.data;
       setPosts(Array.isArray(data) ? data : []);
@@ -33,6 +48,7 @@ const AdminBlog = () => {
       setPosts([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   }, []);
 
@@ -123,162 +139,139 @@ const AdminBlog = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading blog posts...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const categoryCount = new Set(posts.map((p) => p.category).filter(Boolean)).size;
+  const withImageCount = posts.filter((p) => p.featured_image).length;
+
+  const statCards = [
+    {
+      label: 'Total posts',
+      value: posts.length,
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Categories',
+      value: categoryCount,
+      tone: 'bg-white border border-slate-200',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+    },
+    {
+      label: 'With image',
+      value: withImageCount,
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+      icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
+    },
+    {
+      label: 'Showing',
+      value: filteredPosts.length,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
+    },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-40" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Blog Posts</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage your blog content</p>
-            </div>
-            <button
-              onClick={handleCreate}
-              className="px-4 py-2.5 sm:px-5 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-xl font-semibold transition-all shadow-lg flex-shrink-0"
-            >
-              + Add Post
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-3 sm:p-6 border-b border-gray-100 bg-gray-50/50">
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Content"
+          title="Blog Posts"
+          description="Write and manage articles published on your public blog."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={handleCreate}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <input
-                type="text"
-                placeholder="Search by title, body, or category..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-              />
-            </div>
-          </div>
+              Add post
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchPosts(true)} refreshing={refreshing} />}
+        />
 
-          {filteredPosts.length === 0 ? (
-            <div className="py-12 sm:py-20 text-center px-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-xl bg-gray-100 flex items-center justify-center">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">No blog posts found</h3>
-              <p className="text-gray-500 text-sm mb-6">Create your first post to get started.</p>
-              <button onClick={handleCreate} className="px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-medium">
-                Add Post
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="md:hidden divide-y divide-gray-100">
+        <AdminStatGrid stats={statCards} />
+
+        <AdminListSection
+          title="All posts"
+          subtitle="Browse and manage blog articles"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search title, body, or category…"
+          showingCount={filteredPosts.length}
+          totalCount={posts.length}
+          hasActiveFilters={!!searchTerm.trim()}
+          onClearFilters={() => setSearchTerm('')}
+          onCreate={handleCreate}
+          createLabel="New post"
+          emptyTitle="No blog posts found"
+          emptyDescription={
+            searchTerm.trim()
+              ? 'Try a different search term.'
+              : 'Create your first post to get started.'
+          }
+          emptyActionLabel={searchTerm.trim() ? 'Clear search' : 'Add first post'}
+          onEmptyAction={searchTerm.trim() ? () => setSearchTerm('') : handleCreate}
+        >
+          <AdminTableWrap>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Post</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Category</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Created</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
                 {filteredPosts.map((post) => (
-                  <div key={post.id} className="p-4 flex flex-col sm:flex-row gap-4 bg-white">
-                    <div className="flex-shrink-0">
-                      {post.featured_image ? (
-                        <img src={getMediaUrl(post.featured_image)} alt="" className="w-20 h-20 object-cover rounded-lg" />
-                      ) : (
-                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-                          </svg>
+                  <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 sm:px-6 py-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-slate-200 flex-shrink-0">
+                          {post.featured_image ? (
+                            <img src={getMediaUrl(post.featured_image)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">—</div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-gray-900 truncate">{post.title}</h4>
-                      <p className="text-sm text-gray-500 mt-0.5">{post.category || '—'}</p>
-                      <p className="text-xs text-gray-400 mt-1">{formatDate(post.created_at)}</p>
-                      <div className="flex gap-2 mt-3">
-                        <button onClick={() => handleEdit(post)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button onClick={() => handleDelete(post)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{post.title}</p>
+                          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 max-w-md">
+                            {post.body?.replace(/<[^>]*>/g, '').substring(0, 80)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-sm text-slate-600 hidden md:table-cell">{post.category || '—'}</td>
+                    <td className="px-5 sm:px-6 py-4 text-sm text-slate-500 hidden lg:table-cell whitespace-nowrap">
+                      {formatDate(post.created_at)}
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-right">
+                      <AdminActionButtons onEdit={() => handleEdit(post)} onDelete={() => handleDelete(post)} />
+                    </td>
+                  </tr>
                 ))}
-              </div>
-
-              <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Post</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {filteredPosts.map((post) => (
-                      <tr key={post.id} className="hover:bg-gray-50/80">
-                        <td className="px-4 sm:px-6 py-3 sm:py-4">
-                          <div className="flex items-center gap-3">
-                            {post.featured_image ? (
-                              <img src={getMediaUrl(post.featured_image)} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <span className="text-gray-400 text-xs">—</span>
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="font-medium text-gray-900 truncate max-w-[200px] lg:max-w-xs">{post.title}</p>
-                              <p className="text-xs text-gray-500 truncate max-w-[200px] lg:max-w-xs">
-                                {post.body?.replace(/<[^>]*>/g, '').substring(0, 60)}...
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-600">{post.category || '—'}</td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-500 whitespace-nowrap">{formatDate(post.created_at)}</td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button onClick={() => handleEdit(post)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg" title="Edit">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button onClick={() => handleDelete(post)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
+              </tbody>
+            </table>
+          </AdminTableWrap>
+        </AdminListSection>
 
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4">

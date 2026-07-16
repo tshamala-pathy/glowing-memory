@@ -113,6 +113,23 @@ class PaymentFlowTest(TestCase):
         self.assertEqual(self.quote.status, 'paid')
         self.assertTrue(Invoice.objects.filter(quote=self.quote).exists())
 
+    def test_payment_quote_returns_success_after_payment_completion(self):
+        payment = Payment.objects.create(
+            client=self.client_profile,
+            user=self.client_user,
+            quote=self.quote,
+            amount=Decimal('1500.00'),
+        )
+        _process_payment_complete(self.quote, payment, provider_reference='test-ref')
+
+        self.api.force_authenticate(user=self.client_user)
+        response = self.api.get(reverse('payment-quote', args=[self.quote.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['already_paid'])
+        self.assertEqual(response.data['payment_status'], 'paid')
+
+    @override_settings(DEBUG=True)
     def test_simulate_itn_endpoint(self):
         payment = Payment.objects.create(
             client=self.client_profile,

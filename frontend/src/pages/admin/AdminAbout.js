@@ -3,7 +3,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api, { getMediaUrl } from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=85';
 
 const AdminAbout = () => {
   const { user, isAuthenticated } = useAuth();
@@ -12,6 +23,7 @@ const AdminAbout = () => {
   const [values, setValues] = useState([]);
   const [solutions, setSolutions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showValueForm, setShowValueForm] = useState(false);
   const [showSolutionForm, setShowSolutionForm] = useState(false);
@@ -49,8 +61,9 @@ const AdminAbout = () => {
     fetchAboutData();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchAboutData = async () => {
+  const fetchAboutData = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       let data = null;
       try {
         const res = await api.get('/about/admin/');
@@ -84,6 +97,7 @@ const AdminAbout = () => {
       setAboutData(null);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
 
@@ -215,45 +229,85 @@ const AdminAbout = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const statCards = [
+    {
+      label: 'Page status',
+      value: aboutData ? 'Live' : 'Draft',
+      icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Values',
+      value: values.length,
+      tone: 'bg-white border border-slate-200',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+    },
+    {
+      label: 'Solutions',
+      value: solutions.length,
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+      icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+    },
+    {
+      label: 'Hero image',
+      value: aboutData?.image || imagePreview ? 'Yes' : 'No',
+      tone: 'bg-white border border-emerald-100',
+      valueClass: aboutData?.image || imagePreview ? 'text-emerald-600' : 'text-slate-400',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
+    },
+  ];
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 sm:gap-3 mb-1">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight">About Us</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-base">Manage About page content, values, and solutions.</p>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Content"
+          title="About Us"
+          description="Manage About page content, company values, and solutions."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={() => setShowForm(true)}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              {aboutData ? 'Edit About' : 'Create About'}
-            </button>
-          </div>
-        </div>
+              {aboutData ? 'Edit about' : 'Create about'}
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchAboutData(true)} refreshing={refreshing} />}
+        />
+
+        <AdminStatGrid stats={statCards} />
+
+        {aboutData && (
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 sm:px-6 py-4">
+              <h2 className="text-lg font-bold text-slate-900">Current page preview</h2>
+              <p className="text-sm text-slate-500 mt-0.5">{aboutData.hero_title || aboutData.title || 'Untitled about page'}</p>
+            </div>
+            <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Hero</p>
+                <p className="font-semibold text-slate-900">{aboutData.hero_title || '—'}</p>
+                <p className="text-sm text-slate-600 mt-1 line-clamp-3">{aboutData.hero_subtitle || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Mission</p>
+                <p className="font-semibold text-slate-900">{aboutData.mission_title || '—'}</p>
+                <p className="text-sm text-slate-600 mt-1 line-clamp-2">{aboutData.mission_content || '—'}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Main Content Form Modal */}
         {showForm && (
@@ -427,9 +481,12 @@ const AdminAbout = () => {
         )}
 
         {/* Values Section */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-lg font-bold text-gray-900">Company Values</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-slate-200 bg-slate-900 px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white">Company Values</h2>
+              <p className="text-sm text-slate-300">Core principles shown on the About page</p>
+            </div>
             <button
               onClick={() => {
                 setEditingValue(null);
@@ -437,34 +494,27 @@ const AdminAbout = () => {
                 setShowValueForm(true);
               }}
               disabled={!aboutData?.id}
-              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 self-start sm:self-center px-4 py-2 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              + Add Value
+              Add value
             </button>
           </div>
-          <div className="p-6">
+          <div className="p-5 sm:p-6">
             {values.length === 0 ? (
-              <p className="text-gray-500 py-4">No values yet. Create About content first, then add values.</p>
+              <p className="text-slate-500 py-8 text-center text-sm">No values yet. Create About content first, then add values.</p>
             ) : (
               <div className="space-y-3">
                 {values.map((v) => (
-                  <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">#{v.order}</span>
-                        <h3 className="font-medium text-gray-900">{v.title}</h3>
-                        {v.icon && <span className="text-gray-400 text-sm">{v.icon}</span>}
+                  <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50 gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-400">#{v.order}</span>
+                        <h3 className="font-semibold text-slate-900">{v.title}</h3>
+                        {v.icon && <span className="text-slate-400 text-sm">{v.icon}</span>}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{v.description}</p>
+                      <p className="text-sm text-slate-600 mt-1">{v.description}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditValue(v)} className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700">
-                        Edit
-                      </button>
-                      <button onClick={() => handleDeleteValue(v)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
-                        Delete
-                      </button>
-                    </div>
+                    <AdminActionButtons onEdit={() => handleEditValue(v)} onDelete={() => handleDeleteValue(v)} />
                   </div>
                 ))}
               </div>
@@ -473,9 +523,12 @@ const AdminAbout = () => {
         </div>
 
         {/* Solutions Section */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-lg font-bold text-gray-900">Problems We Solve</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-slate-200 bg-slate-900 px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white">Problems We Solve</h2>
+              <p className="text-sm text-slate-300">Solutions highlighted on the About page</p>
+            </div>
             <button
               onClick={() => {
                 setEditingSolution(null);
@@ -483,33 +536,26 @@ const AdminAbout = () => {
                 setShowSolutionForm(true);
               }}
               disabled={!aboutData?.id}
-              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 self-start sm:self-center px-4 py-2 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              + Add Solution
+              Add solution
             </button>
           </div>
-          <div className="p-6">
+          <div className="p-5 sm:p-6">
             {solutions.length === 0 ? (
-              <p className="text-gray-500 py-4">No solutions yet. Add items to show on the About page.</p>
+              <p className="text-slate-500 py-8 text-center text-sm">No solutions yet. Add items to show on the About page.</p>
             ) : (
               <div className="space-y-3">
                 {solutions.map((s) => (
-                  <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-200 gap-3">
-                    <div className="flex-1">
+                  <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50 gap-3">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">#{s.order}</span>
-                        <h3 className="font-medium text-gray-900">{s.title}</h3>
+                        <span className="text-xs font-bold text-slate-400">#{s.order}</span>
+                        <h3 className="font-semibold text-slate-900">{s.title}</h3>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{s.description}</p>
+                      <p className="text-sm text-slate-600 mt-1">{s.description}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditSolution(s)} className="px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700">
-                        Edit
-                      </button>
-                      <button onClick={() => handleDeleteSolution(s)} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
-                        Delete
-                      </button>
-                    </div>
+                    <AdminActionButtons onEdit={() => handleEditSolution(s)} onDelete={() => handleDeleteSolution(s)} />
                   </div>
                 ))}
               </div>

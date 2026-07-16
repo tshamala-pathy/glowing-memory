@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api, { getMediaUrl } from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1573164574572-475f2930c136?auto=format&fit=crop&w=1920&q=85';
 
 const AdminServices = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, service: null });
@@ -41,8 +54,9 @@ const AdminServices = () => {
     fetchServices();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchServices = async () => {
+  const fetchServices = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/services/');
       const data = response.data?.results ?? response.data;
       setServices(Array.isArray(data) ? data : []);
@@ -50,6 +64,7 @@ const AdminServices = () => {
       setServices([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
 
@@ -161,153 +176,162 @@ const AdminServices = () => {
     }
   };
 
-  const filteredServices = services.filter(
-    (s) =>
-      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.short_description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredServices = useMemo(
+    () =>
+      services.filter(
+        (s) =>
+          !searchTerm ||
+          s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.short_description?.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [services, searchTerm]
   );
-
-  const columns = [
-    {
-      header: 'Name',
-      accessor: 'name',
-      render: (value, row) => (
-        <div className="font-medium text-slate-900">
-          {value}
-          {row.is_featured && (
-            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-              Featured
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Short',
-      accessor: 'short_description',
-      render: (value) => (
-        <div className="max-w-xs truncate text-slate-600 text-sm">{value || '-'}</div>
-      ),
-    },
-    {
-      header: 'Price',
-      accessor: 'price',
-      render: (value) =>
-        value != null ? (
-          <span className="font-medium text-slate-700">R {parseFloat(value).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}</span>
-        ) : (
-          <span className="text-slate-400">—</span>
-        ),
-    },
-    {
-      header: 'Order',
-      accessor: 'sort_order',
-      render: (value) => <span className="text-slate-600">{value ?? 0}</span>,
-    },
-    {
-      header: 'Created',
-      accessor: 'created_at',
-      render: (value) => new Date(value).toLocaleDateString(),
-    },
-  ];
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-600 font-medium">Loading services...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const statCards = [
+    {
+      label: 'Total services',
+      value: services.length,
+      icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Featured',
+      value: services.filter((s) => s.is_featured).length,
+      tone: 'bg-white border border-amber-100',
+      valueClass: 'text-amber-600',
+      iconBg: 'bg-amber-100 text-amber-600',
+      icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+    },
+    {
+      label: 'With price',
+      value: services.filter((s) => s.price != null && s.price > 0).length,
+      tone: 'bg-white border border-slate-200',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Showing',
+      value: filteredServices.length,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
+    },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6" />
+    </svg>
+  );
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Services</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage service offerings displayed on the public site.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Service
-              </button>
-              <button
-                onClick={fetchServices}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Business"
+          title="Services"
+          description="Manage service offerings displayed on the public site."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={handleCreate}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add service
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchServices(true)} refreshing={refreshing} />}
+        />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{services.length}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Featured</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-amber-600">
-              {services.filter((s) => s.is_featured).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">With Price</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
-              {services.filter((s) => s.price != null && s.price > 0).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredServices.length}</div>
-          </div>
-        </div>
+        <AdminStatGrid stats={statCards} />
 
-        {/* Search */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-          <input
-            type="text"
-            placeholder="Search by name, description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-          />
-        </div>
-
-        {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={filteredServices}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            emptyMessage="No services found"
-          />
-        </div>
+        <AdminListSection
+          title="All services"
+          subtitle="Browse and manage your service catalog"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by name or description…"
+          showingCount={filteredServices.length}
+          totalCount={services.length}
+          hasActiveFilters={!!searchTerm.trim()}
+          onClearFilters={() => setSearchTerm('')}
+          onCreate={handleCreate}
+          createLabel="New service"
+          emptyTitle="No services found"
+          emptyDescription={
+            searchTerm.trim() ? 'Try a different search term.' : 'Add your first service to get started.'
+          }
+          emptyActionLabel={searchTerm.trim() ? 'Clear search' : 'Add first service'}
+          onEmptyAction={searchTerm.trim() ? () => setSearchTerm('') : handleCreate}
+        >
+          <AdminTableWrap>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Service</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Price</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Order</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredServices.map((service) => (
+                  <tr key={service.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 sm:px-6 py-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-slate-200 flex-shrink-0">
+                          {service.image ? (
+                            <img src={getMediaUrl(service.image)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">—</div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-slate-900 truncate">{service.name}</p>
+                            {service.is_featured && (
+                              <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 max-w-md">
+                            {service.short_description || service.description?.substring(0, 80) || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-sm hidden md:table-cell">
+                      {service.price != null ? (
+                        <span className="font-medium text-slate-700">
+                          R {parseFloat(service.price).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-sm text-slate-500 hidden lg:table-cell">{service.sort_order ?? 0}</td>
+                    <td className="px-5 sm:px-6 py-4 text-right">
+                      <AdminActionButtons onEdit={() => handleEdit(service)} onDelete={() => handleDelete(service)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTableWrap>
+        </AdminListSection>
 
         {/* Form Modal */}
         {showForm && (

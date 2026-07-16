@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api, { getMediaUrl } from '../services/api';
+import UserAvatar from './UserAvatar';
 
 const StarIcon = ({ filled }) => (
   <svg className={`w-5 h-5 shrink-0 ${filled ? 'text-amber-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
@@ -63,20 +64,13 @@ const Testimonials = () => {
               </blockquote>
 
               <div className="flex items-center gap-4">
-                {t.image ? (
-                  <img
-                    src={getMediaUrl(t.image)}
-                    alt={t.name}
-                    className="w-14 h-14 rounded-full object-cover ring-2 ring-slate-100"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white font-semibold text-lg shrink-0">
-                    {(t.name || '?').charAt(0)}
-                  </div>
-                )}
+                <UserAvatar
+                  src={getMediaUrl(t.image)}
+                  name={t.name}
+                  size="lg"
+                  ring
+                  className="ring-slate-100"
+                />
                 <div>
                   <div className="font-semibold text-slate-900">{t.name}</div>
                   {(t.position || t.company) && (

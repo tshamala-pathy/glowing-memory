@@ -13,19 +13,24 @@ const Calendar = () => {
   const { isAuthenticated } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/calendar/');
+      setEvents(Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []);
+    } catch {
+      setEvents([]);
+      setError('We couldn\'t load your calendar. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    (async () => {
-      try {
-        const { data } = await api.get('/calendar/');
-        setEvents(data?.results ?? data ?? []);
-      } catch {
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (isAuthenticated) load();
   }, [isAuthenticated]);
 
   if (!isAuthenticated) return null;
@@ -44,6 +49,11 @@ const Calendar = () => {
         <p className="text-slate-600 text-sm mt-1 mb-8">Deadlines, meetings, and reminders in timeline view.</p>
         {loading ? (
           <p className="text-center py-16 text-slate-500">Loading events…</p>
+        ) : error ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+            <p className="text-slate-600">{error}</p>
+            <button type="button" onClick={load} className="mt-4 text-sm font-semibold text-blue-700 hover:underline">Try again</button>
+          </div>
         ) : events.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-500">No upcoming events</div>
         ) : (

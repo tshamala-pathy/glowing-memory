@@ -7,11 +7,18 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from django.http import FileResponse
 
 from .models import MessageThread, Message
-from .serializers import MessageThreadSerializer, MessageThreadDetailSerializer, MessageSerializer
+from .serializers import (
+    MessageThreadSerializer,
+    MessageThreadDetailSerializer,
+    MessageThreadBackgroundSerializer,
+    MessageSerializer,
+)
 from users.activity import log_activity
+from .backgrounds import user_can_edit_thread_background
 
 
 def _user_can_access_thread(user, thread):
@@ -24,6 +31,10 @@ def _user_can_access_thread(user, thread):
     return profile and thread.client_id == profile.id
 
 
+def _parse_truthy(value):
+    return value in (True, 'true', '1', 1)
+
+
 class MessageThreadViewSet(viewsets.ModelViewSet):
     """
     thread_list: GET /api/messaging/threads/ (only threads user can access)
@@ -33,7 +44,8 @@ class MessageThreadViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated]
     serializer_class = MessageThreadSerializer
-    http_method_names = ['get', 'post', 'head', 'options']  # no put/patch/delete
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
 
     def get_queryset(self):
         qs = MessageThread.objects.all().select_related('project', 'client')
@@ -80,8 +92,40 @@ class MessageThreadViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if not _user_can_access_thread(request.user, instance):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context=self.get_serializer_context())
         return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        """Update sidebar cover and/or chat wallpaper (independent fields)."""
+        thread = self.get_object()
+        if not _user_can_access_thread(request.user, thread):
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not user_can_edit_thread_background(request.user, thread):
+            return Response(
+                {'detail': 'You cannot update the chat appearance for this thread.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = request.data.copy()
+        if _parse_truthy(request.data.get('clear_background_image')):
+            data['clear_background_image'] = True
+        if _parse_truthy(request.data.get('clear_wallpaper_image')):
+            data['clear_wallpaper_image'] = True
+
+        serializer = MessageThreadBackgroundSerializer(
+            thread, data=data, partial=True, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        log_activity(
+            request.user,
+            'thread_background_updated',
+            object_type='thread',
+            object_id=thread.id,
+            details=thread.project.name if thread.project else '',
+        )
+        out = MessageThreadDetailSerializer(thread, context={'request': request})
+        return Response(out.data)
 
     @action(detail=True, methods=['post'], url_path='send_message')
     def send_message(self, request, pk=None):

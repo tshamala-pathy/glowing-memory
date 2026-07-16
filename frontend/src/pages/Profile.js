@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 import { formatDate, formatDateTime, formatCurrency } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
 import ProfileWorkspace from '../components/profile/ProfileWorkspace';
+import UserAvatar from '../components/UserAvatar';
+import { getTestimonialAvatarUrl, getUserAvatarUrl } from '../utils/userAvatar';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
@@ -125,6 +127,7 @@ const LoadingState = ({ label = 'Loading...' }) => (
  */
 const Profile = () => {
   const { user, isAuthenticated, loading, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [client, setClient] = useState(null);
   const [messages, setMessages] = useState([]); // legacy contact messages from /profile/
@@ -286,7 +289,8 @@ const Profile = () => {
         window.location.href = paymentUrl;
         return;
       }
-      setError('No payment link is available for this quote. Please contact support.');
+      navigate(`/payment/${quoteId}`);
+      return;
     } catch (err) {
       const msg = err.response?.data?.decision?.[0] || err.response?.data?.detail || 'Failed to approve quote. Please try again.';
       setError(msg);
@@ -347,7 +351,7 @@ const Profile = () => {
       !quoteIdsWithInvoice.has(q.id)
   );
 
-  const avatarUrl = user?.avatar_url || (user?.avatar && getMediaUrl(user.avatar));
+  const avatarUrl = getUserAvatarUrl(user) || (user?.avatar && getMediaUrl(user.avatar));
   const overviewDisplayName =
     [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.first_name || user?.username || 'there';
 
@@ -1026,6 +1030,16 @@ const Profile = () => {
                       key={t.id}
                       className="group rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-teal-50/25 p-5 sm:p-6 shadow-sm ring-1 ring-slate-900/[0.04] transition hover:border-teal-200 hover:shadow-md"
                     >
+                      <div className="flex gap-4">
+                        <UserAvatar
+                          src={getTestimonialAvatarUrl(t, user)}
+                          name={t.name || overviewDisplayName}
+                          email={user?.email}
+                          size="lg"
+                          ring
+                          className="ring-teal-100 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex items-center gap-1.5 min-w-0" aria-hidden>
                           {[1, 2, 3, 4, 5].map((i) => (
@@ -1050,6 +1064,8 @@ const Profile = () => {
                       <p className="text-xs font-medium text-slate-500 mt-4 tabular-nums">
                         Submitted {formatDate(t.created_at)}
                       </p>
+                        </div>
+                      </div>
                     </li>
                   );
                 })}

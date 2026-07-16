@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1920&q=85';
 
 const AdminCaseStudies = () => {
   const { user, isAuthenticated } = useAuth();
@@ -12,6 +24,8 @@ const AdminCaseStudies = () => {
   const [caseStudies, setCaseStudies] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingCaseStudy, setEditingCaseStudy] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, caseStudy: null });
@@ -39,8 +53,9 @@ const AdminCaseStudies = () => {
     fetchData();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchData = async () => {
+  const fetchData = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const [caseStudiesRes, clientsRes] = await Promise.all([
         api.get('/clients/case-studies/'),
         api.get('/clients/clients/?page_size=500'),
@@ -54,6 +69,7 @@ const AdminCaseStudies = () => {
       setClients([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
 
@@ -147,157 +163,177 @@ const AdminCaseStudies = () => {
     }
   };
 
-  const filteredCaseStudies = caseStudies.filter(
-    (cs) =>
-      cs.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cs.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cs.problem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cs.solution?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cs.result?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const columns = [
-    {
-      header: 'Title',
-      accessor: 'title',
-      render: (value, row) => (
-        <div className="min-w-0">
-          <span className="font-medium text-slate-900 block truncate max-w-[200px]" title={value}>
-            {value}
-          </span>
-          {row.client_name && (
-            <span className="text-xs text-slate-500 truncate block max-w-[200px]">{row.client_name}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Problem snippet',
-      accessor: 'problem',
-      render: (value) => (
-        <div className="max-w-xs text-slate-600 text-sm line-clamp-2 truncate" title={value}>
-          {value || '—'}
-        </div>
-      ),
-    },
-    {
-      header: 'Public',
-      accessor: 'is_public',
-      render: (value) => (
-        <span
-          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-            value ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-          }`}
-        >
-          {value ? 'Yes' : 'No'}
-        </span>
-      ),
-    },
-    {
-      header: 'Created',
-      accessor: 'created_at',
-      render: (value) => (
-        <span className="text-slate-600 text-sm">{value ? new Date(value).toLocaleDateString() : '—'}</span>
-      ),
-    },
-  ];
+  const filteredCaseStudies = useMemo(() => {
+    return caseStudies.filter((cs) => {
+      const matchesSearch =
+        !searchTerm ||
+        cs.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cs.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cs.problem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cs.solution?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cs.result?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter =
+        statusFilter === 'all' ||
+        (statusFilter === 'public' && cs.is_public) ||
+        (statusFilter === 'private' && !cs.is_public);
+      return matchesSearch && matchesFilter;
+    });
+  }, [caseStudies, searchTerm, statusFilter]);
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-600 font-medium">Loading case studies...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const publicCount = caseStudies.filter((cs) => cs.is_public).length;
+  const withMetricsCount = caseStudies.filter(
+    (cs) => cs.metrics && Object.keys(cs.metrics || {}).length > 0
+  ).length;
+
+  const statCards = [
+    {
+      label: 'Total studies',
+      value: caseStudies.length,
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Public',
+      value: publicCount,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
+    },
+    {
+      label: 'With metrics',
+      value: withMetricsCount,
+      tone: 'bg-white border border-slate-200',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+    },
+    {
+      label: 'Showing',
+      value: filteredCaseStudies.length,
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+      icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: caseStudies.length },
+    { id: 'public', label: 'Public', count: publicCount },
+    { id: 'private', label: 'Private', count: caseStudies.length - publicCount },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Case Studies</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage client case studies and success stories for your portfolio.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Case Study
-              </button>
-              <button
-                onClick={fetchData}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Portfolio"
+          title="Case Studies"
+          description="Manage client case studies and success stories for your portfolio."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={handleCreate}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add case study
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchData(true)} refreshing={refreshing} />}
+        />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{caseStudies.length}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Public</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-emerald-600">
-              {caseStudies.filter((cs) => cs.is_public).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">With Metrics</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
-              {caseStudies.filter((cs) => cs.metrics && Object.keys(cs.metrics || {}).length > 0).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredCaseStudies.length}</div>
-          </div>
-        </div>
+        <AdminStatGrid stats={statCards} />
 
-        {/* Search */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-          <input
-            type="text"
-            placeholder="Search by title, client, problem, solution, result..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-          />
-        </div>
-
-        {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={filteredCaseStudies}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            emptyMessage="No case studies found"
-          />
-        </div>
+        <AdminListSection
+          title="All case studies"
+          subtitle="Browse and manage portfolio success stories"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search title, client, problem, solution…"
+          filters={statusFilters}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          showingCount={filteredCaseStudies.length}
+          totalCount={caseStudies.length}
+          hasActiveFilters={!!searchTerm.trim() || statusFilter !== 'all'}
+          onClearFilters={() => {
+            setSearchTerm('');
+            setStatusFilter('all');
+          }}
+          onCreate={handleCreate}
+          createLabel="New case study"
+          emptyTitle="No case studies found"
+          emptyDescription={
+            searchTerm.trim() || statusFilter !== 'all'
+              ? 'Try adjusting your search or filters.'
+              : 'Add your first case study to showcase client success.'
+          }
+          emptyActionLabel={searchTerm.trim() || statusFilter !== 'all' ? 'Clear filters' : 'Add first case study'}
+          onEmptyAction={
+            searchTerm.trim() || statusFilter !== 'all'
+              ? () => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                }
+              : handleCreate
+          }
+        >
+          <AdminTableWrap>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Study</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Problem</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Status</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredCaseStudies.map((cs) => (
+                  <tr key={cs.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 sm:px-6 py-4">
+                      <p className="font-semibold text-slate-900 truncate max-w-xs">{cs.title}</p>
+                      {cs.client_name && (
+                        <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{cs.client_name}</p>
+                      )}
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden md:table-cell">
+                      <p className="text-sm text-slate-600 line-clamp-2 max-w-md">{cs.problem || '—'}</p>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden lg:table-cell">
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          cs.is_public ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {cs.is_public ? 'Public' : 'Private'}
+                      </span>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-right">
+                      <AdminActionButtons onEdit={() => handleEdit(cs)} onDelete={() => handleDelete(cs)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTableWrap>
+        </AdminListSection>
 
         {/* Form Modal */}
         {showForm && (
