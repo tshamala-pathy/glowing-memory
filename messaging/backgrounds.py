@@ -50,13 +50,8 @@ WALLPAPER_PRESETS = {
 
 
 def _absolute_media_url(url, request=None):
-    if request:
-        return request.build_absolute_uri(url)
-    from django.conf import settings
-    base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
-    if url.startswith(('http://', 'https://')):
-        return url
-    return f'{base}{url if url.startswith("/") else "/" + url}'
+    from users.media_urls import absolute_url_path
+    return absolute_url_path(request, url)
 
 
 def resolve_cover_url(thread, request=None):

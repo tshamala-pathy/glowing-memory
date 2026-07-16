@@ -64,17 +64,8 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_attachment_media_url(self, obj):
         """Direct media URL for inline display (e.g. <img src=...>)."""
-        if not obj.attachment:
-            return None
-        url = obj.attachment.url
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(url)
-        from django.conf import settings
-        base = getattr(settings, 'PROJECT_BASE_URL', 'http://localhost:8000').rstrip('/')
-        if url.startswith('http://') or url.startswith('https://'):
-            return url
-        return f'{base}{url if url.startswith('/') else '/' + url}'
+        from users.media_urls import absolute_media_url
+        return absolute_media_url(self.context.get('request'), obj.attachment)
 
     def get_attachment_url(self, obj):
         if not obj.attachment:
