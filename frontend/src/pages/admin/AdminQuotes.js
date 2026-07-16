@@ -4,14 +4,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api from '../../services/api';
-import { getQuoteStatusClass, getQuoteStatusLabel, formatDate, formatCurrency } from '../../utils/formatters';
+import { getQuoteStatusClass, getQuoteStatusLabel, formatDate, formatCurrency, formatApiError } from '../../utils/formatters';
 
 const QUOTE_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'replied', label: 'Replied' },
   { value: 'reviewed', label: 'Reviewed' },
+  { value: 'changes_requested', label: 'Changes requested' },
   { value: 'approved', label: 'Approved' },
   { value: 'declined', label: 'Declined' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'paid', label: 'Paid' },
 ];
 
 const defaultFormData = {
@@ -31,6 +34,18 @@ const defaultFormData = {
   notes: '',
   admin_response: '',
   assigned_to: '',
+  scope: '',
+  deliverables: '',
+  proposal_timeline: '',
+  terms: '',
+};
+
+const prepareQuoteSubmitData = (formData) => {
+  const submitData = { ...formData };
+  if (submitData.assigned_to === '') submitData.assigned_to = null;
+  if (submitData.estimated_amount === '') submitData.estimated_amount = null;
+  if (submitData.deadline === '') submitData.deadline = null;
+  return submitData;
 };
 
 const AdminQuotes = () => {
@@ -113,6 +128,10 @@ const AdminQuotes = () => {
       notes: quote.notes || '',
       admin_response: quote.admin_response || '',
       assigned_to: quote.assigned_to || '',
+      scope: quote.scope || '',
+      deliverables: quote.deliverables || '',
+      proposal_timeline: quote.proposal_timeline || '',
+      terms: quote.terms || '',
     });
     setShowForm(true);
   };
@@ -165,15 +184,14 @@ const AdminQuotes = () => {
       fetchQuotes();
       if (selectedQuote?.id === quote.id && res?.data?.quote) setSelectedQuote(res.data.quote);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send response email');
+      alert(formatApiError(err, 'Failed to send response email'));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = { ...formData };
-      if (submitData.assigned_to === '') submitData.assigned_to = null;
+      const submitData = prepareQuoteSubmitData(formData);
       if (editingQuote) {
         const { data } = await api.put(`/quotes/${editingQuote.id}/`, submitData);
         if (selectedQuote?.id === editingQuote.id) setSelectedQuote(data);
@@ -183,8 +201,8 @@ const AdminQuotes = () => {
       fetchQuotes();
       setShowForm(false);
       setEditingQuote(null);
-    } catch {
-      alert('Failed to save quote');
+    } catch (err) {
+      alert(formatApiError(err, 'Failed to save quote'));
     }
   };
 
@@ -456,6 +474,24 @@ const AdminQuotes = () => {
                   <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${getQuoteStatusClass(selectedQuote.status)}`}>
                     {getQuoteStatusLabel(selectedQuote.status)}
                   </span>
+                  {selectedQuote.scope && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</p>
+                      <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">{selectedQuote.scope}</p>
+                    </div>
+                  )}
+                  {selectedQuote.deliverables && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Deliverables</p>
+                      <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded">{selectedQuote.deliverables}</p>
+                    </div>
+                  )}
+                  {selectedQuote.proposal_timeline && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Proposal timeline</p>
+                      <p className="text-gray-900 text-sm">{selectedQuote.proposal_timeline}</p>
+                    </div>
+                  )}
                   {selectedQuote.admin_response && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Response</p>
@@ -612,6 +648,49 @@ const AdminQuotes = () => {
                     </div>
 
                     <div className="space-y-4 border-t border-gray-200 pt-4">
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-700">Proposal details</h4>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Scope</label>
+                          <textarea
+                            rows={3}
+                            value={formData.scope}
+                            onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
+                            placeholder="Project scope for the proposal"
+                            className="mt-1 block w-full border border-gray-300 rounded-xl py-2 px-3 focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Deliverables</label>
+                          <textarea
+                            rows={3}
+                            value={formData.deliverables}
+                            onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
+                            placeholder="Bullet points or list of deliverables"
+                            className="mt-1 block w-full border border-gray-300 rounded-xl py-2 px-3 focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Proposal timeline</label>
+                          <input
+                            type="text"
+                            value={formData.proposal_timeline}
+                            onChange={(e) => setFormData({ ...formData, proposal_timeline: e.target.value })}
+                            placeholder="e.g. 4–6 weeks, 2 months"
+                            className="mt-1 block w-full border border-gray-300 rounded-xl py-2 px-3 focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Terms</label>
+                          <textarea
+                            rows={3}
+                            value={formData.terms}
+                            onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
+                            placeholder="Terms and conditions for the proposal"
+                            className="mt-1 block w-full border border-gray-300 rounded-xl py-2 px-3 focus:ring-slate-500 focus:border-slate-500"
+                          />
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">Status</label>

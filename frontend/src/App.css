@@ -24,7 +24,7 @@
   z-index: 1;
 }
 
-/* Brand colors — light black / charcoal palette */
+/* Brand colors — charcoal base + teal accent */
 :root {
   --brand-primary: #334155;
   --brand-primary-hover: #1e293b;
@@ -36,6 +36,14 @@
   --aws-orange-hover: var(--brand-primary-hover);
   --aws-content-bg: #f8fafc;
   --aws-card-border: #e2e8f0;
+  /* Accent colors — teal/slate for projects, links, highlights */
+  --accent-teal: #0d9488;
+  --accent-teal-light: #ccfbf1;
+  --accent-teal-dark: #0f766e;
+  --accent-sky: #0284c7;
+  --accent-sky-light: #e0f2fe;
+  --accent-amber: #d97706;
+  --accent-amber-light: #fef3c7;
 }
 
 /* Prevent horizontal scroll on small devices */

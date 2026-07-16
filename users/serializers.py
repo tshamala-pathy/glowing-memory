@@ -87,12 +87,9 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login', 'email_verified')
 
     def get_avatar_url(self, obj):
-        if not obj.avatar:
-            return None
         request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.avatar.url)
-        return obj.avatar.url
+        from users.media_urls import absolute_media_url
+        return absolute_media_url(request, obj.avatar)
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):

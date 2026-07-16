@@ -47,18 +47,14 @@ class QuoteAdminForm(forms.ModelForm):
 
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
+    """
+    Django admin for :class:`~quotes.models.Quote`.
+
+    Supports filtering, search, proposal fields (scope, deliverables, timeline, terms),
+    status transitions validated by :meth:`Quote.validate_status_transition`, optional
+    "send response" email flow, and bulk actions for marking reviewed / generating invoices.
+    """
     form = QuoteAdminForm
-    """
-    Admin interface configuration for Quote model.
-    
-    Allows administrators to:
-    - View all submitted quote requests
-    - Filter and search quotes by various fields
-    - Update quote status and add estimated amounts
-    - Assign quotes to team members
-    - Add admin responses that are automatically emailed to clients
-    - Track requirements acceptance and response timestamps
-    """
     # Fields displayed in the list view
     list_display = [
         'project_title', 'client', 'client_name', 'client_email', 'service_type',
@@ -102,14 +98,18 @@ class QuoteAdmin(admin.ModelAdmin):
             'fields': ('requirements_accepted', 'requirements_accepted_at'),
             'description': 'Whether the client has read and accepted the requirements'
         }),
+        ('Proposal Details', {
+            'fields': ('scope', 'deliverables', 'proposal_timeline', 'terms'),
+            'description': 'Proposal scope, deliverables, timeline and terms (visible to client when reviewed)'
+        }),
         ('Quote Response', {
             'fields': (
-                'status', 'estimated_amount', 'estimated_delivery_time', 'admin_response', 'payment_url', 'send_response_button',
-                'assigned_to', 'notes'
+                'status', 'estimated_amount', 'estimated_delivery_time', 'admin_response', 'client_response',
+                'payment_url', 'send_response_button', 'assigned_to', 'notes'
             ),
             'description': (
                 'Proposed price (estimated_amount), admin notes, and estimated delivery. '
-                'Click "Send Response" to email the client; status becomes "reviewed" and client can approve/decline in portal.'
+                'Click "Send Response" to email the client; status becomes "reviewed" and client can approve/reject/request changes in portal.'
             )
         }),
         ('Timestamps', {
@@ -215,7 +215,30 @@ class QuoteAdmin(admin.ModelAdmin):
         
         super().save_model(request, obj, form, change)
     
-    actions = ['generate_invoice_from_quote']
+    actions = ['mark_as_reviewed', 'generate_invoice_from_quote']
+
+    @admin.action(description='Mark as Reviewed')
+    def mark_as_reviewed(self, request, queryset):
+        """Mark selected quotes as reviewed (only if validation passes)."""
+        count = 0
+        for quote in queryset:
+            if quote.status not in ('pending', 'changes_requested'):
+                continue
+            try:
+                Quote.validate_status_transition(quote.status, 'reviewed')
+            except ValidationError:
+                continue
+            if not quote.estimated_amount or not quote.proposal_timeline or not (quote.scope or '').strip():
+                continue
+            quote.status = 'reviewed'
+            quote.responded_at = timezone.now()
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['status', 'responded_at', 'payment_url'])
+            count += 1
+        if count:
+            self.message_user(request, f'{count} quote(s) marked as reviewed.')
+        else:
+            self.message_user(request, 'No quotes could be marked as reviewed. Ensure price, timeline, and scope are set.', level=messages.WARNING)
     
     @admin.action(description='Generate Invoice from Selected Approved Quotes')
     def generate_invoice_from_quote(self, request, queryset):

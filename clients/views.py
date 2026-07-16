@@ -1,3 +1,8 @@
+"""
+REST API for clients (business entities), their projects, project files, internal tasks,
+and case studies. Access is scoped so non-staff users only see their own client row,
+projects, and files.
+"""
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -225,16 +230,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def my_projects(self, request):
         """
         Return only the current user's assigned projects (for client portal).
-        Requires authentication; clients see only projects where they are the client.
+        Supports query params: search (name, description, tech_stack), status (stage filter).
         """
         profile = getattr(request.user, 'client_profile', None)
         if not profile:
             return Response([])
         projects = Project.objects.filter(client=profile).select_related(
             'client', 'quote', 'invoice'
-        ).order_by('-created_at')
+        )
+
+        search_query = request.query_params.get('search', '').strip()
+        if search_query:
+            projects = projects.filter(
+                models.Q(name__icontains=search_query)
+                | models.Q(description__icontains=search_query)
+                | models.Q(tech_stack__icontains=search_query)
+            )
+
+        status_filter = request.query_params.get('status', '').strip()
+        if status_filter:
+            projects = projects.filter(status=status_filter)
+
+        projects = projects.order_by('-created_at')
         serializer = self.get_serializer(projects, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperuser])
+    def upload_screenshot(self, request, pk=None):
+        """
+        Append one image to project.screenshots (JSON list of media paths).
+        Superuser only. Multipart field: file (image).
+        """
+        from django.core.files.storage import default_storage
+        from django.utils.text import get_valid_filename
+
+        project = self.get_object()
+        upload = request.FILES.get('file') or request.FILES.get('image')
+        if not upload:
+            return Response({'file': ['No image file provided.']}, status=status.HTTP_400_BAD_REQUEST)
+
+        safe = get_valid_filename(upload.name)
+        storage_path = f'clients/projects/screenshots/{project.id}_{safe}'
+        saved_name = default_storage.save(storage_path, upload)
+        media_url = default_storage.url(saved_name)
+
+        screens = list(project.screenshots or [])
+        screens.append(media_url)
+        project.screenshots = screens
+        project.save(update_fields=['screenshots'])
+        serializer = self.get_serializer(project)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def public(self, request):

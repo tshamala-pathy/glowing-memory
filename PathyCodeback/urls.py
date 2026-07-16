@@ -12,13 +12,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import search
+from .views import search, health
 from users.views import ProfileAggregateView
 from invoices.views import PaymentQuoteView
 from payments.views import StartPayFastPaymentView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/health/', health, name='health'),
     path('api/search/', search, name='search'),
     path('api/profile/', ProfileAggregateView.as_view(), name='profile_aggregate'),
     path('api/users/', include('users.urls')),
@@ -35,6 +36,10 @@ urlpatterns = [
     path('api/invoices/', include('invoices.urls')),
     path('api/clients/', include('clients.urls')),
     path('api/messaging/', include('messaging.urls')),
+    path('api/notifications/', include('notifications.urls')),
+    path('api/files/', include('files.urls')),
+    path('api/tasks/', include('tasks.urls')),
+    path('api/calendar/', include('calendar_events.urls')),
     path('payments/', include('payments.urls', namespace='payments')),
 ]
 

@@ -20,6 +20,15 @@ class TestimonialViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'rating']
     ordering = ['-is_featured', '-created_at']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_authenticated and user.is_superuser:
+            return qs
+        if self.action in ('list', 'retrieve'):
+            return qs.filter(is_approved=True)
+        return qs
+
     def get_permissions(self):
         if self.action in ('list', 'retrieve', 'create'):
             return [permissions.AllowAny()]
@@ -28,14 +37,25 @@ class TestimonialViewSet(viewsets.ModelViewSet):
         return [IsSuperuser()]
 
     def perform_create(self, serializer):
-        """Link testimonial to Client when user is authenticated."""
-        testimonial = serializer.save()
-        if self.request.user.is_authenticated:
-            profile = getattr(self.request.user, 'client_profile', None)
+        """Link testimonial to Client and pre-fill identity from the signed-in user."""
+        user = self.request.user
+        save_kwargs = {}
+        if user.is_authenticated:
+            profile = getattr(user, 'client_profile', None)
             if profile:
-                testimonial.client = profile
-                testimonial.save(update_fields=['client'])
-            log_activity(self.request.user, 'testimonial_submitted', object_type='testimonial', object_id=testimonial.id, details=testimonial.content[:50] if testimonial.content else '')
+                save_kwargs['client'] = profile
+            full_name = (user.get_full_name() or '').strip()
+            if full_name and not (serializer.validated_data.get('name') or '').strip():
+                save_kwargs['name'] = full_name
+        testimonial = serializer.save(**save_kwargs)
+        if user.is_authenticated:
+            log_activity(
+                user,
+                'testimonial_submitted',
+                object_type='testimonial',
+                object_id=testimonial.id,
+                details=(testimonial.testimonial or '')[:50],
+            )
 
     def get_serializer_context(self):
         """Add request to serializer context for building absolute URLs."""

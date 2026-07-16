@@ -3,28 +3,48 @@ version: '3.9'
 services:
   web:
     build: .
-    command: gunicorn PathyCodeback.wsgi:application --bind 0.0.0.0:8000
-    volumes:
-      - .:/app
     ports:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_HOST: db
+      DB_PORT: 5432
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   db:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-pathycode}
+      POSTGRES_USER: ${DB_USER:-pathycode}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pathycode}
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pathycode} -d ${DB_NAME:-pathycode}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+    driver: local
+  media_data:
+    driver: local
+  static_data:
     driver: local
 

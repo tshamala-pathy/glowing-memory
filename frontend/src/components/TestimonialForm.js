@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './UserAvatar';
+import { getUserAvatarUrl } from '../utils/userAvatar';
 
 const StarIcon = ({ filled, onClick }) => (
   <button
@@ -18,6 +22,7 @@ const StarIcon = ({ filled, onClick }) => (
 );
 
 const TestimonialForm = () => {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     position: '',
@@ -29,6 +34,19 @@ const TestimonialForm = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const avatarUrl = getUserAvatarUrl(user);
+  const displayName =
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || '';
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name || displayName,
+      company: prev.company || user.client_profile?.name || prev.company,
+    }));
+  }, [isAuthenticated, user, displayName]);
+
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
@@ -39,16 +57,22 @@ const TestimonialForm = () => {
     try {
       await api.post('/testimonials/', formData);
       setSuccess(true);
-      setFormData({ name: '', position: '', company: '', testimonial: '', rating: 5 });
+      setFormData({
+        name: displayName || '',
+        position: '',
+        company: user?.client_profile?.name || '',
+        testimonial: '',
+        rating: 5,
+      });
     } catch (err) {
       if (err.isNetworkError) {
         setError('Cannot connect to server. Please try again later.');
       } else {
         setError(
           err.response?.data?.detail ||
-          err.response?.data?.message ||
-          err.message ||
-          'Failed to submit testimonial. Please try again.'
+            err.response?.data?.message ||
+            err.message ||
+            'Failed to submit testimonial. Please try again.'
         );
       }
     } finally {
@@ -56,7 +80,8 @@ const TestimonialForm = () => {
     }
   };
 
-  const inputCls = 'w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-slate-600 focus:border-slate-600 outline-none transition placeholder:text-slate-400';
+  const inputCls =
+    'w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-slate-600 focus:border-slate-600 outline-none transition placeholder:text-slate-400';
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
@@ -66,6 +91,26 @@ const TestimonialForm = () => {
       </div>
 
       <div className="p-6 sm:p-8">
+        {isAuthenticated && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <UserAvatar src={avatarUrl} name={displayName} email={user?.email} size="lg" ring />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">Your profile photo</p>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                {avatarUrl
+                  ? 'This photo is linked to your account and will appear on published testimonials.'
+                  : 'Add a profile photo so it appears on your testimonial and across your account.'}
+              </p>
+              <Link
+                to="/profile"
+                className="inline-block mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800"
+              >
+                {avatarUrl ? 'Update photo in profile →' : 'Upload photo in profile →'}
+              </Link>
+            </div>
+          </div>
+        )}
+
         {success && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
@@ -135,9 +180,7 @@ const TestimonialForm = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Rating *
-            </label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Rating *</label>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <StarIcon

@@ -457,29 +457,40 @@ class PaymentQuoteView(APIView):
             return Response({'error': 'Quote not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not _user_can_access_quote(request, quote):
             return Response({'error': 'You do not have access to this quote.'}, status=status.HTTP_403_FORBIDDEN)
-        if quote.status != 'approved':
-            return Response(
-                {'error': 'Payment is only available for approved quotes.', 'quote_status': quote.status},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         # Idempotent: if invoice already exists (payment already completed), return success with invoice info
         existing = Invoice.objects.filter(quote=quote).first()
         if existing:
             return Response({
                 'quote_id': quote.id,
                 'project_title': quote.project_title,
+                'quote_amount': float(quote.estimated_amount or 0),
                 'amount': float(quote.estimated_amount or 0),
+                'invoice_amount': float(existing.total_amount or quote.estimated_amount or 0),
+                'payment_method': 'PayFast',
+                'payment_status': 'paid',
                 'already_paid': True,
                 'invoice_id': existing.id,
                 'invoice_number': existing.invoice_number,
             })
+        if quote.status != 'approved':
+            return Response(
+                {'error': 'Payment is only available for approved quotes.', 'quote_status': quote.status},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         amount = quote.estimated_amount or Decimal('0.00')
+        from payments.models import Payment as ExternalPayment
+        latest_payment = ExternalPayment.objects.filter(quote=quote).order_by('-created_at').first()
+        payment_status = latest_payment.payment_status if latest_payment else 'awaiting_payment'
         return Response({
             'quote_id': quote.id,
             'project_title': quote.project_title,
             'service_type': quote.service_type,
             'client_name': quote.client_name,
+            'quote_amount': float(amount),
             'amount': float(amount),
+            'invoice_amount': float(amount),
+            'payment_method': 'PayFast',
+            'payment_status': payment_status,
             'already_paid': False,
         })
 

@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from PathyCodeback.permissions import IsSuperuser
 from .models import CustomUser, Notification, ActivityLog
 from .activity import log_activity
@@ -17,6 +18,8 @@ from .serializers import (
     ActivityLogSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
+from notifications.models import InAppNotification
+from notifications.services import notify_user
 
 # ================================
 # User Authentication Views
@@ -37,7 +40,7 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
 
         email = request.data.get('email')
         user = CustomUser.objects.get(email=email)
-        user_data = UserSerializer(user).data
+        user_data = UserSerializer(user, context={'request': request}).data
 
         from clients.models import Client
         try:
@@ -85,7 +88,7 @@ class RegisterView(generics.CreateAPIView):
         log_activity(user, 'register')
         # Generate JWT tokens for the new user
         refresh = RefreshToken.for_user(user)
-        user_data = UserSerializer(user).data
+        user_data = UserSerializer(user, context={'request': request}).data
         
         return Response({
             'access': str(refresh.access_token),
@@ -126,7 +129,7 @@ class ProfileAggregateView(generics.GenericAPIView):
         from django.db.models import Q
 
         user = request.user
-        user_data = UserSerializer(user).data
+        user_data = UserSerializer(user, context={'request': request}).data
 
         profile = getattr(user, 'client_profile', None)
         client_data = None
@@ -175,6 +178,12 @@ class ProfileAggregateView(generics.GenericAPIView):
                 testimonials_qs, many=True, context={'request': request}
             ).data
 
+        # Payments count for profile statistics
+        payments_count = 0
+        if profile:
+            from payments.models import Payment as ExternalPayment
+            payments_count = ExternalPayment.objects.filter(client=profile, payment_status='paid').count()
+
         return Response({
             'user': user_data,
             'client': client_data,
@@ -183,6 +192,12 @@ class ProfileAggregateView(generics.GenericAPIView):
             'projects': projects_data,
             'messages': messages_data,
             'testimonials': testimonials_data,
+            'stats': {
+                'total_projects': len(projects_data),
+                'total_quotes': len(quotes_data),
+                'total_invoices': len(invoices_data),
+                'total_payments': payments_count,
+            },
         })
 
 
@@ -212,6 +227,7 @@ class ProfileUpdateView(generics.UpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = ProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     http_method_names = ['put', 'patch', 'head', 'options']
 
     def get_object(self):
@@ -222,9 +238,17 @@ class ProfileUpdateView(generics.UpdateAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        user = serializer.save()
         log_activity(request.user, 'profile_update')
-        return Response(UserSerializer(instance, context={'request': request}).data)
+        notify_user(
+            request.user,
+            title='Profile updated',
+            message='Your profile information was saved successfully.',
+            event_type=InAppNotification.EVENT_PROFILE_UPDATED,
+            link='/profile',
+        )
+        user.refresh_from_db()
+        return Response(UserSerializer(user, context={'request': request}).data)
 
 # Change password (requires current password)
 class ChangePasswordView(generics.GenericAPIView):
@@ -242,6 +266,13 @@ class ChangePasswordView(generics.GenericAPIView):
         user.set_password(serializer.validated_data['new_password'])
         user.save(update_fields=['password'])
         log_activity(user, 'password_change')
+        notify_user(
+            user,
+            title='Password changed',
+            message='Your account password was changed successfully.',
+            event_type=InAppNotification.EVENT_PASSWORD_CHANGED,
+            link='/profile',
+        )
         return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
 
@@ -261,6 +292,13 @@ class ChangeEmailView(generics.GenericAPIView):
         user.email = serializer.validated_data['new_email']
         user.save(update_fields=['email'])
         log_activity(user, 'email_change')
+        notify_user(
+            user,
+            title='Email changed',
+            message=f'Your sign-in email is now {user.email}.',
+            event_type=InAppNotification.EVENT_EMAIL_CHANGED,
+            link='/profile',
+        )
         return Response({'detail': 'Email updated successfully.', 'email': user.email}, status=status.HTTP_200_OK)
 
 

@@ -3,8 +3,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  ADMIN_INPUT_CLASS,
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api, { getMediaUrl } from '../../services/api';
-import { formatDate } from '../../utils/formatters';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1920&q=85';
 
 const StarIcon = ({ filled, className = 'w-4 h-4' }) => (
   <svg className={`${className} ${filled ? 'text-amber-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
@@ -17,6 +30,8 @@ const AdminTestimonials = () => {
   const navigate = useNavigate();
   const [testimonials, setTestimonials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, testimonial: null });
@@ -46,8 +61,9 @@ const AdminTestimonials = () => {
     fetchTestimonials();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchTestimonials = async () => {
+  const fetchTestimonials = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/testimonials/');
       const data = response.data.results || response.data;
       setTestimonials(Array.isArray(data) ? data : []);
@@ -55,28 +71,29 @@ const AdminTestimonials = () => {
       setTestimonials([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
 
   const filteredTestimonials = useMemo(() => {
-    return testimonials.filter(
-      (t) =>
+    return testimonials.filter((t) => {
+      const matchesSearch =
         !searchTerm ||
         t.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.testimonial?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.company?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [testimonials, searchTerm]);
+        t.company?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter =
+        statusFilter === 'all' ||
+        (statusFilter === 'approved' && t.is_approved) ||
+        (statusFilter === 'pending' && !t.is_approved) ||
+        (statusFilter === 'featured' && t.is_featured);
+      return matchesSearch && matchesFilter;
+    });
+  }, [testimonials, searchTerm, statusFilter]);
 
-  const stats = useMemo(
-    () => [
-      { label: 'Total', value: testimonials.length },
-      { label: 'Approved', value: testimonials.filter((t) => t.is_approved).length },
-      { label: 'Featured', value: testimonials.filter((t) => t.is_featured).length },
-      { label: 'Pending', value: testimonials.filter((t) => !t.is_approved).length },
-    ],
-    [testimonials]
-  );
+  const approvedCount = testimonials.filter((t) => t.is_approved).length;
+  const featuredCount = testimonials.filter((t) => t.is_featured).length;
+  const pendingCount = testimonials.filter((t) => !t.is_approved).length;
 
   const handleCreate = () => {
     setEditingTestimonial(null);
@@ -172,206 +189,199 @@ const AdminTestimonials = () => {
     }
   };
 
-  const inputCls = 'block w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-slate-600 focus:border-slate-600';
+  const inputCls = ADMIN_INPUT_CLASS;
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading testimonials...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const statCards = [
+    {
+      label: 'Total',
+      value: testimonials.length,
+      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Approved',
+      value: approvedCount,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Featured',
+      value: featuredCount,
+      tone: 'bg-white border border-amber-100',
+      valueClass: 'text-amber-600',
+      iconBg: 'bg-amber-100 text-amber-600',
+      icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+    },
+    {
+      label: 'Pending',
+      value: pendingCount,
+      tone: 'bg-white border border-orange-100',
+      valueClass: 'text-orange-600',
+      iconBg: 'bg-orange-100 text-orange-600',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: testimonials.length },
+    { id: 'approved', label: 'Approved', count: approvedCount },
+    { id: 'pending', label: 'Pending', count: pendingCount },
+    { id: 'featured', label: 'Featured', count: featuredCount },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+    </svg>
+  );
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-800 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 sm:gap-3 mb-1">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Testimonials</h1>
-              </div>
-              <p className="text-slate-200 text-sm sm:text-base">Manage client testimonials and approvals.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={fetchTestimonials}
-                className="px-4 py-2.5 bg-white text-slate-700 hover:bg-slate-100 rounded-xl font-semibold transition-colors"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={handleCreate}
-                className="px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Testimonial
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 hover:shadow-md transition-shadow">
-              <div className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">{s.label}</div>
-              <div className="mt-1 text-xl sm:text-2xl font-bold text-gray-900">{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Search */}
-        <input
-          type="search"
-          placeholder="Search by name, company, or testimonial..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-600 focus:border-slate-600"
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Social proof"
+          title="Testimonials"
+          description="Manage client testimonials and approval status."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={handleCreate}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add testimonial
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchTestimonials(true)} refreshing={refreshing} />}
         />
 
-        {/* Table - Desktop */}
-        <div className="hidden md:block rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+        <AdminStatGrid stats={statCards} />
+
+        <AdminListSection
+          title="All testimonials"
+          subtitle="Review, approve, and manage client feedback"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by name, company, or quote…"
+          filters={statusFilters}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          showingCount={filteredTestimonials.length}
+          totalCount={testimonials.length}
+          hasActiveFilters={!!searchTerm.trim() || statusFilter !== 'all'}
+          onClearFilters={() => {
+            setSearchTerm('');
+            setStatusFilter('all');
+          }}
+          onCreate={handleCreate}
+          createLabel="New testimonial"
+          emptyTitle="No testimonials found"
+          emptyDescription={
+            searchTerm.trim() || statusFilter !== 'all'
+              ? 'Try adjusting your search or filters.'
+              : 'Add your first testimonial to build trust.'
+          }
+          emptyActionLabel={searchTerm.trim() || statusFilter !== 'all' ? 'Clear filters' : 'Add first testimonial'}
+          onEmptyAction={
+            searchTerm.trim() || statusFilter !== 'all'
+              ? () => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                }
+              : handleCreate
+          }
+        >
+          <AdminTableWrap>
+            <table className="min-w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Author</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rating</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Preview</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Author</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Rating</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Preview</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Status</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredTestimonials.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      No testimonials found
+              <tbody className="divide-y divide-slate-100">
+                {filteredTestimonials.map((t) => (
+                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 sm:px-6 py-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={t.image ? getMediaUrl(t.image) : '/logo192.png'}
+                          alt={t.name}
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{t.name}</p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {[t.position, t.company].filter(Boolean).join(' at ') || '—'}
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                  </tr>
-                ) : (
-                  filteredTestimonials.map((t) => (
-                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={t.image ? getMediaUrl(t.image) : '/logo192.png'}
-                            alt={t.name}
-                            className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
-                          />
-                          <div>
-                            <div className="font-medium text-gray-900">{t.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {[t.position, t.company].filter(Boolean).join(' at ')}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <StarIcon key={i} filled={i <= (t.rating || 0)} />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 max-w-xs">
-                        <p className="text-sm text-gray-600 line-clamp-2">&ldquo;{t.testimonial}&rdquo;</p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap gap-1">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${t.is_approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {t.is_approved ? 'Approved' : 'Pending'}
+                    <td className="px-5 sm:px-6 py-4 hidden md:table-cell">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <StarIcon key={i} filled={i <= (t.rating || 0)} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden lg:table-cell max-w-xs">
+                      <p className="text-sm text-slate-600 line-clamp-2">&ldquo;{t.testimonial}&rdquo;</p>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden sm:table-cell">
+                      <div className="flex flex-wrap gap-1">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            t.is_approved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {t.is_approved ? 'Approved' : 'Pending'}
+                        </span>
+                        {t.is_featured && (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
+                            Featured
                           </span>
-                          {t.is_featured && (
-                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                              Featured
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(t.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex justify-end gap-2">
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-right">
+                      <AdminActionButtons
+                        onEdit={() => handleEdit(t)}
+                        onDelete={() => handleDelete(t)}
+                        extra={
                           <button
+                            type="button"
                             onClick={() => handleToggleApproval(t)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${t.is_approved ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}`}
+                            className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              t.is_approved
+                                ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                                : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                            }`}
                           >
                             {t.is_approved ? 'Unapprove' : 'Approve'}
                           </button>
-                          <button onClick={() => handleEdit(t)} className="p-2 text-slate-700 hover:bg-slate-100 rounded-lg" title="Edit">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button onClick={() => handleDelete(t)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                        }
+                      />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Mobile cards */}
-        <div className="md:hidden space-y-4">
-          {filteredTestimonials.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">
-              No testimonials found
-            </div>
-          ) : (
-            filteredTestimonials.map((t) => (
-              <div key={t.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <img src={t.image ? getMediaUrl(t.image) : '/logo192.png'} alt={t.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900">{t.name}</div>
-                    <div className="text-sm text-gray-500">{[t.position, t.company].filter(Boolean).join(' at ')}</div>
-                    <div className="flex gap-0.5 mt-2">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <StarIcon key={i} filled={i <= (t.rating || 0)} />
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-3">&ldquo;{t.testimonial}&rdquo;</p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${t.is_approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {t.is_approved ? 'Approved' : 'Pending'}
-                      </span>
-                      <button onClick={() => handleToggleApproval(t)} className="text-xs text-slate-600 hover:text-slate-900">
-                        {t.is_approved ? 'Unapprove' : 'Approve'}
-                      </button>
-                      <button onClick={() => handleEdit(t)} className="text-xs text-slate-600 hover:text-slate-900">Edit</button>
-                      <button onClick={() => handleDelete(t)} className="text-xs text-red-600 hover:text-red-900">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+          </AdminTableWrap>
+        </AdminListSection>
 
         {/* Form modal */}
         {showForm && (

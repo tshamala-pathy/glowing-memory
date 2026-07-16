@@ -1,3 +1,10 @@
+"""
+REST API for quote (estimate) lifecycle: submission, admin review, client decision,
+proposal retrieval, PDF export, and CSV export.
+
+Payment and invoice creation are triggered after the client approves and completes
+payment — see ``get_quote_payment_url`` and the payments app.
+"""
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -227,7 +234,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        elif self.action in ('list', 'retrieve', 'decision', 'pdf'):
+        elif self.action in ('list', 'retrieve', 'decision', 'pdf', 'proposal', 'approve', 'reject', 'request_changes'):
             permission_classes = [IsAuthenticated]
         elif self.action == 'export_csv':
             permission_classes = [IsAdminUser]
@@ -321,15 +328,21 @@ class QuoteViewSet(viewsets.ModelViewSet):
     def send_response(self, request, pk=None):
         """
         Send admin response to client (admin only). Sets status to 'reviewed'.
-        Requires proposed price (estimated_amount) and admin_response. Client then
-        sees the response in Client Portal and can Approve or Decline.
+        Requires: price (estimated_amount), timeline (proposal_timeline), scope, and admin_response.
+        Client then sees the proposal and can Approve, Reject, or Request Changes.
         """
         quote = self.get_object()
+        errors = []
         if not quote.admin_response:
-            return Response(
-                {'error': 'Admin notes (admin_response) must be set before sending.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            errors.append('Admin notes (admin_response) must be set.')
+        if not quote.estimated_amount:
+            errors.append('Price (estimated_amount) must be set.')
+        if not quote.proposal_timeline or not str(quote.proposal_timeline).strip():
+            errors.append('Timeline (proposal_timeline) must be set.')
+        if not quote.scope or not str(quote.scope).strip():
+            errors.append('Scope must be set.')
+        if errors:
+            return Response({'error': ' '.join(errors)}, status=status.HTTP_400_BAD_REQUEST)
         try:
             Quote.validate_status_transition(quote.status, 'reviewed')
         except Exception as e:
@@ -373,8 +386,9 @@ class QuoteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         # Client can only approve/decline from 'reviewed' (or legacy 'replied')
+        new_status = 'approved' if decision == 'approve' else 'rejected'
         try:
-            Quote.validate_status_transition(quote.status, 'approved' if decision == 'approve' else 'declined')
+            Quote.validate_status_transition(quote.status, new_status)
         except Exception as e:
             if hasattr(e, 'message_dict'):
                 return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
@@ -394,15 +408,25 @@ class QuoteViewSet(viewsets.ModelViewSet):
                 quote.save(update_fields=['payment_url'])
             # Do NOT create invoice here — invoice is created automatically after successful payment
         else:
-            quote.status = 'declined'
+            quote.status = 'rejected'
             quote.save(update_fields=['status', 'client_decision_at'])
             log_activity(request.user, 'quote_declined', object_type='quote', object_id=quote.id, details=quote.project_title)
+        serializer = self.get_serializer(quote)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='proposal')
+    def proposal(self, request, pk=None):
+        """
+        GET /api/quotes/{id}/proposal/ — Full proposal details for client review.
+        Owner-only (enforced by get_queryset). Returns full quote including scope, deliverables, timeline, terms.
+        """
+        quote = self.get_object()
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """Approve a quote (admin only). Enforces reviewed/replied → approved. Invoice is created after client pays."""
+        """Approve a quote. Client (owner) or admin. reviewed/replied → approved. Redirect client to payment."""
         quote = self.get_object()
         try:
             Quote.validate_status_transition(quote.status, 'approved')
@@ -425,18 +449,50 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        """Decline a quote (admin only). Enforces replied → declined."""
+        """Reject a quote. Client (owner) or admin. reviewed/replied → rejected."""
         quote = self.get_object()
         try:
-            Quote.validate_status_transition(quote.status, 'declined')
+            Quote.validate_status_transition(quote.status, 'rejected')
         except Exception as e:
             if hasattr(e, 'message_dict'):
                 return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
-        quote.status = 'declined'
+        quote.status = 'rejected'
         quote.client_decision_at = timezone.now()
         quote.save(update_fields=['status', 'client_decision_at'])
-        log_activity(request.user, 'quote_declined', object_type='quote', object_id=quote.id, details=f'{quote.project_title} (admin)')
+        log_activity(request.user, 'quote_declined', object_type='quote', object_id=quote.id, details=f'{quote.project_title}')
+        serializer = self.get_serializer(quote)
+        return Response(serializer.data)
+
+    def _is_quote_owner(self, user, quote):
+        """True if user is the client who owns this quote (by client FK or client_email)."""
+        profile = getattr(user, 'client_profile', None)
+        if profile and quote.client_id and quote.client_id == profile.id:
+            return True
+        if quote.client_id is None and quote.client_email and user.email:
+            return quote.client_email.strip().lower() == user.email.strip().lower()
+        return False
+
+    @action(detail=True, methods=['post'], url_path='request-changes')
+    def request_changes(self, request, pk=None):
+        """Request changes (client/quote owner only). reviewed/replied → changes_requested. Saves client_response."""
+        quote = self.get_object()
+        if not self._is_quote_owner(request.user, quote):
+            return Response(
+                {'error': 'Only the client can request changes. Admins should edit the proposal and mark as reviewed.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            Quote.validate_status_transition(quote.status, 'changes_requested')
+        except Exception as e:
+            if hasattr(e, 'message_dict'):
+                return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+        client_response = (request.data.get('client_response') or '').strip()
+        quote.client_response = client_response or 'Client requested changes.'
+        quote.status = 'changes_requested'
+        quote.save(update_fields=['status', 'client_response'])
+        log_activity(request.user, 'quote_changes_requested', object_type='quote', object_id=quote.id, details=quote.project_title)
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 

@@ -2,19 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import api, { getMediaUrl } from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1593724000-34c976c8646b?auto=format&fit=crop&w=1920&q=85';
+
+const INPUT_CLASS =
+  'mt-1.5 block w-full border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors bg-white';
+
+const getStatusBadgeClass = (status) => {
+  if (status === 'Completed') return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
+  if (status === 'In Progress') return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
+  return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+};
 
 const AdminProjects = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, project: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -40,8 +53,9 @@ const AdminProjects = () => {
     fetchProjects();
   }, [isAuthenticated, user, navigate]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/projects/');
       const data = response.data?.results ?? response.data;
       setProjects(Array.isArray(data) ? data : []);
@@ -49,6 +63,7 @@ const AdminProjects = () => {
       setProjects([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
 
@@ -141,288 +156,514 @@ const AdminProjects = () => {
     }
   };
 
-  const filteredProjects = projects.filter(
-    (project) =>
+  const filteredProjects = projects.filter((project) => {
+    const matchesSearch =
       project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const columns = [
-    {
-      header: 'Image',
-      accessor: 'image',
-      render: (value, row) => {
-        const url = value ? getMediaUrl(value) : null;
-        return (
-          <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
-            {url ? (
-              <img src={url} alt={row.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    { header: 'Title', accessor: 'title' },
-    {
-      header: 'Status',
-      accessor: 'status',
-      render: (value) => (
-        <span
-          className={`px-2 py-1 text-xs rounded-full font-medium ${
-            value === 'Completed'
-              ? 'bg-emerald-100 text-emerald-800'
-              : value === 'In Progress'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-amber-100 text-amber-800'
-          }`}
-        >
-          {value}
-        </span>
-      ),
-    },
-    { header: 'Category', accessor: 'category' },
-    {
-      header: 'Created',
-      accessor: 'created_at',
-      render: (value) => new Date(value).toLocaleDateString(),
-    },
-  ];
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-600 font-medium">Loading projects...</p>
+        <div className="max-w-7xl mx-auto space-y-6 animate-pulse">
+          <div className="h-48 rounded-3xl bg-slate-200" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 rounded-2xl bg-slate-200" />
+            ))}
           </div>
+          <div className="h-96 rounded-2xl bg-slate-200" />
         </div>
       </AdminLayout>
     );
   }
 
+  const completedCount = projects.filter((p) => p.status === 'Completed').length;
+  const inProgressCount = projects.filter((p) => p.status === 'In Progress').length;
+  const plannedCount = projects.filter((p) => p.status === 'Planned').length;
+
+  const statCards = [
+    {
+      label: 'Total projects',
+      value: projects.length,
+      icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Completed',
+      value: completedCount,
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+    },
+    {
+      label: 'In progress',
+      value: inProgressCount,
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+    },
+    {
+      label: 'Planned',
+      value: plannedCount,
+      icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+      tone: 'bg-white border border-amber-100',
+      valueClass: 'text-amber-600',
+      iconBg: 'bg-amber-100 text-amber-600',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: projects.length },
+    { id: 'Completed', label: 'Completed', count: completedCount },
+    { id: 'In Progress', label: 'In progress', count: inProgressCount },
+    { id: 'Planned', label: 'Planned', count: plannedCount },
+  ];
+
+  const hasActiveFilters = searchTerm.trim() !== '' || statusFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+  };
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        {/* Page banner */}
+        <section className="relative overflow-hidden rounded-3xl shadow-lg min-h-[200px] sm:min-h-[220px]">
+          <img src={HERO_IMAGE} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/75 to-slate-900/30" />
+          <div className="relative px-6 sm:px-8 py-8 sm:py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 mb-2">Admin · Portfolio</p>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Projects</h1>
+              <p className="mt-2 text-slate-200 text-sm sm:text-base max-w-lg">
+                Create and manage the projects shown on your public portfolio.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleCreate}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-slate-900 font-semibold text-sm shadow-md hover:bg-slate-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add project
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchProjects(true)}
+                disabled={refreshing}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed transition-colors min-w-[110px]"
+              >
+                {refreshing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Loading
+                  </>
+                ) : (
+                  'Refresh'
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => (
+            <div key={stat.label} className={`rounded-2xl p-5 shadow-sm ${stat.tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${stat.tone.includes('text-white') ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {stat.label}
+                  </p>
+                  <p className={`mt-2 text-3xl font-bold ${stat.valueClass || (stat.tone.includes('text-white') ? 'text-white' : 'text-slate-900')}`}>
+                    {stat.value}
+                  </p>
+                </div>
+                <span className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${stat.iconBg}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
+                  </svg>
+                </span>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        {/* All projects */}
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-slate-200 bg-slate-900 px-5 sm:px-6 py-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex-shrink-0 w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center text-white">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Projects</h1>
+                <div>
+                  <h2 className="text-lg font-bold text-white">All projects</h2>
+                  <p className="text-sm text-slate-300">
+                    Browse, filter, and manage your portfolio entries
+                  </p>
+                </div>
               </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage your portfolio projects displayed on the public site.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
               <button
+                type="button"
                 onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 self-start lg:self-center px-4 py-2 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Project
+                New project
               </button>
+            </div>
+          </div>
+
+          <div className="px-5 sm:px-6 py-5 bg-slate-50 border-b border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search by title or description…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label="Clear search"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm font-semibold text-slate-600 hover:text-slate-900 whitespace-nowrap"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {statusFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setStatusFilter(filter.id)}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    statusFilter === filter.id
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {filter.label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+                      statusFilter === filter.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {filter.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs font-medium text-slate-500">
+              Showing <span className="text-slate-800 font-semibold">{filteredProjects.length}</span> of{' '}
+              <span className="text-slate-800 font-semibold">{projects.length}</span> projects
+            </p>
+          </div>
+
+          {filteredProjects.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-slate-900">No projects found</h3>
+              <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+                {hasActiveFilters
+                  ? 'Try changing your search or filters.'
+                  : 'Get started by adding your first portfolio project.'}
+              </p>
               <button
-                onClick={fetchProjects}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
+                type="button"
+                onClick={hasActiveFilters ? clearFilters : handleCreate}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
               >
-                Refresh
+                {hasActiveFilters ? 'Clear filters' : 'Add first project'}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{projects.length}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Completed</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-emerald-600">
-              {projects.filter((p) => p.status === 'Completed').length}
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-white">
+                    <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Project</th>
+                    <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                    <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Category</th>
+                    <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Created</th>
+                    <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredProjects.map((project) => {
+                    const imageUrl = project.image ? getMediaUrl(project.image) : null;
+                    return (
+                      <tr key={project.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-5 sm:px-6 py-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-slate-200 flex-shrink-0">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 truncate">{project.title}</p>
+                              <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 max-w-xs sm:max-w-md">
+                                {project.description}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(project.status)}`}>
+                            {project.status}
+                          </span>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 whitespace-nowrap text-sm text-slate-600 hidden md:table-cell">
+                          {project.category}
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 whitespace-nowrap text-sm text-slate-500 hidden lg:table-cell">
+                          {project.created_at ? new Date(project.created_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 whitespace-nowrap text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(project)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(project)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">In Progress</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-blue-600">
-              {projects.filter((p) => p.status === 'In Progress').length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredProjects.length}</div>
-          </div>
-        </div>
+          )}
+        </section>
 
-        {/* Search */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-          <input
-            type="text"
-            placeholder="Search by title or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-          />
-        </div>
-
-        {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={filteredProjects}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            emptyMessage="No projects found"
-          />
-        </div>
-
-        {/* Form Modal */}
+        {/* Form modal */}
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div
-                className="fixed inset-0 transition-opacity bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setShowForm(false)}
-              />
-              <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200">
-                <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                  <h3 className="text-xl font-bold text-slate-900 mb-6">
-                    {editingProject ? 'Edit Project' : 'Create Project'}
-                  </h3>
-                  <div className="space-y-4">
+            <div className="flex min-h-screen items-end sm:items-center justify-center p-4">
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowForm(false)} aria-hidden="true" />
+              <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">
+                      {editingProject ? 'Edit project' : 'New project'}
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                      {editingProject ? 'Update portfolio entry details' : 'Add a project to your public portfolio'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Title *</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700">Description *</label>
-                      <textarea
-                        required
-                        rows={4}
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700">Status</label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                          className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                        >
-                          <option value="Completed">Completed</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Planned">Planned</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700">Category</label>
-                        <select
-                          value={formData.category}
-                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                          className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                        >
-                          <option value="Web">Web Development</option>
-                          <option value="Mobile">Mobile Development</option>
-                          <option value="Desktop">Desktop Application</option>
-                          <option value="API">API Development</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700">Technologies (comma-separated)</label>
-                      <input
-                        type="text"
-                        value={formData.technologies}
-                        onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-                        placeholder="e.g. React, Django, PostgreSQL"
-                        className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700">Tags (comma-separated)</label>
-                      <input
-                        type="text"
-                        value={formData.tags}
-                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                        placeholder="e.g. web, fullstack"
-                        className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700">GitHub URL</label>
-                        <input
-                          type="url"
-                          value={formData.github_url}
-                          onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-                          className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700">Live URL</label>
-                        <input
-                          type="url"
-                          value={formData.live_url}
-                          onChange={(e) => setFormData({ ...formData, live_url: e.target.value })}
-                          className="mt-1 block w-full border border-slate-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                        />
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Basic info</p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">Title *</label>
+                          <input
+                            type="text"
+                            required
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">Description *</label>
+                          <textarea
+                            required
+                            rows={4}
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700">Status</label>
+                            <select
+                              value={formData.status}
+                              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                              className={INPUT_CLASS}
+                            >
+                              <option value="Completed">Completed</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Planned">Planned</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700">Category</label>
+                            <select
+                              value={formData.category}
+                              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                              className={INPUT_CLASS}
+                            >
+                              <option value="Web">Web Development</option>
+                              <option value="Mobile">Mobile Development</option>
+                              <option value="Desktop">Desktop Application</option>
+                              <option value="API">API Development</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Image</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="mt-1 block w-full text-sm text-slate-600"
-                      />
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Tech & tags</p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">Technologies</label>
+                          <input
+                            type="text"
+                            value={formData.technologies}
+                            onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
+                            placeholder="React, Django, PostgreSQL"
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">Tags</label>
+                          <input
+                            type="text"
+                            value={formData.tags}
+                            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                            placeholder="web, fullstack"
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Links</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">GitHub URL</label>
+                          <input
+                            type="url"
+                            value={formData.github_url}
+                            onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">Live URL</label>
+                          <input
+                            type="url"
+                            value={formData.live_url}
+                            onChange={(e) => setFormData({ ...formData, live_url: e.target.value })}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Cover image</p>
+                      <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors">
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                        <svg className="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm text-slate-600 font-medium">Click to upload image</span>
+                        <span className="text-xs text-slate-400 mt-1">PNG, JPG up to 5MB</span>
+                      </label>
                       {imagePreview && (
                         <img
                           src={imagePreview}
                           alt="Preview"
-                          className="mt-2 h-32 w-32 object-cover rounded-xl border border-slate-200"
+                          className="mt-3 h-36 w-full max-w-xs object-cover rounded-xl border border-slate-200"
                         />
                       )}
                     </div>
                   </div>
-                  <div className="mt-6 flex justify-end gap-3">
+
+                  <div className="mt-8 pt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setShowForm(false)}
-                      className="px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="px-5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-semibold hover:bg-slate-800"
+                      className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors"
                     >
-                      {editingProject ? 'Update' : 'Create'}
+                      {editingProject ? 'Save changes' : 'Create project'}
                     </button>
                   </div>
                 </form>

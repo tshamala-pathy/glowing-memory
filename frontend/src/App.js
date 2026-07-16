@@ -9,7 +9,7 @@
  * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
  */
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -57,19 +57,24 @@ import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
 import Profile from './pages/Profile';
+import Files from './pages/Files';
+import Tasks from './pages/Tasks';
+import Calendar from './pages/Calendar';
+import ProposalDetail from './pages/ProposalDetail';
 import ActivityLog from './pages/ActivityLog';
 import Messages from './pages/Messages';
 import ThreadChat from './pages/ThreadChat';
 import './App.css';
 
-function App() {
+function AppShell() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen w-full overflow-x-hidden app-background">
-          <Navbar />
-          <main className="w-full min-w-0">
-            <Routes>
+    <div className="flex min-h-screen min-h-[100dvh] w-full flex-col overflow-x-hidden app-background">
+      {!isAdminRoute && <Navbar />}
+      <main className={`flex w-full min-w-0 flex-1 flex-col min-h-0 ${isAdminRoute ? 'min-h-screen' : ''}`}>
+        <Routes>
               {/* ========== PUBLIC PAGES (no authentication) ========== */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -113,6 +118,17 @@ function App() {
                 element={
                   <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
                     <Payment />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/files" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Files /></ProtectedRoute>} />
+              <Route path="/tasks" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Tasks /></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute requireAuth={true} forbidSuperuser={true}><Calendar /></ProtectedRoute>} />
+              <Route
+                path="/proposal/:id"
+                element={
+                  <ProtectedRoute requireAuth={true} forbidSuperuser={true}>
+                    <ProposalDetail />
                   </ProtectedRoute>
                 }
               />
@@ -272,10 +288,18 @@ function App() {
                 } 
               />
               {/* Legacy route - same as /request-quote */}
-              <Route path="/quotes" element={<Quotes />} />
-            </Routes>
-          </main>
-        </div>
+            <Route path="/quotes" element={<Quotes />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppShell />
       </Router>
     </AuthProvider>
   );

@@ -1,3 +1,9 @@
+"""
+Serializers for :class:`quotes.models.Quote`.
+
+``QuoteSerializer`` is the primary read/write shape for the quotes API.
+``ProfileQuoteSerializer`` narrows fields for the aggregated profile endpoint.
+"""
 from rest_framework import serializers
 from .models import Quote
 
@@ -5,8 +11,8 @@ from .models import Quote
 class ProfileQuoteSerializer(serializers.ModelSerializer):
     """
     Serializer for quote data in the profile API (/api/profile/).
-    Returns only fields needed for the client profile: id, title, description,
-    item_breakdown, total_price, status, admin_response, created_at, responded_at.
+    Returns fields needed for the client profile including proposal fields:
+    scope, deliverables, proposal_timeline, terms, client_response.
     """
     title = serializers.CharField(source='project_title', read_only=True)
     description = serializers.CharField(source='project_description', read_only=True)
@@ -28,6 +34,11 @@ class ProfileQuoteSerializer(serializers.ModelSerializer):
             'item_breakdown',
             'total_price',
             'estimated_delivery_time',
+            'scope',
+            'deliverables',
+            'proposal_timeline',
+            'terms',
+            'client_response',
             'status',
             'admin_response',
             'payment_url',
@@ -67,8 +78,9 @@ class QuoteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'client', 'client_name', 'client_email', 'client_phone', 'company_name',
             'project_title', 'project_description', 'project_type', 'service_type',
-            'budget_range', 'deadline', 'timeline', 'estimated_amount', 'estimated_delivery_time', 'status',
-            'notes', 'admin_response', 'payment_url', 'assigned_to', 'assigned_to_name',
+            'budget_range', 'deadline', 'timeline', 'estimated_amount', 'estimated_delivery_time',
+            'scope', 'deliverables', 'proposal_timeline', 'terms', 'client_response',
+            'status', 'notes', 'admin_response', 'payment_url', 'assigned_to', 'assigned_to_name',
             'assigned_to_email', 'requirements_accepted', 'requirements_accepted_at',
             'created_at', 'updated_at', 'approved_at', 'responded_at', 'client_decision_at'
         ]
@@ -85,7 +97,7 @@ class QuoteSerializer(serializers.ModelSerializer):
         return value
 
     def to_representation(self, instance):
-        """Hide internal notes from non-admin/staff clients."""
+        """Hide internal notes from non-admin/staff clients. Clients can read but not edit proposal fields."""
         data = super().to_representation(instance)
         request = self.context.get('request')
         if request and request.user.is_authenticated:
