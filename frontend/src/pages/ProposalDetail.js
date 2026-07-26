@@ -13,8 +13,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { formatCurrency } from '../utils/formatters';
-import { getQuoteStatusClass } from '../utils/formatters';
+import { formatCurrency, getQuoteStatusClass, getQuoteStatusLabel } from '../utils/formatters';
 
 const ProposalDetail = () => {
   const { id } = useParams();
@@ -150,19 +149,30 @@ const ProposalDetail = () => {
 
   const amount = proposal?.estimated_amount ?? proposal?.total_price;
   const hasActions = canAct(proposal);
+  const proposalTitle = proposal?.project_title || proposal?.title || 'Proposal';
 
   return (
-    <div className="min-h-screen bg-[var(--aws-content-bg)]">
-      <div className="bg-white border-b border-[var(--aws-card-border)] px-4 sm:px-6 py-4">
-        <nav className="flex items-center gap-2 text-sm text-[#545b64] mb-2">
-          <Link to="/" className="hover:text-[var(--aws-orange)]">Home</Link>
-          <span aria-hidden>/</span>
-          <Link to="/profile" className="hover:text-[var(--aws-orange)]">Profile</Link>
-          <span aria-hidden>/</span>
-          <span className="text-[var(--aws-dark)] font-medium">Proposal</span>
+    <div className="min-h-screen bg-white">
+      <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-50 via-[#faf9f7] to-teal-50/60 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <nav className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+          <Link to="/" className="hover:text-teal-700 transition-colors">Home</Link>
+          <span aria-hidden className="text-slate-300">/</span>
+          <Link to="/profile" className="hover:text-teal-700 transition-colors">Profile</Link>
+          <span aria-hidden className="text-slate-300">/</span>
+          <span className="text-slate-700 font-medium">Proposals</span>
         </nav>
-        <h1 className="text-2xl font-bold text-[var(--aws-dark)]">Proposal</h1>
-        <p className="text-sm text-[#545b64] mt-1">Review the proposal details below.</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-700/80 mb-2">Proposal review</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{proposalTitle}</h1>
+            <p className="text-sm text-slate-600 mt-2 max-w-2xl">Review scope, deliverables, timeline, and pricing before you approve or request changes.</p>
+          </div>
+          {proposal?.status && (
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getQuoteStatusClass(proposal.status)}`}>
+              {getQuoteStatusLabel(proposal.status)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -173,13 +183,11 @@ const ProposalDetail = () => {
           </div>
         )}
 
-        <div className="bg-white border border-[var(--aws-card-border)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa] flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[var(--aws-dark)]">
-              {proposal?.project_title || proposal?.title || 'Proposal'}
-            </h2>
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm ring-1 ring-slate-900/[0.03] overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-800">Proposal details</h2>
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getQuoteStatusClass(proposal?.status)}`}>
-              {proposal?.status === 'replied' ? 'Ready for review' : proposal?.status || '—'}
+              {proposal?.status === 'replied' ? 'Ready for review' : getQuoteStatusLabel(proposal?.status) || '—'}
             </span>
           </div>
 
@@ -238,7 +246,7 @@ const ProposalDetail = () => {
           </div>
 
           {hasActions && (
-            <div className="px-6 py-4 border-t border-[var(--aws-card-border)] bg-[#fafafa] flex flex-wrap gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/70 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleAcceptAndPay}
@@ -277,7 +285,7 @@ const ProposalDetail = () => {
           )}
 
           {(proposal?.status === 'approved' || proposal?.status === 'Approved') && (
-            <div className="px-6 py-4 border-t border-[var(--aws-card-border)] bg-[#fafafa]">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/70">
               <Link
                 to={`/payment/${id}`}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--aws-orange)] text-white font-semibold hover:bg-[var(--aws-orange-hover)] transition-colors"
@@ -290,7 +298,7 @@ const ProposalDetail = () => {
         </div>
 
         <p className="mt-6 text-center">
-          <Link to="/profile" className="text-sm font-medium text-[var(--aws-orange)] hover:underline">← Back to Profile</Link>
+          <Link to="/profile" className="text-sm font-medium text-teal-700 hover:text-teal-900 hover:underline">← Back to Profile</Link>
         </p>
       </div>
 

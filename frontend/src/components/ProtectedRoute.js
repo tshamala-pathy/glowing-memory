@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Route-level access control:
  * - requireAuth: Unauthenticated users are redirected to /login
  * - requireSuperuser: Non-superusers are redirected to /profile
+ * - requireFinancialDashboard: Staff/superusers without an explicit financial grant → /admin
  *
  * Authenticated users can: view profile, history, private projects, invoices.
  * Unauthenticated users: see only public pages; redirected to login when
@@ -20,6 +21,7 @@ const ProtectedRoute = ({
   requireAuth = false,
   requireSuperuser = false,
   requireStaffOrSuperuser = false,
+  requireFinancialDashboard = false,
   forbidSuperuser = false,
 }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -48,9 +50,14 @@ const ProtectedRoute = ({
     return <Navigate to="/profile" replace />;
   }
 
-  // Redirect if staff/superuser access is required (for Financial Dashboard, etc.)
+  // Redirect if staff/superuser access is required (for Project Tasks, etc.)
   if (requireStaffOrSuperuser && (!isAuthenticated || !user || (user.is_superuser !== true && user.is_staff !== true))) {
     return <Navigate to="/profile" replace />;
+  }
+
+  // Financial dashboard: superuser/staff alone is not enough — explicit grant required
+  if (requireFinancialDashboard && (!isAuthenticated || !user || user.can_view_financial_dashboard !== true)) {
+    return <Navigate to="/admin" replace />;
   }
 
   // For client-only routes (profile, portal, etc.), prevent superusers from accessing

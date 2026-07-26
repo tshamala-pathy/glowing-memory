@@ -10,6 +10,7 @@
  * (e.g. thread attachments). See `ThreadChat` `send_message` POST.
  */
 import axios from 'axios';
+import { refreshNotifications } from '../utils/notifications';
 
 /** Backend origin without trailing slash (e.g. https://api.example.com). Build-time: REACT_APP_BACKEND_URL. */
 const BACKEND_ORIGIN = (
@@ -47,6 +48,25 @@ const api = axios.create({
   timeout: 10000,
 });
 
+const NOTIFICATION_REFRESH_SKIP = [
+  /^notifications\//,
+  /^users\/token\//,
+  /^users\/login\//,
+  /^users\/logout\//,
+  /^users\/register\//,
+  /^search\//,
+];
+
+function shouldRefreshNotifications(config) {
+  if (!localStorage.getItem('access_token')) return false;
+  const method = (config?.method || 'get').toLowerCase();
+  if (!['post', 'put', 'patch', 'delete'].includes(method)) return false;
+  const path = (config?.url || '').split('?')[0].replace(/^\/+/, '');
+  if (NOTIFICATION_REFRESH_SKIP.some((pattern) => pattern.test(path))) return false;
+  if (path.includes('mark_read') || path.includes('bulk_delete')) return false;
+  return true;
+}
+
 api.interceptors.request.use(
   (config) => {
     const path = typeof config.url === 'string' ? config.url.split('?')[0] : '';
@@ -80,7 +100,12 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (shouldRefreshNotifications(response.config)) {
+      refreshNotifications();
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 

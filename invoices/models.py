@@ -328,6 +328,9 @@ class Invoice(models.Model):
         ordering = ['-created_at']
         verbose_name = "Invoice"
         verbose_name_plural = "Invoices"
+        permissions = [
+            ('view_financial_dashboard', 'Can view financial dashboard'),
+        ]
         # Ensure one invoice per quote
         constraints = [
             models.UniqueConstraint(fields=['quote'], name='unique_quote_invoice')

@@ -3,7 +3,7 @@ In-app notification signals for all major account activity.
 
 Each handler fires only on meaningful transitions (not every save) to avoid duplicates.
 """
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import m2m_changed, post_save, pre_save
 from django.dispatch import receiver
 
 from .helpers import (
@@ -20,6 +20,15 @@ from .services import notify_staff, notify_user, notify_users
 
 
 def _is_staff_user(user):
+    """
+    Return whether *user* is staff or superuser.
+
+    Args:
+        user: User instance or ``None``.
+
+    Returns:
+        bool: ``True`` for active staff/superuser accounts.
+    """
     return bool(user and (getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False)))
 
 
@@ -68,21 +77,41 @@ def notify_quote_events(sender, instance, created, **kwargs):
             event_type=InAppNotification.EVENT_QUOTE_REVIEWED,
             link='/profile',
         )
-    elif new_status == 'approved' and owner:
-        notify_user(
-            owner,
-            title='Quote approved',
-            message=f'Your quote "{label}" was approved. You can proceed to payment.',
-            event_type=InAppNotification.EVENT_QUOTE_APPROVED,
-            link=f'/payment/{instance.pk}',
+        notify_staff(
+            title='Quote reviewed',
+            message=f'"{label}" for {instance.client_name} was marked reviewed.',
+            event_type=InAppNotification.EVENT_QUOTE_REVIEWED,
+            link='/admin/quotes',
         )
-    elif new_status in ('rejected', 'declined') and owner:
-        notify_user(
-            owner,
-            title='Quote not approved',
-            message=f'Your quote "{label}" was not approved.',
+    elif new_status == 'approved':
+        if owner:
+            notify_user(
+                owner,
+                title='Quote approved',
+                message=f'Your quote "{label}" was approved. You can proceed to payment.',
+                event_type=InAppNotification.EVENT_QUOTE_APPROVED,
+                link=f'/payment/{instance.pk}',
+            )
+        notify_staff(
+            title='Quote approved',
+            message=f'{instance.client_name} approved "{label}".',
+            event_type=InAppNotification.EVENT_QUOTE_APPROVED,
+            link='/admin/quotes',
+        )
+    elif new_status in ('rejected', 'declined'):
+        if owner:
+            notify_user(
+                owner,
+                title='Quote not approved',
+                message=f'Your quote "{label}" was not approved.',
+                event_type=InAppNotification.EVENT_QUOTE_REJECTED,
+                link='/profile',
+            )
+        notify_staff(
+            title='Quote declined',
+            message=f'{instance.client_name} declined "{label}".',
             event_type=InAppNotification.EVENT_QUOTE_REJECTED,
-            link='/profile',
+            link='/admin/quotes',
         )
     elif new_status == 'changes_requested':
         notify_staff(
@@ -303,27 +332,35 @@ def notify_work_task_events(sender, instance, created, **kwargs):
     old = pop_old_instance(sender, instance)
     project_name = instance.project.name if instance.project_id else 'your project'
     link = '/tasks'
+    admin_link = '/admin/work-tasks'
 
-    assignee = instance.assigned_to
-    assignee_changed = created or (old and old.assigned_to_id != instance.assigned_to_id)
-    if assignee and assignee_changed and instance.status != 'completed':
-        notify_user(
-            assignee,
-            title='Task assigned',
-            message=f'You were assigned "{instance.title}" on {project_name}.',
-            event_type=InAppNotification.EVENT_TASK_ASSIGNED,
-            link=link,
+    if created:
+        client = project_client_user(instance.project)
+        if client:
+            notify_user(
+                client,
+                title='New task',
+                message=f'"{instance.title}" was added to {project_name}.',
+                event_type=InAppNotification.EVENT_TASK_UPDATED,
+                link=link,
+            )
+        notify_staff(
+            title='Work task created',
+            message=f'"{instance.title}" on {project_name}.',
+            event_type=InAppNotification.EVENT_TASK_UPDATED,
+            link=admin_link,
         )
+        return
 
     status_changed = old is None or old.status != instance.status
     if status_changed and instance.status == 'completed':
         recipients = []
-        if instance.created_by_id and instance.created_by_id != (assignee.pk if assignee else None):
+        if instance.created_by_id:
             recipients.append(instance.created_by)
         client = project_client_user(instance.project)
-        if client and client.pk not in {u.pk for u in recipients if u}:
-            if not assignee or client.pk != assignee.pk:
-                recipients.append(client)
+        if client:
+            recipients.append(client)
+        recipients.extend(list(instance.assignees.all()))
         notify_users(
             recipients,
             title='Task completed',
@@ -335,7 +372,46 @@ def notify_work_task_events(sender, instance, created, **kwargs):
             title='Task completed',
             message=f'"{instance.title}" on {project_name} was completed.',
             event_type=InAppNotification.EVENT_TASK_COMPLETED,
-            link='/admin/tasks',
+            link='/admin/work-tasks',
+        )
+        return
+
+    if status_changed and instance.status != 'completed':
+        client = project_client_user(instance.project)
+        if client:
+            notify_user(
+                client,
+                title='Task updated',
+                message=f'"{instance.title}" is now {instance.get_status_display()}.',
+                event_type=InAppNotification.EVENT_TASK_UPDATED,
+                link=link,
+            )
+        notify_staff(
+            title='Work task updated',
+            message=f'"{instance.title}" on {project_name} is now {instance.get_status_display()}.',
+            event_type=InAppNotification.EVENT_TASK_UPDATED,
+            link=admin_link,
+        )
+
+
+@receiver(m2m_changed, sender='tasks.WorkTask_assignees')
+def notify_work_task_assignees_changed(sender, instance, action, pk_set, **kwargs):
+    if action != 'post_add' or not pk_set:
+        return
+    if instance.status == 'completed':
+        return
+    from django.contrib.auth import get_user_model
+
+    project_name = instance.project.name if instance.project_id else 'your project'
+    link = '/tasks'
+    User = get_user_model()
+    for user in User.objects.filter(pk__in=pk_set):
+        notify_user(
+            user,
+            title='Task assigned',
+            message=f'You were assigned "{instance.title}" on {project_name}.',
+            event_type=InAppNotification.EVENT_TASK_ASSIGNED,
+            link=link,
         )
 
 
@@ -403,6 +479,17 @@ def notify_client_task_events(sender, instance, created, **kwargs):
 # ---------------------------------------------------------------------------
 
 def _notify_file_uploaded(*, uploaded_by, client, file_name, link='/files'):
+    """
+    Notify the appropriate party when a file is uploaded or shared.
+
+    Staff uploads notify the client; client uploads notify staff.
+
+    Args:
+        uploaded_by: User who performed the upload (may be ``None``).
+        client: ``clients.Client`` receiving or providing the file.
+        file_name (str): Display name for the notification message.
+        link (str): Frontend path opened from the notification bell.
+    """
     owner = client_user(client)
     if uploaded_by and _is_staff_user(uploaded_by):
         if owner and owner.pk != uploaded_by.pk:
@@ -464,17 +551,41 @@ def notify_project_file_uploaded(sender, instance, created, **kwargs):
 # Calendar
 # ---------------------------------------------------------------------------
 
+@receiver(pre_save, sender='calendar_events.CalendarEvent')
+def _calendar_pre_save(sender, instance, **kwargs):
+    remember_old_instance(sender, instance)
+
+
 @receiver(post_save, sender='calendar_events.CalendarEvent')
 def notify_calendar_event(sender, instance, created, **kwargs):
-    if not created:
+    link = '/calendar'
+    if created:
+        notify_user(
+            instance.user,
+            title='Calendar event added',
+            message=f'"{instance.title}" was added to your calendar.',
+            event_type=InAppNotification.EVENT_CALENDAR_EVENT,
+            link=link,
+        )
         return
-    notify_user(
-        instance.user,
-        title='Calendar event added',
-        message=f'"{instance.title}" was added to your calendar.',
-        event_type=InAppNotification.EVENT_CALENDAR_EVENT,
-        link='/calendar',
+
+    old = pop_old_instance(sender, instance)
+    if not old:
+        return
+    changed = (
+        old.title != instance.title
+        or old.start_at != instance.start_at
+        or old.end_at != instance.end_at
+        or old.event_type != instance.event_type
     )
+    if changed:
+        notify_user(
+            instance.user,
+            title='Calendar event updated',
+            message=f'"{instance.title}" was updated on your calendar.',
+            event_type=InAppNotification.EVENT_CALENDAR_EVENT,
+            link=link,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -599,6 +710,16 @@ def notify_contact_submitted(sender, instance, created, **kwargs):
         event_type=InAppNotification.EVENT_CONTACT_SUBMITTED,
         link='/admin/contact',
     )
+    if instance.client_id:
+        owner = client_user(instance.client)
+        if owner:
+            notify_user(
+                owner,
+                title='Message received',
+                message=f'We received your contact message: {subject}',
+                event_type=InAppNotification.EVENT_CONTACT_SUBMITTED,
+                link='/profile',
+            )
 
 
 @receiver(post_save, sender='newsletter.NewsletterSubscription')

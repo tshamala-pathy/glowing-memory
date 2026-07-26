@@ -14,6 +14,7 @@ from .views import (
     NotificationViewSet,
     LogoutView,
     ActivityLogView,
+    AdminActivityLogView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -51,6 +52,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     # Activity log - user's own activity history
     path('activity-log/', ActivityLogView.as_view(), name='activity_log'),
+    path('admin/activity-log/', AdminActivityLogView.as_view(), name='admin_activity_log'),
 
     # Password recovery endpoints
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),

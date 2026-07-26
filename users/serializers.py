@@ -80,16 +80,28 @@ class UserSerializer(serializers.ModelSerializer):
     Serializer for retrieving user profile information.
     """
     avatar_url = serializers.SerializerMethodField()
+    can_view_financial_dashboard = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'avatar', 'avatar_url', 'email_verified', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'last_login')
-        read_only_fields = ('id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login', 'email_verified')
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name', 'bio', 'avatar', 'avatar_url',
+            'email_verified', 'is_superuser', 'is_staff', 'is_active', 'can_view_financial_dashboard',
+            'date_joined', 'last_login',
+        )
+        read_only_fields = (
+            'id', 'username', 'email', 'is_superuser', 'is_staff', 'date_joined', 'last_login',
+            'email_verified', 'can_view_financial_dashboard',
+        )
 
     def get_avatar_url(self, obj):
         request = self.context.get('request')
         from users.media_urls import absolute_media_url
         return absolute_media_url(request, obj.avatar)
+
+    def get_can_view_financial_dashboard(self, obj):
+        from PathyCodeback.financial_access import user_can_view_financial_dashboard
+        return user_can_view_financial_dashboard(obj)
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
@@ -238,6 +250,19 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             'project_created': 'Project created',
         }
         return labels.get(obj.action, obj.action.replace('_', ' ').title())
+
+
+class AdminActivityLogSerializer(ActivityLogSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_name = serializers.SerializerMethodField()
+
+    class Meta(ActivityLogSerializer.Meta):
+        fields = ActivityLogSerializer.Meta.fields + ['user_email', 'user_name']
+
+    def get_user_name(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return ''
 
 
 # ================================

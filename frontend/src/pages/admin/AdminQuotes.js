@@ -1,10 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  ADMIN_INPUT_CLASS,
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api from '../../services/api';
 import { getQuoteStatusClass, getQuoteStatusLabel, formatDate, formatCurrency, formatApiError } from '../../utils/formatters';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1554224225-6726b3ff858f?auto=format&fit=crop&w=1920&q=85';
 
 const QUOTE_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -51,10 +65,12 @@ const prepareQuoteSubmitData = (formData) => {
 const AdminQuotes = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [quotes, setQuotes] = useState([]);
   const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingQuote, setEditingQuote] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, quote: null });
@@ -63,9 +79,12 @@ const AdminQuotes = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('');
   const [formData, setFormData] = useState(defaultFormData);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
-  const fetchQuotes = useCallback(async () => {
+  const fetchQuotes = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/quotes/');
       const data = response.data.results || response.data;
       setQuotes(Array.isArray(data) ? data : []);
@@ -73,6 +92,7 @@ const AdminQuotes = () => {
       setQuotes([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   }, []);
 
@@ -108,6 +128,24 @@ const AdminQuotes = () => {
     loadUsers();
     loadClients();
   }, [isAuthenticated, user, navigate, fetchQuotes]);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status) setStatusFilter(status);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const quoteId = searchParams.get('quote');
+    if (!quoteId || !quotes.length) return;
+    const match = quotes.find((q) => String(q.id) === String(quoteId));
+    if (match) setSelectedQuote(match);
+  }, [searchParams, quotes]);
+
+  const handleCreate = () => {
+    setEditingQuote(null);
+    setFormData(defaultFormData);
+    setShowForm(true);
+  };
 
   const handleEdit = (quote) => {
     setEditingQuote(quote);
@@ -222,6 +260,22 @@ const AdminQuotes = () => {
     }
   };
 
+  const handleDownloadPdf = async (quote) => {
+    try {
+      const response = await api.get(`/quotes/${quote.id}/pdf/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `quote_${quote.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to download PDF');
+    }
+  };
+
   const filteredQuotes = quotes.filter((quote) => {
     const matchesSearch =
       quote.project_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -232,202 +286,338 @@ const AdminQuotes = () => {
     return matchesSearch && matchesStatus && matchesClient;
   });
 
+  const filteredIds = filteredQuotes.map((q) => q.id);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => [...new Set([...prev, ...filteredIds])]);
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleBulkMarkReviewed = async () => {
+    if (!selectedIds.length) return;
+    setBulkLoading(true);
+    try {
+      const { data } = await api.post('/quotes/bulk-mark-reviewed/', { ids: selectedIds });
+      alert(`Marked reviewed: ${data.updated}. Skipped: ${data.skipped}.`);
+      setSelectedIds([]);
+      fetchQuotes(true);
+    } catch (err) {
+      alert(formatApiError(err, 'Bulk mark reviewed failed'));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkGenerateInvoices = async () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Generate invoices for ${selectedIds.length} selected quote(s)?`)) return;
+    setBulkLoading(true);
+    try {
+      const { data } = await api.post('/quotes/bulk-generate-invoices/', { ids: selectedIds });
+      const errorNote = data.errors?.length ? `\n\nNotes:\n${data.errors.slice(0, 5).join('\n')}` : '';
+      alert(`Created: ${data.created}. Skipped: ${data.skipped}.${errorNote}`);
+      setSelectedIds([]);
+      fetchQuotes(true);
+    } catch (err) {
+      alert(formatApiError(err, 'Bulk invoice generation failed'));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const canApproveOrReject = (status) => status === 'reviewed' || status === 'replied';
 
-  const stats = [
-    { label: 'Total', value: filteredQuotes.length },
-    { label: 'Pending', value: filteredQuotes.filter((q) => q.status === 'pending').length },
-    { label: 'Reviewed', value: filteredQuotes.filter((q) => q.status === 'reviewed' || q.status === 'replied').length },
-    { label: 'Approved', value: filteredQuotes.filter((q) => q.status === 'approved').length },
-    { label: 'Declined', value: filteredQuotes.filter((q) => q.status === 'declined').length },
+  const pendingCount = quotes.filter((q) => q.status === 'pending').length;
+  const reviewedCount = quotes.filter((q) => q.status === 'reviewed' || q.status === 'replied').length;
+  const approvedCount = quotes.filter((q) => q.status === 'approved').length;
+  const declinedCount = quotes.filter((q) => q.status === 'declined').length;
+
+  const statCards = [
+    {
+      label: 'Total',
+      value: quotes.length,
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+    },
+    {
+      label: 'Pending',
+      value: pendingCount,
+      tone: 'bg-white border border-orange-100',
+      valueClass: 'text-orange-600',
+      iconBg: 'bg-orange-100 text-orange-600',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Reviewed',
+      value: reviewedCount,
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+      icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z',
+    },
+    {
+      label: 'Approved',
+      value: approvedCount,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Declined',
+      value: declinedCount,
+      tone: 'bg-white border border-red-100',
+      valueClass: 'text-red-600',
+      iconBg: 'bg-red-100 text-red-600',
+      icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
   ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: quotes.length },
+    ...QUOTE_STATUS_OPTIONS.map(({ value, label }) => ({
+      id: value,
+      label,
+      count: quotes.filter((q) => q.status === value).length,
+    })),
+  ];
+
+  const hasActiveFilters = !!searchTerm.trim() || statusFilter !== 'all' || !!clientFilter;
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading quotes...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Quotes &amp; Estimates</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage client quote requests and estimates</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={() => {
-                  setEditingQuote(null);
-                  setFormData(defaultFormData);
-                  setShowForm(true);
-                }}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Business"
+          title="Quotes & Estimates"
+          description="Manage client quote requests and estimates."
+          primaryAction={
+            <div className="flex flex-wrap gap-2">
+              <AdminPrimaryBannerButton onClick={handleCreate}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 New Quote
-              </button>
+              </AdminPrimaryBannerButton>
               <button
+                type="button"
                 onClick={handleExportCSV}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Export CSV
               </button>
               <Link
                 to="/admin/invoices"
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
                 Invoices
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
             </div>
-          </div>
-        </div>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchQuotes(true)} refreshing={refreshing} />}
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-2xl sm:text-3xl font-bold text-slate-600">{s.value}</p>
-              <p className="text-sm font-medium text-gray-600">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        <AdminStatGrid stats={statCards} />
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <input
-              type="text"
-              placeholder="Search by project, client, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            />
-            <select
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              <option value="">All Clients</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              <option value="all">All Statuses</option>
-              {QUOTE_STATUS_OPTIONS.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-5 sm:px-6 py-4">
+          <label htmlFor="quote-client-filter" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+            Filter by client
+          </label>
+          <select
+            id="quote-client-filter"
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className={ADMIN_INPUT_CLASS}
+          >
+            <option value="">All Clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className={selectedQuote ? 'lg:col-span-2' : 'lg:col-span-3'}>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              {filteredQuotes.length === 0 ? (
-                <div className="px-6 py-16 text-center text-gray-500">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-lg font-medium">No quotes found</p>
-                  <p className="text-sm mt-1">Try adjusting your search or filters</p>
+            <AdminListSection
+              title="All quotes"
+              subtitle="Review, approve, and manage client quote requests"
+              listIcon={listIcon}
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search by project, client, or email…"
+              filters={statusFilters}
+              activeFilter={statusFilter}
+              onFilterChange={setStatusFilter}
+              showingCount={filteredQuotes.length}
+              totalCount={quotes.length}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setClientFilter('');
+              }}
+              onCreate={handleCreate}
+              createLabel="New Quote"
+              emptyTitle="No quotes found"
+              emptyDescription={
+                hasActiveFilters
+                  ? 'Try adjusting your search or filters.'
+                  : 'Create your first quote to get started.'
+              }
+              emptyActionLabel={hasActiveFilters ? 'Clear filters' : 'Create first quote'}
+              onEmptyAction={
+                hasActiveFilters
+                  ? () => {
+                      setSearchTerm('');
+                      setStatusFilter('all');
+                      setClientFilter('');
+                    }
+                  : handleCreate
+              }
+            >
+              {selectedIds.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <span className="text-sm font-semibold text-slate-700">{selectedIds.length} selected</span>
+                  <button
+                    type="button"
+                    disabled={bulkLoading}
+                    onClick={handleBulkMarkReviewed}
+                    className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold disabled:opacity-50"
+                  >
+                    Mark reviewed
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bulkLoading}
+                    onClick={handleBulkGenerateInvoices}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                  >
+                    Generate invoices
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds([])}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600"
+                  >
+                    Clear
+                  </button>
                 </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto hidden sm:block">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Estimated</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredQuotes.map((q) => (
-                          <tr key={q.id} className="hover:bg-gray-50/80">
-                            <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900">{q.project_title}</td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-gray-600">{q.client_name}</td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-right font-medium">{q.estimated_amount ? formatCurrency(q.estimated_amount) : '—'}</td>
-                            <td className="px-4 sm:px-6 py-4">
-                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${getQuoteStatusClass(q.status)}`}>
-                                {getQuoteStatusLabel(q.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">{formatDate(q.created_at) || '—'}</td>
-                            <td className="px-4 sm:px-6 py-4 text-right">
-                              <div className="flex justify-end gap-1">
-                                <button onClick={() => handleView(q)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg" title="View">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" />
-                                  </svg>
-                                </button>
-                                <button onClick={() => handleDelete(q)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="sm:hidden divide-y divide-gray-100">
-                    {filteredQuotes.map((q) => (
-                      <div key={q.id} className="p-4 hover:bg-gray-50/50" onClick={() => handleView(q)}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-gray-900">{q.project_title}</p>
-                            <p className="text-sm text-gray-600">{q.client_name}</p>
-                            <span className={`inline-flex mt-1 px-2.5 py-1 text-xs font-medium rounded-full ${getQuoteStatusClass(q.status)}`}>
-                              {getQuoteStatusLabel(q.status)}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-slate-600">{q.estimated_amount ? formatCurrency(q.estimated_amount) : '—'}</p>
-                        </div>
-                        <div className="mt-2 flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(q); }} className="text-sm text-red-600 font-medium">Delete</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
               )}
-            </div>
+              <AdminTableWrap>
+                <table className="min-w-full hidden sm:table">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-white">
+                      <th className="px-3 sm:px-4 py-3.5 text-left">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          aria-label="Select all quotes"
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Project</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Client</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Estimated</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Created</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredQuotes.map((q) => (
+                      <tr
+                        key={q.id}
+                        className={`hover:bg-slate-50/80 transition-colors ${selectedQuote?.id === q.id ? 'bg-slate-50' : ''}`}
+                      >
+                        <td className="px-3 sm:px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(q.id)}
+                            onChange={() => toggleSelect(q.id)}
+                            aria-label={`Select quote ${q.project_title}`}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 text-sm font-semibold text-slate-900">{q.project_title}</td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-600">{q.client_name}</td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-right font-medium text-slate-900">
+                          {q.estimated_amount ? formatCurrency(q.estimated_amount) : '—'}
+                        </td>
+                        <td className="px-5 sm:px-6 py-4">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getQuoteStatusClass(q.status)}`}>
+                            {getQuoteStatusLabel(q.status)}
+                          </span>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-500">{formatDate(q.created_at) || '—'}</td>
+                        <td className="px-5 sm:px-6 py-4 text-right">
+                          <AdminActionButtons
+                            onEdit={() => handleView(q)}
+                            onDelete={() => handleDelete(q)}
+                            editLabel="View"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </AdminTableWrap>
+              <div className="sm:hidden divide-y divide-slate-100">
+                {filteredQuotes.map((q) => (
+                  <div key={q.id} className="p-4 hover:bg-slate-50/50" onClick={() => handleView(q)}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold text-slate-900">{q.project_title}</p>
+                        <p className="text-sm text-slate-600">{q.client_name}</p>
+                        <span className={`inline-flex mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${getQuoteStatusClass(q.status)}`}>
+                          {getQuoteStatusLabel(q.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-600">{q.estimated_amount ? formatCurrency(q.estimated_amount) : '—'}</p>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(q); }}
+                        className="text-sm text-red-600 font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AdminListSection>
           </div>
 
           {selectedQuote && (
@@ -528,6 +718,13 @@ const AdminQuotes = () => {
                         Send Response Email
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(selectedQuote)}
+                      className="w-full px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors"
+                    >
+                      Download PDF
+                    </button>
                     <button
                       onClick={() => handleEdit(selectedQuote)}
                       className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"

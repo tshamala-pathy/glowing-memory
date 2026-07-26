@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from .models import Client, Project
 from invoices.models import Invoice
@@ -58,3 +60,49 @@ class ProjectCompletionAutomationTests(TestCase):
             ),
             10,
         )
+
+
+class PublicClientProjectTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='public_client',
+            email='public-client@example.com',
+            password='password',
+        )
+        self.client_profile = Client.objects.get(user=self.user)
+        self.public_project = Project.objects.create(
+            name='Public Delivery Project',
+            description='Visible on the Projects page.',
+            client=self.client_profile,
+            status='development',
+            tech_stack='React,Django',
+            is_public=True,
+        )
+        self.private_project = Project.objects.create(
+            name='Private Delivery Project',
+            description='Not visible publicly.',
+            client=self.client_profile,
+            status='planning',
+            is_public=False,
+        )
+
+    def test_public_list_includes_only_public_projects(self):
+        api_client = APIClient()
+        response = api_client.get(reverse('project-public'))
+        self.assertEqual(response.status_code, 200)
+        names = [item['name'] for item in response.data]
+        self.assertIn(self.public_project.name, names)
+        self.assertNotIn(self.private_project.name, names)
+
+    def test_anonymous_can_retrieve_public_project(self):
+        api_client = APIClient()
+        url = reverse('project-detail', kwargs={'pk': self.public_project.pk})
+        response = api_client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], self.public_project.name)
+
+    def test_anonymous_cannot_retrieve_private_project(self):
+        api_client = APIClient()
+        url = reverse('project-detail', kwargs={'pk': self.private_project.pk})
+        response = api_client.get(url)
+        self.assertEqual(response.status_code, 404)

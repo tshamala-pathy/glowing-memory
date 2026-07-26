@@ -1,9 +1,10 @@
 from rest_framework import viewsets, permissions, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from PathyCodeback.permissions import IsSuperuser
 
 from .models import InAppNotification
-from .serializers import InAppNotificationSerializer
+from .serializers import InAppNotificationSerializer, AdminInAppNotificationSerializer
 
 
 class InAppNotificationViewSet(
@@ -69,3 +70,13 @@ class InAppNotificationViewSet(
             )
         deleted = delete_notifications(request.user, ids=ids)
         return Response({'deleted': deleted}, status=status.HTTP_200_OK)
+
+
+class AdminInAppNotificationViewSet(viewsets.ModelViewSet):
+    """Superuser CRUD for all in-app notifications."""
+
+    queryset = InAppNotification.objects.select_related('user').order_by('-created_at')
+    serializer_class = AdminInAppNotificationSerializer
+    permission_classes = [IsSuperuser]
+    filterset_fields = ['event_type', 'is_read', 'user']
+    search_fields = ['title', 'message', 'user__email']

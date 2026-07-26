@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api, { getMediaUrl } from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1920&q=85';
 
 const AdminClients = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -18,6 +31,7 @@ const AdminClients = () => {
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, client: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [visibilityFilter, setVisibilityFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
@@ -27,6 +41,20 @@ const AdminClients = () => {
     logo: null,
   });
   const [logoPreview, setLogoPreview] = useState(null);
+
+  const fetchClients = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      const response = await api.get('/clients/clients/');
+      const data = response.data?.results ?? response.data;
+      setClients(Array.isArray(data) ? data : []);
+    } catch {
+      setClients([]);
+    } finally {
+      setLoading(false);
+      if (isRefresh) setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -38,19 +66,7 @@ const AdminClients = () => {
       return;
     }
     fetchClients();
-  }, [isAuthenticated, user, navigate]);
-
-  const fetchClients = async () => {
-    try {
-      const response = await api.get('/clients/clients/');
-      const data = response.data?.results ?? response.data;
-      setClients(Array.isArray(data) ? data : []);
-    } catch {
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAuthenticated, user, navigate, fetchClients]);
 
   const handleCreate = () => {
     setEditingClient(null);
@@ -167,169 +183,205 @@ const AdminClients = () => {
     }
   };
 
-  const filteredClients = clients.filter(
-    (c) =>
-      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.industry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return clients.filter((c) => {
+      const matchesSearch =
+        !q ||
+        c.name?.toLowerCase().includes(q) ||
+        c.industry?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q);
+      const matchesVisibility =
+        visibilityFilter === 'all' ||
+        (visibilityFilter === 'public' && c.is_public) ||
+        (visibilityFilter === 'private' && !c.is_public);
+      return matchesSearch && matchesVisibility;
+    });
+  }, [clients, searchTerm, visibilityFilter]);
 
-  const columns = [
+  const statCards = [
     {
-      header: 'Logo',
-      accessor: 'logo',
-      render: (value, row) => (
-        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
-          {value ? (
-            <img src={getMediaUrl(value)} alt={row.name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-slate-400 text-lg font-medium">
-              {(row.name || '?').charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
-      ),
+      label: 'Total',
+      value: clients.length,
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
     },
     {
-      header: 'Name',
-      accessor: 'name',
-      render: (value) => <span className="font-medium text-slate-900">{value}</span>,
+      label: 'Public',
+      value: clients.filter((c) => c.is_public).length,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
     },
     {
-      header: 'Industry',
-      accessor: 'industry',
-      render: (value) => (
-        <span className="text-slate-600 text-sm">{value || '—'}</span>
-      ),
+      label: 'With Logo',
+      value: clients.filter((c) => c.logo).length,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
     },
     {
-      header: 'Public',
-      accessor: 'is_public',
-      render: (value) => (
-        <span
-          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-            value ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-          }`}
-        >
-          {value ? 'Yes' : 'No'}
-        </span>
-      ),
-    },
-    {
-      header: 'Projects',
-      accessor: 'projects_count',
-      render: (value) => (
-        <span className="text-slate-600 text-sm">{value ?? 0}</span>
-      ),
-    },
-    {
-      header: 'Created',
-      accessor: 'created_at',
-      render: (value) => (
-        <span className="text-slate-600 text-sm">{value ? new Date(value).toLocaleDateString() : '—'}</span>
-      ),
+      label: 'Filtered',
+      value: filteredClients.length,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
     },
   ];
+
+  const visibilityFilters = [
+    { id: 'all', label: 'All', count: clients.length },
+    { id: 'public', label: 'Public', count: clients.filter((c) => c.is_public).length },
+    { id: 'private', label: 'Private', count: clients.filter((c) => !c.is_public).length },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-600 font-medium">Loading clients...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Clients</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage your client portfolio and relationships.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Clients & Users"
+          title="Clients"
+          description="Manage your client portfolio and relationships."
+          primaryAction={
+            <div className="flex flex-wrap gap-2">
+              <AdminPrimaryBannerButton onClick={handleCreate}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Client
-              </button>
-              <button
-                onClick={fetchClients}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
+                Add client
+              </AdminPrimaryBannerButton>
+              <Link
+                to="/admin/client-projects"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                Refresh
-              </button>
+                Projects
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
-          </div>
-        </div>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchClients(true)} refreshing={refreshing} />}
+        />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{clients.length}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Public</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-emerald-600">
-              {clients.filter((c) => c.is_public).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">With Logo</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
-              {clients.filter((c) => c.logo).length}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredClients.length}</div>
-          </div>
-        </div>
+        <AdminStatGrid stats={statCards} />
 
-        {/* Search */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-          <input
-            type="text"
-            placeholder="Search by name, industry, description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-          />
-        </div>
-
-        {/* Table + Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className={selectedClient ? 'lg:col-span-2' : 'lg:col-span-3'}>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-              <DataTable
-                columns={columns}
-                data={filteredClients}
-                onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                emptyMessage="No clients found"
-              />
-            </div>
+            <AdminListSection
+              title="All clients"
+              subtitle="Browse, search, and manage client records"
+              listIcon={listIcon}
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search by name, industry, description…"
+              filters={visibilityFilters}
+              activeFilter={visibilityFilter}
+              onFilterChange={setVisibilityFilter}
+              showingCount={filteredClients.length}
+              totalCount={clients.length}
+              hasActiveFilters={!!searchTerm.trim() || visibilityFilter !== 'all'}
+              onClearFilters={() => {
+                setSearchTerm('');
+                setVisibilityFilter('all');
+              }}
+              onCreate={handleCreate}
+              createLabel="Add client"
+              emptyTitle="No clients found"
+              emptyDescription={
+                searchTerm.trim() || visibilityFilter !== 'all'
+                  ? 'Try adjusting your search or filters.'
+                  : 'Create your first client to get started.'
+              }
+              emptyActionLabel={searchTerm.trim() || visibilityFilter !== 'all' ? 'Clear filters' : 'Add client'}
+              onEmptyAction={
+                searchTerm.trim() || visibilityFilter !== 'all'
+                  ? () => {
+                      setSearchTerm('');
+                      setVisibilityFilter('all');
+                    }
+                  : handleCreate
+              }
+            >
+              <AdminTableWrap>
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-white">
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 w-16">Logo</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Name</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Industry</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Public</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Projects</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredClients.map((client) => (
+                      <tr
+                        key={client.id}
+                        className={`hover:bg-slate-50/80 transition-colors ${selectedClient?.id === client.id ? 'bg-slate-50' : ''}`}
+                      >
+                        <td className="px-5 sm:px-6 py-4">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            {client.logo ? (
+                              <img src={getMediaUrl(client.logo)} alt={client.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-slate-400 text-sm font-semibold">
+                                {(client.name || '?').charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 text-sm font-semibold text-slate-900">{client.name}</td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-600 hidden sm:table-cell">{client.industry || '—'}</td>
+                        <td className="px-5 sm:px-6 py-4 hidden md:table-cell">
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              client.is_public ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {client.is_public ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-600 hidden lg:table-cell">{client.projects_count ?? 0}</td>
+                        <td className="px-5 sm:px-6 py-4 text-right">
+                          <AdminActionButtons
+                            onEdit={() => handleEdit(client)}
+                            onDelete={() => handleDelete(client)}
+                            extra={
+                              <button
+                                type="button"
+                                onClick={() => handleView(client)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                              >
+                                View
+                              </button>
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </AdminTableWrap>
+            </AdminListSection>
           </div>
 
           {selectedClient && (

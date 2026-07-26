@@ -14,8 +14,9 @@ import {
   AdminRefreshButton,
   AdminPrimaryBannerButton,
 } from '../../components/admin/adminPageUi';
-import api from '../../services/api';
+import { downloadBrandedCsv } from '../../utils/csvExport';
 import { formatDate } from '../../utils/formatters';
+import api from '../../services/api';
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1516321497487-e288fb1978f7?auto=format&fit=crop&w=1920&q=85';
@@ -207,18 +208,13 @@ const AdminNewsletter = () => {
       s.subscribed_at ? new Date(s.subscribed_at).toLocaleString() : '',
       s.subscribed_ip || '',
     ]);
-    const csvContent = [headers.join(','), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\r\n');
-    const BOM = '\uFEFF'; // UTF-8 BOM for Excel
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `newsletter-subscriptions-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 200);
+    downloadBrandedCsv(
+      `newsletter-subscriptions-${new Date().toISOString().slice(0, 10)}.csv`,
+      'Newsletter Subscriptions Export',
+      'Export of newsletter subscriber records including status and subscription date.',
+      headers,
+      rows,
+    );
   };
 
   const filteredSubscriptions = useMemo(

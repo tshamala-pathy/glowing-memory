@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { getUserAvatarUrl } from '../utils/userAvatar';
 import { useDropdownPosition } from '../utils/dropdownPortal';
+import { CLIENT_WORKSPACE_NAV, WorkspaceNavIcon, getWorkspaceAccent } from '../constants/clientWorkspaceNav';
 
-const CLIENT_LINKS = [
-  { to: '/profile', label: 'Dashboard' },
-  { to: '/files', label: 'Files' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/calendar', label: 'Calendar' },
-];
+const isNavActive = (pathname, to) => {
+  if (to === '/profile') {
+    return pathname === '/profile' || pathname.startsWith('/profile/');
+  }
+  return pathname === to || pathname.startsWith(`${to}/`);
+};
 
 const inputClass =
   'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white';
@@ -19,6 +20,7 @@ const inputClass =
 const AccountDropdown = () => {
   const { user, logout, refreshUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -31,8 +33,11 @@ const AccountDropdown = () => {
   const ref = useRef(null);
   const fileInputRef = useRef(null);
 
-  const isClient = isAuthenticated && user?.is_superuser !== true;
+  const isClient = isAuthenticated && user?.is_superuser !== true && user?.is_staff !== true;
   const isSuperuser = isAuthenticated && user?.is_superuser === true;
+  const isAdminUser = isAuthenticated && (user?.is_superuser === true || user?.is_staff === true);
+  const onAdminRoute = location.pathname.startsWith('/admin');
+  const showClientWorkspace = isClient && !onAdminRoute;
 
   const displayName =
     [user?.first_name, user?.last_name].filter(Boolean).join(' ') ||
@@ -162,14 +167,14 @@ const AccountDropdown = () => {
           <div
             ref={panelRef}
             style={dropdownStyle}
-            className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
+            className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden flex flex-col max-h-[min(36rem,calc(100vh-4rem))]"
           >
-            <div className="px-4 py-3 bg-gradient-to-r from-slate-800 to-blue-900 text-white">
+            <div className="shrink-0 px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white">
               <p className="font-semibold text-sm">My account</p>
-              <p className="text-xs text-blue-100/90 mt-0.5 truncate">{user.email}</p>
+              <p className="text-xs text-violet-200/90 mt-0.5 truncate">{user.email}</p>
             </div>
 
-            <div className="max-h-[min(32rem,calc(100vh-5rem))] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="px-4 pt-4 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-3 mb-4">
                   <button
@@ -274,34 +279,58 @@ const AccountDropdown = () => {
                   </button>
                 </form>
 
-                <Link
-                  to="/profile"
-                  onClick={() => setOpen(false)}
-                  className="mt-3 block text-center text-xs text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Password, email & full settings →
-                </Link>
+                {!isAdminUser && (
+                  <Link
+                    to="/profile"
+                    onClick={() => setOpen(false)}
+                    className="mt-3 block text-center text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Password, email & full settings →
+                  </Link>
+                )}
               </div>
 
-              {isClient && (
-                <div className="px-2 py-2 border-b border-slate-100">
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {showClientWorkspace && (
+                <div className="px-3 py-3 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+                  <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                     Workspace
                   </p>
-                  {CLIENT_LINKS.map((link) => (
-                    <Link
-                      key={link.to}
-                      to={link.to}
-                      onClick={() => setOpen(false)}
-                      className="block px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
+                  <div className="space-y-0.5">
+                    {CLIENT_WORKSPACE_NAV.map((link) => {
+                      const active = isNavActive(location.pathname, link.to);
+                      const accent = getWorkspaceAccent(link.accent);
+                      return (
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          onClick={() => setOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                            active
+                              ? accent.dropdownActive
+                              : 'text-slate-700 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-100'
+                          }`}
+                        >
+                          <span
+                            className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                              active ? accent.dropdownActiveIcon : accent.dropdownIcon
+                            }`}
+                          >
+                            <WorkspaceNavIcon name={link.icon} className="w-4 h-4" />
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold leading-tight">{link.label}</span>
+                            {!active && (
+                              <span className="block text-[11px] text-slate-500 mt-0.5 truncate">{link.description}</span>
+                            )}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {isSuperuser && (
+              {isSuperuser && !onAdminRoute && (
                 <div className="px-2 py-2 border-b border-slate-100">
                   <Link
                     to="/admin"
@@ -312,16 +341,19 @@ const AccountDropdown = () => {
                   </Link>
                 </div>
               )}
+            </div>
 
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-left"
-                >
-                  Sign out
-                </button>
-              </div>
+            <div className="shrink-0 p-3 border-t border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors text-left"
+              >
+                <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                  <WorkspaceNavIcon name="signOut" className="w-4 h-4 text-red-600" />
+                </span>
+                Sign out
+              </button>
             </div>
           </div>,
           document.body

@@ -13,7 +13,6 @@ from django.http import HttpResponse, FileResponse
 from PathyCodeback.permissions import IsSuperuser
 from users.activity import log_activity
 from .models import Client, Project, ProjectFile, CaseStudy, Task
-import csv
 from .serializers import (
     ClientSerializer,
     ProjectSerializer,
@@ -76,10 +75,13 @@ class ClientViewSet(viewsets.ModelViewSet):
         Export all clients as CSV.
         Admin/staff only.
         """
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="clients.csv"'
+        from PathyCodeback.csv_export import branded_csv_response
 
-        writer = csv.writer(response)
+        response, writer = branded_csv_response(
+            'clients.csv',
+            'Clients Export',
+            'Complete export of client portfolio records and visibility settings.',
+        )
         writer.writerow(
             [
                 "ID",
@@ -154,9 +156,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Public portfolio: only the 'public' action is AllowAny.
         Create/update/delete: superuser only.
         """
-        if self.action == 'public':
+        if self.action in ('public', 'retrieve'):
             return [AllowAny()]
-        if self.action in ['list', 'retrieve', 'my_projects']:
+        if self.action in ['list', 'my_projects']:
             return [IsAuthenticated()]
         return [IsSuperuser()]
     
@@ -195,10 +197,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Export all projects as CSV.
         Admin/staff only.
         """
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="projects.csv"'
+        from PathyCodeback.csv_export import branded_csv_response
 
-        writer = csv.writer(response)
+        response, writer = branded_csv_response(
+            'projects.csv',
+            'Client Projects Export',
+            'Complete export of client project delivery status and linked quote/invoice records.',
+        )
         writer.writerow(
             [
                 "ID",
@@ -337,9 +342,13 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def export_csv(self, request):
         """Export all tasks as CSV. Admin/staff only."""
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="tasks.csv"'
-        writer = csv.writer(response)
+        from PathyCodeback.csv_export import branded_csv_response
+
+        response, writer = branded_csv_response(
+            'tasks.csv',
+            'Tasks Export',
+            'Complete export of project tasks including status, priority, and due dates.',
+        )
         writer.writerow(
             ["ID", "Project", "Title", "Status", "Priority", "Due Date", "Created At"]
         )

@@ -7,7 +7,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { formatRelativeTime } from '../utils/formatters';
 
 const IMAGES = {
-  welcome: 'https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=1920&q=80',
+  welcome: 'https://images.unsplash.com/photo-1497215848000-566045d405b0?auto=format&fit=crop&w=1920&q=85',
   projects: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
   blog: '/blog/hero-writing-desk.jpg',
   services: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
@@ -302,11 +302,15 @@ const AdminDashboard = () => {
   ];
 
   const quickLinks = [
-    { label: 'Financial Dashboard', path: '/admin/financial', desc: 'Revenue & invoices', gradient: 'from-emerald-600 to-teal-700' },
+    { label: 'Financial Dashboard', path: '/admin/financial', desc: 'Revenue & follow-ups', gradient: 'from-emerald-600 to-teal-700', financialOnly: true },
+    { label: 'Payments', path: '/admin/payments', desc: 'PayFast & invoice payments', gradient: 'from-sky-600 to-blue-700' },
+    { label: 'Quotes', path: '/admin/quotes', desc: 'Review & bulk actions', gradient: 'from-amber-500 to-orange-600' },
     { label: 'Manage Clients', path: '/admin/clients', desc: 'Client accounts', gradient: 'from-indigo-600 to-blue-700' },
-    { label: 'Tasks', path: '/admin/tasks', desc: 'Track deliverables', gradient: 'from-violet-600 to-purple-700' },
-    { label: 'Quotes', path: '/admin/quotes', desc: 'Review requests', gradient: 'from-amber-500 to-orange-600' },
-  ];
+    { label: 'Project Tasks', path: '/admin/tasks', desc: 'Client delivery tasks', gradient: 'from-violet-600 to-purple-700' },
+    { label: 'Files', path: '/admin/files', desc: 'Shared & project files', gradient: 'from-slate-600 to-slate-800' },
+    { label: 'Activity Log', path: '/admin/activity-log', desc: 'System audit trail', gradient: 'from-rose-600 to-pink-700' },
+    { label: 'Notifications', path: '/admin/notifications', desc: 'Send in-app alerts', gradient: 'from-cyan-600 to-teal-700' },
+  ].filter((link) => !link.financialOnly || user?.can_view_financial_dashboard === true);
 
   return (
     <AdminLayout>

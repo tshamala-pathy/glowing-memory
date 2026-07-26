@@ -4,6 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import NotificationDropdown from '../NotificationDropdown';
 import AccountDropdown from '../AccountDropdown';
 
+const BACKEND_ORIGIN = (
+  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'
+).replace(/\/$/, '');
+
 const NavIcon = ({ name, className = 'w-5 h-5' }) => {
   const icons = {
     dashboard: (
@@ -57,6 +61,27 @@ const NavIcon = ({ name, className = 'w-5 h-5' }) => {
     clientProjects: (
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
     ),
+    payments: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    ),
+    files: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    ),
+    calendar: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    ),
+    workTasks: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    ),
+    activity: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    ),
+    notifications: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    ),
+    djangoAdmin: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    ),
   };
 
   return (
@@ -95,8 +120,19 @@ const NAV_GROUPS = [
     items: [
       { name: 'Quotes', path: '/admin/quotes', icon: 'quotes' },
       { name: 'Invoices', path: '/admin/invoices', icon: 'invoices' },
+      { name: 'Payments', path: '/admin/payments', icon: 'payments' },
       { name: 'Financial Dashboard', path: '/admin/financial', icon: 'financial' },
-      { name: 'Tasks', path: '/admin/tasks', icon: 'tasks' },
+      { name: 'Project Tasks', path: '/admin/tasks', icon: 'tasks' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { name: 'Files', path: '/admin/files', icon: 'files' },
+      { name: 'Calendar', path: '/admin/calendar', icon: 'calendar' },
+      { name: 'Work Tasks', path: '/admin/work-tasks', icon: 'workTasks' },
+      { name: 'Activity Log', path: '/admin/activity-log', icon: 'activity' },
+      { name: 'Notifications', path: '/admin/notifications', icon: 'notifications' },
     ],
   },
   {
@@ -107,7 +143,25 @@ const NAV_GROUPS = [
       { name: 'Client Projects', path: '/admin/client-projects', icon: 'clientProjects' },
     ],
   },
+  {
+    label: 'Advanced',
+    items: [
+      {
+        name: 'Django Admin',
+        href: `${BACKEND_ORIGIN}/admin/`,
+        external: true,
+        icon: 'djangoAdmin',
+      },
+    ],
+  },
 ];
+
+const navItemVisible = (item, user) => {
+  if (item.path === '/admin/financial') {
+    return user?.can_view_financial_dashboard === true;
+  }
+  return true;
+};
 
 const AdminLayout = ({ children, allowStaff = false }) => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -179,12 +233,6 @@ const AdminLayout = ({ children, allowStaff = false }) => {
               <Link to="/" className="text-slate-600 hover:text-slate-900 text-sm font-medium hidden sm:inline">
                 View Site
               </Link>
-              <Link
-                to="/profile"
-                className="text-slate-600 hover:text-slate-900 text-sm font-medium hidden lg:inline"
-              >
-                Account settings
-              </Link>
               <NotificationDropdown variant="admin" pollMs={30000} />
               <AccountDropdown />
               <button
@@ -211,18 +259,40 @@ const AdminLayout = ({ children, allowStaff = false }) => {
                   {group.label}
                 </p>
                 <ul className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const active = isActive(item.path);
+                  {group.items.filter((item) => navItemVisible(item, user)).map((item) => {
+                    const active = item.path ? isActive(item.path) : false;
+                    const linkClass = `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      active
+                        ? 'bg-white text-slate-900 font-medium shadow-sm'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`;
+
+                    if (item.external && item.href) {
+                      return (
+                        <li key={item.name}>
+                          <a
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={closeSidebarOnNavigate}
+                            className={linkClass}
+                          >
+                            <NavIcon
+                              name={item.icon}
+                              className={`w-5 h-5 flex-shrink-0 ${active ? 'text-slate-700' : 'text-slate-400'}`}
+                            />
+                            <span className="text-sm leading-tight">{item.name}</span>
+                          </a>
+                        </li>
+                      );
+                    }
+
                     return (
                       <li key={item.path}>
                         <Link
                           to={item.path}
                           onClick={closeSidebarOnNavigate}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                            active
-                              ? 'bg-white text-slate-900 font-medium shadow-sm'
-                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                          }`}
+                          className={linkClass}
                         >
                           <NavIcon
                             name={item.icon}

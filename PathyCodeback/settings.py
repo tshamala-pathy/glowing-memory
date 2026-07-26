@@ -183,6 +183,17 @@ MEDIA_URL = '/media/'
 # BASE_DIR points to project root (where manage.py is), so media goes at root level
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Company branding for PDF/CSV exports and invoice documents
+BRAND_NAME = config('BRAND_NAME', default='PathyCode')
+COMPANY_TAGLINE = config('COMPANY_TAGLINE', default='Business & financial operations')
+COMPANY_LOGO_PATH = config(
+    'COMPANY_LOGO_PATH',
+    default=str(BASE_DIR / 'frontend' / 'public' / 'pathycode-logo.png'),
+)
+
+# Comma-separated emails allowed to open the Financial Dashboard (in addition to Django permission)
+FINANCIAL_DASHBOARD_ALLOWED_EMAILS = config('FINANCIAL_DASHBOARD_ALLOWED_EMAILS', default='', cast=Csv())
+
 # Ensure media directory and upload subdirs exist at startup (projects, blog, about, clients, testimonials)
 for subdir in ('', 'projects', 'blog', 'about', 'clients/logos', 'testimonials'):
     os.makedirs(os.path.join(str(MEDIA_ROOT), subdir), exist_ok=True)

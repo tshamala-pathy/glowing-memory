@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SearchBar from './SearchBar';
 import NotificationDropdown from './NotificationDropdown';
 import AccountDropdown from './AccountDropdown';
+import { CLIENT_WORKSPACE_NAV, WorkspaceNavIcon, getWorkspaceAccent } from '../constants/clientWorkspaceNav';
 
 const PUBLIC_LINKS = [
   { to: '/', label: 'Home', exact: true },
@@ -52,12 +53,7 @@ const MobileNavLink = ({ to, label, active, onClick, guest }) => (
   </Link>
 );
 
-const CLIENT_WORKSPACE_LINKS = [
-  { to: '/profile', label: 'Profile' },
-  { to: '/files', label: 'Files' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/calendar', label: 'Calendar' },
-];
+const CLIENT_WORKSPACE_LINKS = CLIENT_WORKSPACE_NAV;
 
 const mobileLinkClass = (active, guest = false) =>
   guest
@@ -259,20 +255,35 @@ const Navbar = () => {
 
               {isAuthenticated && isClient && (
                 <>
-                  <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                    My workspace
+                  <p className="px-4 text-xs font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">
+                    Workspace
                   </p>
                   <div className="space-y-0.5 mb-4 px-2">
-                    {CLIENT_WORKSPACE_LINKS.map((link) => (
-                      <Link
-                        key={link.to}
-                        to={link.to}
-                        className={mobileLinkClass(isActive(link.to))}
-                        onClick={closeMobileMenu}
-                      >
-                        {link.label}
-                      </Link>
-                    ))}
+                    {CLIENT_WORKSPACE_LINKS.map((link) => {
+                      const active = isActive(link.to);
+                      const accent = getWorkspaceAccent(link.accent);
+                      return (
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-all ${
+                            active
+                              ? accent.dropdownActive
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                          onClick={closeMobileMenu}
+                        >
+                          <span
+                            className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                              active ? accent.dropdownActiveIcon : accent.dropdownIcon
+                            }`}
+                          >
+                            <WorkspaceNavIcon name={link.icon} className="w-4 h-4" />
+                          </span>
+                          {link.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </>
               )}
