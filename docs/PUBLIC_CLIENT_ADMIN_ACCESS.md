@@ -30,11 +30,11 @@ Unauthenticated users see only these. No login required.
 | `/services/:id` | Service detail |
 | `/contact` | Contact form |
 | `/pricing` | Pricing |
-| `/requirements` | Requirements (quote) |
-| `/request-quote` | Quote request form |
-| `/quote-success` | Quote success |
-| `/public-projects` | Public client projects (portfolio) |
+| `/requirements` | Requirements overview (links to quote form when logged in) |
+| `/terms-and-privacy`, `/newsletter` | Legal & newsletter |
 | `/login`, `/register`, `/forgot-password`, `/reset-password` | Auth pages |
+
+Legacy redirects: `/public-projects` and `/client-projects` → `/projects`.
 
 ### Backend API (read-only public)
 
@@ -58,6 +58,8 @@ Only authenticated users can access these. Unauthenticated users are redirected 
 
 | Route | Page |
 |-------|------|
+| `/request-quote`, `/quotes` | Quote request form |
+| `/quote-success` | Quote submission confirmation |
 | `/portal` | Client Portal (my quotes, invoices, projects) |
 | `/my-projects` | My Projects (client’s projects) |
 | `/profile` | Profile (main hub: overview, messages, quotes, invoices, projects, testimonials, settings) |
@@ -68,7 +70,7 @@ Only authenticated users can access these. Unauthenticated users are redirected 
 
 ### Backend API
 
-- **Quotes:** `GET /api/quotes/` — returns only the authenticated user’s Client’s quotes.
+- **Quotes:** `POST /api/quotes/` (submit), `GET /api/quotes/` — scoped to the authenticated user’s Client (or matching email).
 - **Invoices:** `GET /api/invoices/`, `GET /api/invoices/:id/pdf/` — only that Client’s invoices.
 - **Client projects:** `GET /api/clients/projects/`, `GET /api/clients/projects/my_projects/` — only that Client’s projects (plus public projects where applicable).
 

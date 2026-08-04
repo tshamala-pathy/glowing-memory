@@ -67,7 +67,7 @@ const FAQ_ITEMS = [
   { q: "How long does a typical project take?", a: "A landing page may take 2–4 weeks; a full application often runs 8–16 weeks. We share a clear timeline after discovery." },
   { q: "Do you work with small businesses?", a: "Yes — from MVPs and marketing sites to larger platforms. We tailor scope to your budget and stage." },
   { q: "What happens after launch?", a: "Documentation, training, and optional support plans for maintenance and new features." },
-  { q: "How do I get a quote?", a: "Use Request a Quote or Contact. We respond within one business day." },
+  { q: "How do I get a quote?", a: "Create a free account, then use Request a Quote from your profile or the quote form. We respond within one business day." },
 ];
 
 const Home = () => {
@@ -373,21 +373,46 @@ const Home = () => {
         <div className="absolute inset-0 bg-slate-900/85" />
         <div className={`${CONTAINER} relative text-center`}>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-5">Ready to start your project?</h2>
-          <p className="text-slate-300 text-lg mb-8 max-w-xl mx-auto">Join businesses that trust PathyCode for design, development, and long-term support.</p>
+          <p className="text-slate-300 text-lg mb-8 max-w-xl mx-auto">
+            {isAuthenticated
+              ? "Request a tailored quote from your account, or reach out if you have questions before you scope."
+              : "Create a free account to request a quote. General questions? Contact us anytime — no account required."}
+          </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to={isAuthenticated ? "/contact" : "/register"}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg transition"
-            >
-              {isAuthenticated ? "Contact Us" : "Create Free Account"}
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/request-quote"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold hover:bg-white/10 transition"
-            >
-              Request a Quote
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/request-quote"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg transition"
+                >
+                  Request a Quote
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold hover:bg-white/10 transition"
+                >
+                  Contact Us
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg transition"
+                >
+                  Create Free Account
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link
+                  to="/login"
+                  state={{ from: '/request-quote' }}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold hover:bg-white/10 transition"
+                >
+                  Sign In to Request a Quote
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

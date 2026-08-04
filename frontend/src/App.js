@@ -3,7 +3,8 @@
  *
  * ACCESS CONTROL:
  * - Public (no auth): home, login, register, about, projects, services, contact,
- *   pricing, request-quote, quote-success. Unauthenticated users see only these.
+ *   pricing, requirements. Unauthenticated users see only these.
+ * - Quote flow (auth required): /request-quote, /quotes, /quote-success.
  * - Profile & history (auth required): /profile, /portal, /my-projects, /blog,
  *   /clients, /case-studies, /search. Redirect to /login if not authenticated.
  * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
@@ -95,8 +96,22 @@ function AppShell() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/requirements" element={<Requirements />} />
-              <Route path="/request-quote" element={<Quotes />} />
-              <Route path="/quote-success" element={<QuoteSuccess />} />
+              <Route
+                path="/request-quote"
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Quotes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quote-success"
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <QuoteSuccess />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
               <Route path="/newsletter" element={<NewsletterPage />} />
               <Route path="/public-projects" element={<Navigate to="/projects" replace />} />
@@ -342,7 +357,14 @@ function AppShell() {
                 } 
               />
               {/* Legacy route - same as /request-quote */}
-            <Route path="/quotes" element={<Quotes />} />
+            <Route
+              path="/quotes"
+              element={
+                <ProtectedRoute requireAuth={true}>
+                  <Quotes />
+                </ProtectedRoute>
+              }
+            />
         </Routes>
       </main>
     </div>

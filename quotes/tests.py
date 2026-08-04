@@ -74,3 +74,37 @@ class QuoteInvoiceAutomationTests(TestCase):
 
         self.assertEqual(quote.status, "approved")
         self.assertEqual(invoices.count(), 0)
+
+
+class QuoteCreateAuthTests(TestCase):
+    """Quote submission requires authentication (anonymous POST returns 401)."""
+
+    def setUp(self):
+        self.client_user = User.objects.create_user(
+            username='quote_client',
+            email='quote-client@example.com',
+            password='password',
+        )
+        self.client_profile = Client.objects.get(user=self.client_user)
+        self.quote_payload = {
+            'client_name': 'Quote Client',
+            'client_email': 'quote-client@example.com',
+            'project_title': 'New Website',
+            'project_description': 'Need a marketing site with contact form.',
+            'requirements_accepted': True,
+        }
+
+    def test_anonymous_cannot_create_quote(self):
+        api_client = APIClient()
+        response = api_client.post(reverse('quote-list'), self.quote_payload, format='json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_authenticated_user_can_create_quote(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.client_user)
+        response = api_client.post(reverse('quote-list'), self.quote_payload, format='json')
+        self.assertEqual(response.status_code, 201)
+
+        quote = Quote.objects.get(project_title='New Website')
+        self.assertEqual(quote.client_id, self.client_profile.id)
+        self.assertTrue(quote.requirements_accepted)

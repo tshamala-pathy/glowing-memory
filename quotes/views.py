@@ -228,12 +228,12 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Create: public. List/retrieve/decision: authenticated (clients see own only).
+        Create: authenticated clients only. List/retrieve/decision: authenticated (clients see own only).
         Staff actions (export, payment follow-up): IsAdminUser.
         Other mutations: superuser only.
         """
         if self.action == 'create':
-            permission_classes = [permissions.AllowAny]
+            permission_classes = [IsAuthenticated]
         elif self.action in ('list', 'retrieve', 'decision', 'pdf', 'proposal', 'approve', 'reject', 'request_changes'):
             permission_classes = [IsAuthenticated]
         elif self.action in ('export_csv', 'send_payment_reminder', 'mark_contacted', 'bulk_mark_reviewed', 'bulk_generate_invoices'):
@@ -246,10 +246,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
         """
         Create a new quote request.
         
-        Validates that requirements_accepted is True for public submissions.
+        Validates that requirements_accepted is True and the user is signed in.
         Sends confirmation email to client and notification to admin.
         """
-        # Validate requirements acceptance for public submissions
+        # Validate requirements acceptance
         requirements_accepted = request.data.get('requirements_accepted', False)
         if not requirements_accepted:
             return Response(

@@ -11,11 +11,10 @@
  */
 import axios from 'axios';
 import { refreshNotifications } from '../utils/notifications';
+import { getBackendOrigin } from '../utils/backendOrigin';
 
-/** Backend origin without trailing slash (e.g. https://api.example.com). Build-time: REACT_APP_BACKEND_URL. */
-const BACKEND_ORIGIN = (
-  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'
-).replace(/\/$/, '');
+/** Backend origin without trailing slash (e.g. https://api.example.com). */
+const BACKEND_ORIGIN = getBackendOrigin();
 
 const API_BASE_URL = `${BACKEND_ORIGIN}/api`;
 

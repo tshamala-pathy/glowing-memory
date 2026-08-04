@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
@@ -25,6 +25,7 @@ const ProtectedRoute = ({
   forbidSuperuser = false,
 }) => {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   // Show loading state while authentication status is being determined
   // Prevents flash of content before redirect
@@ -42,7 +43,7 @@ const ProtectedRoute = ({
   // Redirect to login if authentication is required but user is not authenticated
   // Security: Backend will also enforce authentication; this avoids exposing protected content
   if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // Redirect to profile if superuser access is required but user lacks permissions

@@ -232,7 +232,18 @@ python manage.py collectstatic
 
 ## Deployment
 
-See [Architecture Documentation - Deployment Notes](docs/ARCHITECTURE.md#deployment-notes) for production deployment checklist and recommendations.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full production guide (Docker Compose, nginx, HTTPS, PayFast).
+
+Quick start:
+
+```bash
+cp .env.production.example .env
+# Edit .env with your domain, secrets, and PayFast credentials
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
+```
+
+See [Architecture Documentation - Deployment Notes](docs/ARCHITECTURE.md#deployment-notes) for additional context.
 
 ### Production Checklist
 - [ ] Set `DEBUG = False`

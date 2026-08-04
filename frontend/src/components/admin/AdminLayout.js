@@ -3,10 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationDropdown from '../NotificationDropdown';
 import AccountDropdown from '../AccountDropdown';
+import { getBackendOrigin } from '../../utils/backendOrigin';
 
-const BACKEND_ORIGIN = (
-  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'
-).replace(/\/$/, '');
+const BACKEND_ORIGIN = getBackendOrigin();
 
 const NavIcon = ({ name, className = 'w-5 h-5' }) => {
   const icons = {

@@ -19,7 +19,7 @@ const FOOTER_LINKS = {
   resources: [
     { to: '/blog', label: 'Blog', auth: true },
     { to: '/requirements', label: 'Requirements' },
-    { to: '/request-quote', label: 'Request a Quote' },
+    { to: '/request-quote', label: 'Request a Quote', authOnly: true },
   ],
   account: [
     { to: '/login', label: 'Sign In', guestOnly: true },

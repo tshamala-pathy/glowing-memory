@@ -39,7 +39,7 @@ Legacy: `replied` (same as reviewed for client decision), `invoiced`, `paid` kep
 
 | Step | Where |
 |------|--------|
-| **1. Client submits quote** | `POST /api/quotes/` (public or authenticated). Status = `pending`. |
+| **1. Client submits quote** | `POST /api/quotes/` (authenticated). Status = `pending`. |
 | **2. Admin replies** | Admin: set `estimated_amount`, `admin_response`, `estimated_delivery_time`, then `POST /api/quotes/<id>/send_response/` or set status to `reviewed` in admin. `payment_url` set to `/payment/{id}`. |
 | **3. Client sees reply** | `GET /api/profile/` returns quotes with `admin_response`, `total_price`, `estimated_delivery_time`, `status`. Client Portal shows Approve/Decline for `reviewed` or `replied`. |
 | **4. Client approves/declines** | `POST /api/quotes/<id>/decision/` with `{ "decision": "approve" }` or `"decline"`. Owner-only. On approve, frontend redirects to `/payment/{quote_id}`. |
