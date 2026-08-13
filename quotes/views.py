@@ -22,8 +22,6 @@ from .serializers import QuoteSerializer
 from users.activity import log_activity
 from .utils import generate_quote_pdf
 import logging
-import csv
-
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
@@ -215,28 +213,30 @@ class QuoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Restrict so clients never access other clients' quotes.
-        Non-superusers: only quotes where client=request.user's client_profile, or
-        client is null and client_email matches request.user.email. Superusers: all.
+        Staff/superusers see all quotes; clients see own only.
         """
         qs = super().get_queryset()
-        if self.request.user.is_authenticated and not self.request.user.is_superuser:
-            profile = getattr(self.request.user, 'client_profile', None)
+        user = self.request.user
+        if user.is_authenticated and (user.is_superuser or user.is_staff):
+            return qs
+        if user.is_authenticated:
+            profile = getattr(user, 'client_profile', None)
             if profile:
-                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=self.request.user.email))
-            return qs.filter(client_email__iexact=self.request.user.email)
+                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email))
+            return qs.filter(client_email__iexact=user.email)
         return qs
 
     def get_permissions(self):
         """
-        Create: public. List/retrieve: authenticated (clients see own only).
-        decision: authenticated, owner-only (enforced by get_queryset).
-        Update/delete/other actions: superuser only.
+        Create: authenticated clients only. List/retrieve/decision: authenticated (clients see own only).
+        Staff actions (export, payment follow-up): IsAdminUser.
+        Other mutations: superuser only.
         """
         if self.action == 'create':
-            permission_classes = [permissions.AllowAny]
+            permission_classes = [IsAuthenticated]
         elif self.action in ('list', 'retrieve', 'decision', 'pdf', 'proposal', 'approve', 'reject', 'request_changes'):
             permission_classes = [IsAuthenticated]
-        elif self.action == 'export_csv':
+        elif self.action in ('export_csv', 'send_payment_reminder', 'mark_contacted', 'bulk_mark_reviewed', 'bulk_generate_invoices'):
             permission_classes = [IsAdminUser]
         else:
             permission_classes = [IsSuperuser]
@@ -246,10 +246,10 @@ class QuoteViewSet(viewsets.ModelViewSet):
         """
         Create a new quote request.
         
-        Validates that requirements_accepted is True for public submissions.
+        Validates that requirements_accepted is True and the user is signed in.
         Sends confirmation email to client and notification to admin.
         """
-        # Validate requirements acceptance for public submissions
+        # Validate requirements acceptance
         requirements_accepted = request.data.get('requirements_accepted', False)
         if not requirements_accepted:
             return Response(
@@ -447,6 +447,82 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], url_path='send_payment_reminder')
+    def send_payment_reminder(self, request, pk=None):
+        """Send payment reminder for an approved quote that has no invoice yet."""
+        quote = self.get_object()
+        if quote.status != 'approved':
+            return Response(
+                {'detail': 'Only approved quotes awaiting payment can receive a payment reminder.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from invoices.models import Invoice
+        if Invoice.objects.filter(quote=quote).exists():
+            return Response(
+                {'detail': 'An invoice already exists for this quote. Use the invoice reminder instead.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not quote.client_email:
+            return Response(
+                {'detail': 'This quote has no client email address.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payment_url = quote.payment_url or get_quote_payment_url(quote)
+        amount = quote.estimated_amount or 0
+        subject = f'Payment required — {quote.project_title or "Your project quote"}'
+        message = f"""
+Hello {quote.client_name},
+
+Your quote for "{quote.project_title}" has been approved.
+
+Amount due: R {amount:.2f}
+
+Please complete payment to proceed with your project:
+{payment_url}
+
+Once payment is received, your invoice will be generated and project work can begin.
+
+If you have already paid, please disregard this message.
+
+Best regards,
+{getattr(settings, 'BRAND_NAME', 'PathyCode')} Team
+"""
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+                recipient_list=[quote.client_email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            logger.error('Error sending quote payment reminder: %s', e, exc_info=True)
+            return Response({'detail': 'Failed to send payment reminder email.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from notifications.helpers import notify_quote_payment_reminder
+
+        notify_quote_payment_reminder(quote)
+        log_activity(
+            request.user,
+            'quote_payment_reminder_sent',
+            object_type='quote',
+            object_id=quote.id,
+            details=quote.project_title,
+        )
+        return Response({'detail': 'Payment reminder sent.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def mark_contacted(self, request, pk=None):
+        """Log that staff contacted the client about this quote."""
+        quote = self.get_object()
+        log_activity(
+            request.user,
+            'quote_contacted',
+            object_type='quote',
+            object_id=quote.id,
+            details=quote.project_title,
+        )
+        return Response({'detail': 'Marked as contacted.'})
+
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         """Reject a quote. Client (owner) or admin. reviewed/replied → rejected."""
@@ -496,6 +572,76 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(quote)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], url_path='bulk-mark-reviewed')
+    def bulk_mark_reviewed(self, request):
+        """Mark selected pending/changes_requested quotes as reviewed (Django admin parity)."""
+        ids = request.data.get('ids') or []
+        if not isinstance(ids, list) or not ids:
+            return Response({'detail': 'Provide ids (list of quote IDs).'}, status=status.HTTP_400_BAD_REQUEST)
+        updated = 0
+        skipped = 0
+        for quote in Quote.objects.filter(pk__in=ids):
+            if quote.status not in ('pending', 'changes_requested'):
+                skipped += 1
+                continue
+            try:
+                Quote.validate_status_transition(quote.status, 'reviewed')
+            except Exception:
+                skipped += 1
+                continue
+            if not quote.estimated_amount or not quote.proposal_timeline or not (quote.scope or '').strip():
+                skipped += 1
+                continue
+            quote.status = 'reviewed'
+            quote.responded_at = timezone.now()
+            quote.payment_url = get_quote_payment_url(quote)
+            quote.save(update_fields=['status', 'responded_at', 'payment_url'])
+            log_activity(request.user, 'quote_reviewed', object_type='quote', object_id=quote.id, details=quote.project_title)
+            updated += 1
+        return Response({'updated': updated, 'skipped': skipped})
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], url_path='bulk-generate-invoices')
+    def bulk_generate_invoices(self, request):
+        """Create invoices from approved quotes that do not have one yet."""
+        from invoices.models import Invoice
+        import uuid
+
+        ids = request.data.get('ids') or []
+        if not isinstance(ids, list) or not ids:
+            return Response({'detail': 'Provide ids (list of quote IDs).'}, status=status.HTTP_400_BAD_REQUEST)
+        created = 0
+        skipped = 0
+        errors = []
+        for quote in Quote.objects.filter(pk__in=ids):
+            if quote.status != 'approved':
+                skipped += 1
+                errors.append(f'Quote #{quote.id} is not approved.')
+                continue
+            if Invoice.objects.filter(quote=quote).exists():
+                skipped += 1
+                continue
+            try:
+                invoice_number = f"INV-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+                invoice = Invoice.objects.create(
+                    quote=quote,
+                    created_by=request.user,
+                    issue_date=timezone.now().date(),
+                    due_date=(timezone.now() + timezone.timedelta(days=30)).date(),
+                    status='unpaid',
+                    invoice_number=invoice_number,
+                )
+                invoice.calculate_totals()
+                invoice.save()
+                log_activity(
+                    request.user, 'invoice_created', object_type='invoice',
+                    object_id=invoice.id, details=invoice.invoice_number,
+                )
+                created += 1
+            except Exception as exc:
+                skipped += 1
+                errors.append(f'Quote #{quote.id}: {exc}')
+        return Response({'created': created, 'skipped': skipped, 'errors': errors[:20]})
+
     @action(detail=True, methods=['get'])
     def pdf(self, request, pk=None):
         """
@@ -518,10 +664,13 @@ class QuoteViewSet(viewsets.ModelViewSet):
         if not (request.user and (request.user.is_staff or request.user.is_superuser)):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="quotes.csv"'
+        from PathyCodeback.csv_export import branded_csv_response
 
-        writer = csv.writer(response)
+        response, writer = branded_csv_response(
+            'quotes.csv',
+            'Quotes Export',
+            'Complete export of quote requests, proposal status, and estimated amounts.',
+        )
         writer.writerow(
             [
                 "ID",

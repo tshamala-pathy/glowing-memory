@@ -1,10 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import DataTable from '../../components/admin/DataTable';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  ADMIN_INPUT_CLASS,
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api from '../../services/api';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1920&q=85';
+
+const STATUS_OPTIONS = [
+  { value: 'planning', label: 'Planning' },
+  { value: 'design', label: 'Design' },
+  { value: 'development', label: 'Development' },
+  { value: 'testing', label: 'Testing' },
+  { value: 'completed', label: 'Completed' },
+];
+
+const statusColors = {
+  planning: 'bg-amber-100 text-amber-800',
+  design: 'bg-sky-100 text-sky-800',
+  development: 'bg-blue-100 text-blue-800',
+  testing: 'bg-purple-100 text-purple-800',
+  completed: 'bg-emerald-100 text-emerald-800',
+};
+
+const statusLabels = {
+  planning: 'Planning',
+  design: 'Design',
+  development: 'Development',
+  testing: 'Testing',
+  completed: 'Completed',
+};
 
 const AdminClientProjects = () => {
   const { user, isAuthenticated } = useAuth();
@@ -13,6 +50,7 @@ const AdminClientProjects = () => {
   const [quotes, setQuotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, project: null });
@@ -38,20 +76,9 @@ const AdminClientProjects = () => {
     screenshots: [],
   });
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    if (user && user.is_superuser !== true) {
-      navigate('/admin');
-      return;
-    }
-    fetchData();
-  }, [isAuthenticated, user, navigate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const [projectsRes, quotesRes, invoicesRes, clientsRes] = await Promise.all([
         api.get('/clients/projects/'),
         api.get('/quotes/'),
@@ -67,10 +94,24 @@ const AdminClientProjects = () => {
       setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
       setClients(Array.isArray(clientsData) ? clientsData : []);
     } catch {
+      // keep existing data on refresh failure
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (user && user.is_superuser !== true) {
+      navigate('/admin');
+      return;
+    }
+    fetchData();
+  }, [isAuthenticated, user, navigate, fetchData]);
 
   const handleCreate = () => {
     setEditingProject(null);
@@ -207,187 +248,220 @@ const AdminClientProjects = () => {
     }
   };
 
-  const filteredProjects = projects.filter((project) => {
-    const projectClientId = project.client ?? project.client_id;
-    const matchesClient = !clientFilter || String(projectClientId) === String(clientFilter);
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesSearch =
-      project.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesClient && matchesStatus && matchesSearch;
-  });
-
-  const columns = [
-    { header: 'Name', accessor: 'name' },
-    { header: 'Client', accessor: 'client_name' },
-    {
-      header: 'Status',
-      accessor: 'status',
-      render: (value) => {
-        const statusColors = {
-          planning: 'bg-amber-100 text-amber-800',
-          design: 'bg-sky-100 text-sky-800',
-          development: 'bg-blue-100 text-blue-800',
-          testing: 'bg-purple-100 text-purple-800',
-          completed: 'bg-emerald-100 text-emerald-800',
-        };
-        const labels = { planning: 'Planning', design: 'Design', development: 'Development', testing: 'Testing', completed: 'Completed' };
-        return (
-          <span className={`px-2 py-1 text-xs rounded ${statusColors[value] || 'bg-gray-100 text-gray-800'}`}>
-            {labels[value] || value || 'Planning'}
-          </span>
-        );
-      },
-    },
-    {
-      header: 'Public',
-      accessor: 'is_public',
-      render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded ${value ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-          {value ? 'Yes' : 'No'}
-        </span>
-      ),
-    },
-    {
-      header: 'Tech Stack',
-      accessor: 'tech_stack',
-      render: (value) => (
-        <div className="flex flex-wrap gap-1">
-          {Array.isArray(value) && value.length > 0 ? value.slice(0, 3).map((tech, idx) => (
-            <span key={idx} className="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded">
-              {tech}
-            </span>
-          )) : '-'}
-        </div>
-      ),
-    },
-    {
-      header: 'Created',
-      accessor: 'created_at',
-      render: (value) => new Date(value).toLocaleDateString(),
-    },
-  ];
+  const filteredProjects = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return projects.filter((project) => {
+      const projectClientId = project.client ?? project.client_id;
+      const matchesClient = !clientFilter || String(projectClientId) === String(clientFilter);
+      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesSearch =
+        !q ||
+        project.name?.toLowerCase().includes(q) ||
+        project.description?.toLowerCase().includes(q) ||
+        project.client_name?.toLowerCase().includes(q);
+      return matchesClient && matchesStatus && matchesSearch;
+    });
+  }, [projects, clientFilter, statusFilter, searchTerm]);
 
   const publicCount = projects.filter((p) => p.is_public).length;
   const completedCount = projects.filter((p) => p.status === 'completed').length;
 
+  const statCards = [
+    {
+      label: 'Total',
+      value: projects.length,
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+      icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+    },
+    {
+      label: 'Public',
+      value: publicCount,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Completed',
+      value: completedCount,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Filtered',
+      value: filteredProjects.length,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: projects.length },
+    ...STATUS_OPTIONS.map((opt) => ({
+      id: opt.value,
+      label: opt.label,
+      count: projects.filter((p) => p.status === opt.value).length,
+    })),
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+  );
+
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-600 font-medium">Loading projects...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
+  const clientFilteredProjects = clientFilter
+    ? projects.filter((p) => String(p.client ?? p.client_id) === String(clientFilter))
+    : projects;
+
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Client Projects</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage projects and set which appear on the public portfolio.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Clients & Users"
+          title="Client Projects"
+          description="Manage delivery projects and choose which appear on the public Projects page."
+          primaryAction={
+            <div className="flex flex-wrap gap-2">
+              <AdminPrimaryBannerButton onClick={handleCreate}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Project
-              </button>
-              <button
-                onClick={fetchData}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base"
+                Add project
+              </AdminPrimaryBannerButton>
+              <Link
+                to="/admin/clients"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                Refresh
-              </button>
+                Clients
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
-          </div>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchData(true)} refreshing={refreshing} />}
+        />
+
+        <AdminStatGrid stats={statCards} />
+
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-5 sm:px-6 py-4">
+          <label htmlFor="project-client-filter" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+            Filter by client
+          </label>
+          <select
+            id="project-client-filter"
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className={`${ADMIN_INPUT_CLASS} !mt-0 max-w-md`}
+          >
+            <option value="">All clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Total</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{projects.length}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Public</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-emerald-600">{publicCount}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Completed</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{completedCount}</div>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">Filtered</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">{filteredProjects.length}</div>
-          </div>
-        </div>
-
-        {/* Search & filters */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Search by project or client name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-            />
-            <select
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-            >
-              <option value="">All Clients</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
-            >
-              <option value="all">All Statuses</option>
-              <option value="planning">Planning</option>
-              <option value="design">Design</option>
-              <option value="development">Development</option>
-              <option value="testing">Testing</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={filteredProjects}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            emptyMessage="No projects found"
-          />
-        </div>
+        <AdminListSection
+          title="All projects"
+          subtitle="Track delivery status and portfolio visibility"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by project or client name…"
+          filters={statusFilters}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          showingCount={filteredProjects.length}
+          totalCount={clientFilteredProjects.length}
+          hasActiveFilters={!!searchTerm.trim() || statusFilter !== 'all' || !!clientFilter}
+          onClearFilters={() => {
+            setSearchTerm('');
+            setStatusFilter('all');
+            setClientFilter('');
+          }}
+          onCreate={handleCreate}
+          createLabel="Add project"
+          emptyTitle="No projects found"
+          emptyDescription={
+            searchTerm.trim() || statusFilter !== 'all' || clientFilter
+              ? 'Try adjusting your search or filters.'
+              : 'Create your first project to get started.'
+          }
+          emptyActionLabel={
+            searchTerm.trim() || statusFilter !== 'all' || clientFilter ? 'Clear filters' : 'Add project'
+          }
+          onEmptyAction={
+            searchTerm.trim() || statusFilter !== 'all' || clientFilter
+              ? () => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setClientFilter('');
+                }
+              : handleCreate
+          }
+        >
+          <AdminTableWrap>
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Name</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Client</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Status</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Public</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden xl:table-cell">Tech</th>
+                  <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredProjects.map((project) => (
+                  <tr key={project.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 sm:px-6 py-4 text-sm font-semibold text-slate-900">{project.name}</td>
+                    <td className="px-5 sm:px-6 py-4 text-sm text-slate-600 hidden sm:table-cell">{project.client_name || '—'}</td>
+                    <td className="px-5 sm:px-6 py-4 hidden md:table-cell">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[project.status] || 'bg-slate-100 text-slate-800'}`}>
+                        {statusLabels[project.status] || project.status || 'Planning'}
+                      </span>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden lg:table-cell">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${project.is_public ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                        {project.is_public ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 hidden xl:table-cell">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {Array.isArray(project.tech_stack) && project.tech_stack.length > 0 ? (
+                          project.tech_stack.slice(0, 3).map((tech, idx) => (
+                            <span key={idx} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-md font-medium">
+                              {tech}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-400 text-sm">—</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 sm:px-6 py-4 text-right">
+                      <AdminActionButtons onEdit={() => handleEdit(project)} onDelete={() => handleDelete(project)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTableWrap>
+        </AdminListSection>
 
         {/* Form Modal */}
         {showForm && (
@@ -455,7 +529,7 @@ const AdminClientProjects = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Gallery images</label>
                       <p className="text-xs text-gray-500 mt-0.5 mb-1">
-                        Optional. Add images for the client &quot;My Projects&quot; card and public portfolio. Saves after you click Update.
+                        Optional. Add images for the client &quot;My Projects&quot; card and the public Projects page. Saves after you click Update.
                       </p>
                       <input
                         type="file"
@@ -506,7 +580,7 @@ const AdminClientProjects = () => {
                               onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="ml-2 text-sm text-gray-700">Visible to public</span>
+                            <span className="ml-2 text-sm text-gray-700">Show on Projects page</span>
                           </label>
                         </div>
                       </div>

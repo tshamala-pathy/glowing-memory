@@ -3,7 +3,8 @@
  *
  * ACCESS CONTROL:
  * - Public (no auth): home, login, register, about, projects, services, contact,
- *   pricing, request-quote, quote-success. Unauthenticated users see only these.
+ *   pricing, requirements. Unauthenticated users see only these.
+ * - Quote flow (auth required): /request-quote, /quotes, /quote-success.
  * - Profile & history (auth required): /profile, /portal, /my-projects, /blog,
  *   /clients, /case-studies, /search. Redirect to /login if not authenticated.
  * - Admin (superuser): all /admin/* routes. Non-superusers redirect to /profile.
@@ -40,6 +41,12 @@ import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 import AdminAbout from './pages/admin/AdminAbout';
 import AdminFinancialDashboard from './pages/admin/AdminFinancialDashboard';
 import AdminTasks from './pages/admin/AdminTasks';
+import AdminPayments from './pages/admin/AdminPayments';
+import AdminFiles from './pages/admin/AdminFiles';
+import AdminCalendar from './pages/admin/AdminCalendar';
+import AdminWorkTasks from './pages/admin/AdminWorkTasks';
+import AdminActivityLog from './pages/admin/AdminActivityLog';
+import AdminNotifications from './pages/admin/AdminNotifications';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import Requirements from './pages/Requirements';
@@ -52,7 +59,6 @@ import BlogDetail from './pages/BlogDetail';
 import ServiceDetail from './pages/ServiceDetail';
 import Clients from './pages/Clients';
 import CaseStudies from './pages/CaseStudies';
-import PublicProjects from './pages/PublicProjects';
 import ClientProjects from './pages/ClientProjects';
 import ClientPortal from './pages/ClientPortal';
 import Payment from './pages/Payment';
@@ -83,18 +89,33 @@ function AppShell() {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/about" element={<About />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/c/:id" element={<ProjectDetail />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/services" element={<Services />} />
               <Route path="/services/:id" element={<ServiceDetail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/requirements" element={<Requirements />} />
-              <Route path="/request-quote" element={<Quotes />} />
-              <Route path="/quote-success" element={<QuoteSuccess />} />
+              <Route
+                path="/request-quote"
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <Quotes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quote-success"
+                element={
+                  <ProtectedRoute requireAuth={true}>
+                    <QuoteSuccess />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
               <Route path="/newsletter" element={<NewsletterPage />} />
-              <Route path="/public-projects" element={<PublicProjects />} />
-              <Route path="/client-projects" element={<PublicProjects />} />
+              <Route path="/public-projects" element={<Navigate to="/projects" replace />} />
+              <Route path="/client-projects" element={<Navigate to="/projects" replace />} />
 
               {/* ========== PROFILE (main hub) & CLIENT PORTAL (authentication required) ========== */}
               <Route
@@ -234,7 +255,7 @@ function AppShell() {
               <Route 
                 path="/admin/financial" 
                 element={
-                  <ProtectedRoute requireStaffOrSuperuser={true}>
+                  <ProtectedRoute requireFinancialDashboard={true}>
                     <AdminFinancialDashboard />
                   </ProtectedRoute>
                 } 
@@ -244,6 +265,54 @@ function AppShell() {
                 element={
                   <ProtectedRoute requireStaffOrSuperuser={true}>
                     <AdminTasks />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/payments" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminPayments />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/files" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminFiles />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/calendar" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminCalendar />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/work-tasks" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminWorkTasks />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/activity-log" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminActivityLog />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/notifications" 
+                element={
+                  <ProtectedRoute requireSuperuser={true}>
+                    <AdminNotifications />
                   </ProtectedRoute>
                 } 
               />
@@ -288,7 +357,14 @@ function AppShell() {
                 } 
               />
               {/* Legacy route - same as /request-quote */}
-            <Route path="/quotes" element={<Quotes />} />
+            <Route
+              path="/quotes"
+              element={
+                <ProtectedRoute requireAuth={true}>
+                  <Quotes />
+                </ProtectedRoute>
+              }
+            />
         </Routes>
       </main>
     </div>

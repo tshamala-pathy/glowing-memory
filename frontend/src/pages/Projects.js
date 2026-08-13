@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
+import { filterPortfolioProjects, mergePortfolioProjects } from '../utils/portfolioProjects';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES, placeholderAt } from '../constants/siteImages';
 
-/**
- * Curated Unsplash images — used when a project has no image or the file fails to load.
- * (Stable order per card index keeps the grid visually varied.)
- */
-const PLACEHOLDER_IMAGES = [
-  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80',
-];
+const HERO_IMAGE = SITE_IMAGES.backend;
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2400&q=85';
-
-const placeholderForIndex = (index) => PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length];
+const placeholderForIndex = (index) => placeholderAt(index);
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -30,23 +19,21 @@ const Projects = () => {
     search: '',
   });
 
-  useEffect(() => {
-    fetchProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.status, filters.category, filters.search]);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const params = {};
-      if (filters.status) params.status = filters.status;
-      if (filters.category) params.category = filters.category;
-      if (filters.search) params.search = filters.search;
-
-      const response = await api.get('/projects/', { params });
-      const projectsData = response.data?.results ?? response.data ?? [];
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      const [portfolioResponse, clientResponse] = await Promise.all([
+        api.get('/projects/'),
+        api.get('/clients/projects/public/'),
+      ]);
+      const portfolioData = portfolioResponse.data?.results ?? portfolioResponse.data ?? [];
+      const clientData = clientResponse.data ?? [];
+      const merged = mergePortfolioProjects(
+        Array.isArray(portfolioData) ? portfolioData : [],
+        Array.isArray(clientData) ? clientData : [],
+      );
+      setProjects(filterPortfolioProjects(merged, filters));
     } catch (err) {
       if (err?.isNetworkError) {
         setError('Cannot connect to server. Please ensure the backend is running.');
@@ -57,7 +44,11 @@ const Projects = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const handleFilterChange = (filterType, value) => {
     setFilters((prev) => ({ ...prev, [filterType]: value }));
@@ -67,12 +58,7 @@ const Projects = () => {
     setFilters({ status: '', category: '', search: '' });
   };
 
-  const getTechList = (project) => {
-    const t = project.technologies;
-    if (Array.isArray(t)) return t;
-    if (typeof t === 'string' && t.trim()) return t.split(',').map((x) => x.trim()).filter(Boolean);
-    return [];
-  };
+  const getTechList = (project) => project.technologies || [];
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -145,7 +131,7 @@ const Projects = () => {
       {/* Hero */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={HERO_IMAGE}
             alt=""
             className="h-full w-full object-cover object-center"
@@ -216,6 +202,7 @@ const Projects = () => {
                   <option value="Desktop">Desktop Application</option>
                   <option value="API">API Development</option>
                   <option value="Other">Other</option>
+                  <option value="Client Work">Client Work</option>
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-6">
@@ -257,8 +244,8 @@ const Projects = () => {
           <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200/90 shadow-lg">
             <div className="grid md:grid-cols-2">
               <div className="relative min-h-[220px] md:min-h-[280px]">
-                <img
-                  src={PLACEHOLDER_IMAGES[2]}
+                <SafeImage
+                  src={placeholderAt(2)}
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover"
                   loading="lazy"
@@ -298,26 +285,23 @@ const Projects = () => {
               const primarySrc = project.image ? getMediaUrl(project.image) : fallback;
               return (
                 <Link
-                  key={project.id}
-                  to={`/projects/${project.id}`}
+                  key={`${project.source}-${project.id}`}
+                  to={project.detailPath}
                   className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:ring-teal-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-slate-200">
-                    <img
+                    <SafeImage
                       src={primarySrc}
+                      fallback={fallback}
                       alt={project.title}
                       className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                       loading="lazy"
                       decoding="async"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = fallback;
-                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent opacity-80 transition group-hover:opacity-90" />
                     <div className="absolute left-4 right-4 top-4 flex flex-wrap items-start justify-between gap-2">
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${getStatusStyle(project.status)}`}>
-                        {project.status}
+                        {project.statusLabel || project.status}
                       </span>
                       {project.category && (
                         <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-sm">

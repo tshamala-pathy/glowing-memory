@@ -5,36 +5,25 @@ import api from '../services/api';
 import AdminLayout from '../components/admin/AdminLayout';
 import { useNotifications } from '../hooks/useNotifications';
 import { formatRelativeTime } from '../utils/formatters';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
 const IMAGES = {
-  welcome: 'https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=1920&q=80',
-  projects: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
-  blog: '/blog/hero-writing-desk.jpg',
-  services: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
-  newsletter: '/newsletter/hero-newsletter.jpg',
-  testimonials: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
-  testimonialsBanner: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80',
-  threads: 'https://images.unsplash.com/photo-1573497019148-b8d87734a5a2?auto=format&fit=crop&w=800&q=80',
-  contact: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80',
-  fallback: '/blog/hero-reading-learning.jpg',
+  welcome: SITE_IMAGES.admin,
+  projects: SITE_IMAGES.backend,
+  blog: SITE_IMAGES.blog.heroSide,
+  services: SITE_IMAGES.workspace,
+  newsletter: SITE_IMAGES.newsletter.hero,
+  testimonials: SITE_IMAGES.team,
+  testimonialsBanner: SITE_IMAGES.contact,
+  threads: SITE_IMAGES.clientPortal,
+  contact: SITE_IMAGES.pricing,
+  fallback: SITE_IMAGES.fallback,
 };
 
-const CardImage = ({ src, alt, className }) => {
-  const [imgSrc, setImgSrc] = useState(src);
-  return (
-    <img
-      src={imgSrc}
-      alt={alt}
-      className={className}
-      loading="lazy"
-      onError={() => {
-        if (imgSrc !== IMAGES.fallback) {
-          setImgSrc(IMAGES.fallback);
-        }
-      }}
-    />
-  );
-};
+const CardImage = ({ src, alt, className }) => (
+  <SafeImage src={src} alt={alt} className={className} loading="lazy" fallback={IMAGES.fallback} />
+);
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -302,18 +291,22 @@ const AdminDashboard = () => {
   ];
 
   const quickLinks = [
-    { label: 'Financial Dashboard', path: '/admin/financial', desc: 'Revenue & invoices', gradient: 'from-emerald-600 to-teal-700' },
+    { label: 'Financial Dashboard', path: '/admin/financial', desc: 'Revenue & follow-ups', gradient: 'from-emerald-600 to-teal-700', financialOnly: true },
+    { label: 'Payments', path: '/admin/payments', desc: 'PayFast & invoice payments', gradient: 'from-sky-600 to-blue-700' },
+    { label: 'Quotes', path: '/admin/quotes', desc: 'Review & bulk actions', gradient: 'from-amber-500 to-orange-600' },
     { label: 'Manage Clients', path: '/admin/clients', desc: 'Client accounts', gradient: 'from-indigo-600 to-blue-700' },
-    { label: 'Tasks', path: '/admin/tasks', desc: 'Track deliverables', gradient: 'from-violet-600 to-purple-700' },
-    { label: 'Quotes', path: '/admin/quotes', desc: 'Review requests', gradient: 'from-amber-500 to-orange-600' },
-  ];
+    { label: 'Project Tasks', path: '/admin/tasks', desc: 'Client delivery tasks', gradient: 'from-violet-600 to-purple-700' },
+    { label: 'Files', path: '/admin/files', desc: 'Shared & project files', gradient: 'from-slate-600 to-slate-800' },
+    { label: 'Activity Log', path: '/admin/activity-log', desc: 'System audit trail', gradient: 'from-rose-600 to-pink-700' },
+    { label: 'Notifications', path: '/admin/notifications', desc: 'Send in-app alerts', gradient: 'from-cyan-600 to-teal-700' },
+  ].filter((link) => !link.financialOnly || user?.can_view_financial_dashboard === true);
 
   return (
     <AdminLayout>
       <div className="space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
         {/* Welcome Hero */}
         <div className="relative overflow-hidden rounded-3xl shadow-2xl ring-1 ring-black/5 min-h-[300px] sm:min-h-[340px]">
-          <img
+          <SafeImage
             src={IMAGES.welcome}
             alt=""
             aria-hidden="true"
@@ -674,7 +667,7 @@ const AdminDashboard = () => {
           {/* Recent Testimonials */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="relative h-24 overflow-hidden">
-              <img
+              <SafeImage
                 src={IMAGES.testimonialsBanner}
                 alt=""
                 aria-hidden="true"

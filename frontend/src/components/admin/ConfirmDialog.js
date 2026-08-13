@@ -1,12 +1,24 @@
 import React from 'react';
 
-const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Delete', cancelText = 'Cancel' }) => {
-  if (!isOpen) return null;
+const ConfirmDialog = ({
+  isOpen,
+  open,
+  onClose,
+  onCancel,
+  onConfirm,
+  title,
+  message,
+  confirmText = 'Delete',
+  cancelText = 'Cancel',
+}) => {
+  const visible = isOpen ?? open;
+  const handleClose = onClose || onCancel;
+  if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose}></div>
+        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={handleClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
 
@@ -46,7 +58,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
             >
               {cancelText}

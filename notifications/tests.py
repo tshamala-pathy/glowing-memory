@@ -226,6 +226,57 @@ class NotificationSignalTest(TestCase):
         quote.save()
         n = InAppNotification.objects.get(user=self.client_user, event_type=InAppNotification.EVENT_QUOTE_APPROVED)
         self.assertIn('/payment/', n.link)
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                user=self.staff, event_type=InAppNotification.EVENT_QUOTE_APPROVED
+            ).exists()
+        )
+
+    def test_quote_declined_notifies_client_and_staff(self):
+        quote = Quote.objects.create(
+            client=self.client_profile,
+            client_name='Client',
+            client_email='client@test.com',
+            project_title='Website',
+            project_description='Build a site',
+            status='reviewed',
+        )
+        InAppNotification.objects.all().delete()
+        quote.status = 'declined'
+        quote.save()
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                user=self.client_user, event_type=InAppNotification.EVENT_QUOTE_REJECTED
+            ).exists()
+        )
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                user=self.staff, event_type=InAppNotification.EVENT_QUOTE_REJECTED
+            ).exists()
+        )
+
+    def test_work_task_created_notifies_client_and_staff(self):
+        project = Project.objects.create(
+            name='My Project',
+            description='Desc',
+            client=self.client_profile,
+        )
+        InAppNotification.objects.all().delete()
+        WorkTask.objects.create(
+            project=project,
+            title='Kickoff checklist',
+            created_by=self.staff,
+        )
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                user=self.client_user, event_type=InAppNotification.EVENT_TASK_UPDATED
+            ).exists()
+        )
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                user=self.staff, event_type=InAppNotification.EVENT_TASK_UPDATED
+            ).exists()
+        )
 
     def test_payment_completed_only_on_transition(self):
         quote = Quote.objects.create(
@@ -282,12 +333,12 @@ class NotificationSignalTest(TestCase):
             client=self.client_profile,
         )
         InAppNotification.objects.all().delete()
-        WorkTask.objects.create(
+        task = WorkTask.objects.create(
             project=project,
             title='Design mockups',
-            assigned_to=self.client_user,
             created_by=self.staff,
         )
+        task.assignees.add(self.client_user)
         self.assertTrue(
             InAppNotification.objects.filter(
                 user=self.client_user, event_type=InAppNotification.EVENT_TASK_ASSIGNED

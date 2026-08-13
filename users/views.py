@@ -16,6 +16,7 @@ from .serializers import (
     ResetPasswordSerializer,
     NotificationSerializer,
     ActivityLogSerializer,
+    AdminActivityLogSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from notifications.models import InAppNotification
@@ -116,89 +117,8 @@ class ProfileAggregateView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        from clients.models import Client
-        from clients.serializers import ClientSerializer, ProjectSerializer
-        from contact.models import ContactMessage
-        from contact.serializers import ContactMessageSerializer
-        from quotes.models import Quote
-        from quotes.serializers import ProfileQuoteSerializer
-        from invoices.models import Invoice
-        from invoices.serializers import InvoiceSerializer
-        from testimonials.models import Testimonial
-        from testimonials.serializers import TestimonialSerializer
-        from django.db.models import Q
-
-        user = request.user
-        user_data = UserSerializer(user, context={'request': request}).data
-
-        profile = getattr(user, 'client_profile', None)
-        client_data = None
-        if profile:
-            client_data = ClientSerializer(profile, context={'request': request}).data
-
-        # Messages (by client or email)
-        if profile:
-            messages_qs = ContactMessage.objects.filter(client=profile).order_by('-created_at')[:20]
-        else:
-            messages_qs = ContactMessage.objects.filter(
-                email__iexact=user.email
-            ).order_by('-created_at')[:20]
-        messages_data = ContactMessageSerializer(messages_qs, many=True).data
-
-        # Quotes: only this user's quotes (client FK or client_email). No cross-client access.
-        quotes_qs = Quote.objects.filter(
-            Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email)
-        ).order_by('-created_at') if profile else Quote.objects.filter(
-            client_email__iexact=user.email
-        ).order_by('-created_at')
-        quotes_data = ProfileQuoteSerializer(quotes_qs, many=True, context={'request': request}).data
-
-        # Invoices: only this user's invoices (client FK or client_email). No cross-client access.
-        invoices_qs = Invoice.objects.filter(
-            Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email)
-        ).order_by('-created_at') if profile else Invoice.objects.filter(
-            client_email__iexact=user.email
-        ).order_by('-created_at')
-        invoices_data = InvoiceSerializer(invoices_qs, many=True, context={'request': request}).data
-
-        # Projects (by client)
-        projects_data = []
-        if profile:
-            from clients.models import Project
-            projects_qs = Project.objects.filter(client=profile).select_related(
-                'client', 'quote', 'invoice'
-            ).order_by('-created_at')
-            projects_data = ProjectSerializer(projects_qs, many=True, context={'request': request}).data
-
-        # Testimonials (by client)
-        testimonials_data = []
-        if profile:
-            testimonials_qs = Testimonial.objects.filter(client=profile).order_by('-created_at')
-            testimonials_data = TestimonialSerializer(
-                testimonials_qs, many=True, context={'request': request}
-            ).data
-
-        # Payments count for profile statistics
-        payments_count = 0
-        if profile:
-            from payments.models import Payment as ExternalPayment
-            payments_count = ExternalPayment.objects.filter(client=profile, payment_status='paid').count()
-
-        return Response({
-            'user': user_data,
-            'client': client_data,
-            'quotes': quotes_data,
-            'invoices': invoices_data,
-            'projects': projects_data,
-            'messages': messages_data,
-            'testimonials': testimonials_data,
-            'stats': {
-                'total_projects': len(projects_data),
-                'total_quotes': len(quotes_data),
-                'total_invoices': len(invoices_data),
-                'total_payments': payments_count,
-            },
-        })
+        from .profile_aggregate import build_profile_aggregate
+        return Response(build_profile_aggregate(request.user, request, list_limit=500))
 
 
 # View for retrieving the authenticated user's profile (lightweight, for AuthContext)
@@ -328,6 +248,19 @@ class UserAdminViewSet(viewsets.ModelViewSet):
             return AdminUserSerializer
         return UserSerializer
 
+    @action(detail=True, methods=['get'], url_path='360')
+    def user_360(self, request, pk=None):
+        """
+        GET /api/users/admin/{id}/360/ — Full support view for a user (superuser only).
+
+        Returns client profile, quotes, invoices, projects, messages, testimonials,
+        payments, message threads, case studies, and recent activity in one payload.
+        """
+        from .profile_aggregate import build_profile_aggregate
+
+        target = self.get_object()
+        return Response(build_profile_aggregate(target, request, admin_context=True))
+
 
 class NotificationViewSet(viewsets.ModelViewSet):
     """
@@ -382,6 +315,28 @@ class ActivityLogView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
         serializer = ActivityLogSerializer(qs[:100], many=True)  # Last 100 entries
+        return Response(serializer.data)
+
+
+class AdminActivityLogView(generics.ListAPIView):
+    """GET /api/users/admin/activity-log/ — All activity logs (superuser)."""
+
+    permission_classes = [IsSuperuser]
+    serializer_class = AdminActivityLogSerializer
+
+    def get_queryset(self):
+        qs = ActivityLog.objects.select_related('user').order_by('-timestamp')
+        action_filter = (self.request.query_params.get('action') or '').strip()
+        user_id = self.request.query_params.get('user')
+        if action_filter:
+            qs = qs.filter(action=action_filter)
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()[:500]
+        serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
 

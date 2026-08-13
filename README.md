@@ -68,6 +68,9 @@ python manage.py migrate
 5. **Create superuser** (optional, for admin access)
 ```bash
 python manage.py createsuperuser
+# Or, on a fresh empty database:
+python manage.py bootstrap_dev
+# Default login: admin / Admin123! — change after first login
 ```
 
 6. **Run development server**
@@ -232,7 +235,18 @@ python manage.py collectstatic
 
 ## Deployment
 
-See [Architecture Documentation - Deployment Notes](docs/ARCHITECTURE.md#deployment-notes) for production deployment checklist and recommendations.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full production guide (Docker Compose, nginx, HTTPS, PayFast).
+
+Quick start:
+
+```bash
+cp .env.production.example .env
+# Edit .env with your domain, secrets, and PayFast credentials
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
+```
+
+See [Architecture Documentation - Deployment Notes](docs/ARCHITECTURE.md#deployment-notes) for additional context.
 
 ### Production Checklist
 - [ ] Set `DEBUG = False`

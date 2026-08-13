@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Requirements = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -194,14 +197,34 @@ const Requirements = () => {
           <div className="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Ready to Request a Quote?</h3>
             <p className="text-gray-600 mb-6">
-              Now that you've read the requirements, you can proceed to submit your quote request.
+              {isAuthenticated
+                ? "Now that you've read the requirements, you can proceed to submit your quote request."
+                : 'Create a free account or sign in to submit a quote request after reviewing these requirements.'}
             </p>
-            <Link
-              to="/request-quote"
-              className="inline-block px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-            >
-              Request a Quote
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/request-quote"
+                className="inline-block px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+              >
+                Request a Quote
+              </Link>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  to="/register"
+                  className="inline-block px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+                >
+                  Create Free Account
+                </Link>
+                <Link
+                  to="/login"
+                  state={{ from: '/request-quote' }}
+                  className="inline-block px-8 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg"
+                >
+                  Sign In
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

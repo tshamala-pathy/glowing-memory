@@ -1,10 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  ADMIN_INPUT_CLASS,
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api from '../../services/api';
 import { getInvoiceStatusClass, getInvoiceStatusLabel, formatDate } from '../../utils/formatters';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1554224225-6726b3ff858f?auto=format&fit=crop&w=1920&q=85';
 
 const formatCurrency = (v) => {
   const n = parseFloat(v);
@@ -15,14 +29,17 @@ const formatCurrency = (v) => {
 const AdminInvoices = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, invoice: null });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dueFilter, setDueFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('');
   const [clients, setClients] = useState([]);
   const [quotes, setQuotes] = useState([]);
@@ -65,8 +82,9 @@ const AdminInvoices = () => {
     status: 'draft',
   });
 
-  const fetchInvoices = useCallback(async () => {
+  const fetchInvoices = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/invoices/');
       const data = response.data.results || response.data;
       setInvoices(Array.isArray(data) ? data : []);
@@ -76,6 +94,7 @@ const AdminInvoices = () => {
       return [];
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   }, []);
 
@@ -94,6 +113,20 @@ const AdminInvoices = () => {
     fetchUsers();
     fetchClients();
   }, [isAuthenticated, user, navigate, fetchInvoices]);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const due = searchParams.get('due');
+    if (status) setStatusFilter(status);
+    if (due === 'upcoming' || due === 'overdue') setDueFilter(due);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const invoiceId = searchParams.get('invoice');
+    if (!invoiceId || !invoices.length) return;
+    const match = invoices.find((inv) => String(inv.id) === String(invoiceId));
+    if (match) setSelectedInvoice(match);
+  }, [searchParams, invoices]);
 
   const fetchClients = async () => {
     try {
@@ -115,7 +148,7 @@ const AdminInvoices = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users/admin/');
+      const response = await api.get('/users/admin/', { params: { page_size: 500 } });
       const data = response.data.results || response.data;
       setUsers(Array.isArray(data) ? data : []);
     } catch {
@@ -379,7 +412,24 @@ const AdminInvoices = () => {
       invoice.client_email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     const matchesClient = !clientFilter || String(invoice.client) === String(clientFilter);
-    return matchesSearch && matchesStatus && matchesClient;
+    let matchesDue = true;
+    if (dueFilter !== 'all' && invoice.due_date) {
+      const due = new Date(invoice.due_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      due.setHours(0, 0, 0, 0);
+      const closed = ['paid', 'cancelled'].includes(invoice.status);
+      if (dueFilter === 'overdue') {
+        matchesDue = due < today && !closed;
+      } else if (dueFilter === 'upcoming') {
+        const in14 = new Date(today);
+        in14.setDate(in14.getDate() + 14);
+        matchesDue = due >= today && due <= in14 && !closed;
+      }
+    } else if (dueFilter !== 'all') {
+      matchesDue = false;
+    }
+    return matchesSearch && matchesStatus && matchesClient && matchesDue;
   });
 
   const stats = [
@@ -390,199 +440,232 @@ const AdminInvoices = () => {
     { label: 'Overdue', value: filteredInvoices.filter((i) => i.status === 'overdue').length },
   ];
 
+  const clientFilteredInvoices = invoices.filter(
+    (invoice) => !clientFilter || String(invoice.client) === String(clientFilter)
+  );
+
+  const statCards = [
+    {
+      label: 'Total',
+      value: stats[0].value,
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    },
+    {
+      label: 'Draft',
+      value: stats[1].value,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+    },
+    {
+      label: 'Unpaid',
+      value: stats[2].value,
+      tone: 'bg-white border border-amber-100',
+      valueClass: 'text-amber-600',
+      iconBg: 'bg-amber-100 text-amber-600',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Paid',
+      value: stats[3].value,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Overdue',
+      value: stats[4].value,
+      tone: 'bg-white border border-orange-100',
+      valueClass: 'text-orange-600',
+      iconBg: 'bg-orange-100 text-orange-600',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: clientFilteredInvoices.length },
+    { id: 'draft', label: 'Draft', count: clientFilteredInvoices.filter((i) => i.status === 'draft').length },
+    { id: 'unpaid', label: 'Unpaid', count: clientFilteredInvoices.filter((i) => i.status === 'unpaid').length },
+    { id: 'paid', label: 'Paid', count: clientFilteredInvoices.filter((i) => i.status === 'paid').length },
+    { id: 'overdue', label: 'Overdue', count: clientFilteredInvoices.filter((i) => i.status === 'overdue').length },
+    { id: 'cancelled', label: 'Cancelled', count: clientFilteredInvoices.filter((i) => i.status === 'cancelled').length },
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+
   if (loading) {
     return (
       <AdminLayout>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading invoices...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Invoices</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Manage invoices and payments</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Business"
+          title="Invoices"
+          description="Manage invoices and payments"
+          primaryAction={
+            <div className="flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={handleCreateFromQuote}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-amber-500/90 hover:bg-amber-500 text-white rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm shadow-md hover:bg-amber-600 transition-colors"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 From Quote
               </button>
-              <button
-                onClick={handleCreate}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <AdminPrimaryBannerButton onClick={handleCreate}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Create
-              </button>
+              </AdminPrimaryBannerButton>
               <button
+                type="button"
                 onClick={handleExportCSV}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Export CSV
               </button>
               <Link
-                to="/admin/financial"
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+                to="/admin/quotes"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                Dashboard
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                Quotes
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
             </div>
-          </div>
-        </div>
+          }
+          secondaryAction={<AdminRefreshButton onClick={() => fetchInvoices(true)} refreshing={refreshing} />}
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-2xl sm:text-3xl font-bold text-slate-600">{s.value}</p>
-              <p className="text-sm font-medium text-gray-600">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        <AdminStatGrid stats={statCards} />
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <input
-              type="text"
-              placeholder="Search by invoice #, client, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            />
-            <select
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              <option value="">All Clients</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              <option value="all">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5">
+          <label htmlFor="client-filter" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+            Filter by client
+          </label>
+          <select
+            id="client-filter"
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className={`${ADMIN_INPUT_CLASS} !mt-0 max-w-md`}
+          >
+            <option value="">All Clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className={selectedInvoice ? 'lg:col-span-2' : 'lg:col-span-3'}>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              {filteredInvoices.length === 0 ? (
-                <div className="px-6 py-16 text-center text-gray-500">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-lg font-medium">No invoices found</p>
-                  <p className="text-sm mt-1">Try adjusting your search or filters</p>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto hidden sm:block">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredInvoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-gray-50/80">
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{inv.invoice_number}</td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-gray-600">{inv.client_name}</td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-right font-medium">{formatCurrency(inv.total_amount)}</td>
-                            <td className="px-4 sm:px-6 py-4">
-                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${getInvoiceStatusClass(inv.status)}`}>
-                                {getInvoiceStatusLabel(inv.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">{formatDate(inv.due_date) || '—'}</td>
-                            <td className="px-4 sm:px-6 py-4 text-right">
-                              <div className="flex justify-end gap-1">
-                                <button onClick={() => handleView(inv)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg" title="View">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" />
-                                  </svg>
-                                </button>
-                                <button onClick={() => handleDelete(inv)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="sm:hidden divide-y divide-gray-100">
+            <AdminListSection
+              title="All invoices"
+              subtitle="Track billing status and payment details"
+              listIcon={listIcon}
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search by invoice #, client, email…"
+              filters={statusFilters}
+              activeFilter={statusFilter}
+              onFilterChange={setStatusFilter}
+              showingCount={filteredInvoices.length}
+              totalCount={clientFilteredInvoices.length}
+              hasActiveFilters={!!searchTerm.trim() || statusFilter !== 'all' || !!clientFilter || dueFilter !== 'all'}
+              onClearFilters={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setClientFilter('');
+                setDueFilter('all');
+              }}
+              onCreate={handleCreate}
+              createLabel="New invoice"
+              emptyTitle="No invoices found"
+              emptyDescription={
+                searchTerm.trim() || statusFilter !== 'all' || clientFilter || dueFilter !== 'all'
+                  ? 'Try adjusting your search or filters.'
+                  : 'Create your first invoice to get started.'
+              }
+              emptyActionLabel={
+                searchTerm.trim() || statusFilter !== 'all' || clientFilter || dueFilter !== 'all'
+                  ? 'Clear filters'
+                  : 'Create invoice'
+              }
+              onEmptyAction={
+                searchTerm.trim() || statusFilter !== 'all' || clientFilter || dueFilter !== 'all'
+                  ? () => {
+                      setSearchTerm('');
+                      setStatusFilter('all');
+                      setClientFilter('');
+                      setDueFilter('all');
+                    }
+                  : handleCreate
+              }
+            >
+              <AdminTableWrap>
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-white">
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Invoice #</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Client</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Total</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Status</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Due Date</th>
+                      <th className="px-5 sm:px-6 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
                     {filteredInvoices.map((inv) => (
-                      <div key={inv.id} className="p-4 hover:bg-gray-50/50" onClick={() => handleView(inv)}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-gray-900">{inv.invoice_number}</p>
-                            <p className="text-sm text-gray-600">{inv.client_name}</p>
-                            <span className={`inline-flex mt-1 px-2.5 py-1 text-xs font-medium rounded-full ${getInvoiceStatusClass(inv.status)}`}>
-                              {getInvoiceStatusLabel(inv.status)}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-slate-600">{formatCurrency(inv.total_amount)}</p>
-                        </div>
-                        <div className="mt-2 flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(inv); }} className="text-sm text-red-600 font-medium">Delete</button>
-                        </div>
-                      </div>
+                      <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-5 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{inv.invoice_number}</td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-600">{inv.client_name}</td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-right font-medium text-slate-900 hidden sm:table-cell">{formatCurrency(inv.total_amount)}</td>
+                        <td className="px-5 sm:px-6 py-4 hidden md:table-cell">
+                          <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full ${getInvoiceStatusClass(inv.status)}`}>
+                            {getInvoiceStatusLabel(inv.status)}
+                          </span>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 text-sm text-slate-500 hidden lg:table-cell">{formatDate(inv.due_date) || '—'}</td>
+                        <td className="px-5 sm:px-6 py-4 text-right">
+                          <AdminActionButtons
+                            onDelete={() => handleDelete(inv)}
+                            extra={
+                              <button
+                                type="button"
+                                onClick={() => handleView(inv)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                              >
+                                View
+                              </button>
+                            }
+                          />
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </>
-              )}
-            </div>
+                  </tbody>
+                </table>
+              </AdminTableWrap>
+            </AdminListSection>
           </div>
 
           {selectedInvoice && (

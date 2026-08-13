@@ -66,8 +66,7 @@ class QuoteSerializer(serializers.ModelSerializer):
     Serializer for Quote model.
     
     Handles serialization of quote requests and responses.
-    - Public users can create quotes (POST)
-    - Authenticated users can view quotes (GET)
+    - Authenticated users can create and view quotes (POST/GET)
     - Admin users can update quotes and add responses (PUT/PATCH)
     """
     assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)

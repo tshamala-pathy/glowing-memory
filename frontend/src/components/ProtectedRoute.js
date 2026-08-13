@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Route-level access control:
  * - requireAuth: Unauthenticated users are redirected to /login
  * - requireSuperuser: Non-superusers are redirected to /profile
+ * - requireFinancialDashboard: Staff/superusers without an explicit financial grant → /admin
  *
  * Authenticated users can: view profile, history, private projects, invoices.
  * Unauthenticated users: see only public pages; redirected to login when
@@ -20,9 +21,11 @@ const ProtectedRoute = ({
   requireAuth = false,
   requireSuperuser = false,
   requireStaffOrSuperuser = false,
+  requireFinancialDashboard = false,
   forbidSuperuser = false,
 }) => {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   // Show loading state while authentication status is being determined
   // Prevents flash of content before redirect
@@ -40,7 +43,7 @@ const ProtectedRoute = ({
   // Redirect to login if authentication is required but user is not authenticated
   // Security: Backend will also enforce authentication; this avoids exposing protected content
   if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // Redirect to profile if superuser access is required but user lacks permissions
@@ -48,9 +51,14 @@ const ProtectedRoute = ({
     return <Navigate to="/profile" replace />;
   }
 
-  // Redirect if staff/superuser access is required (for Financial Dashboard, etc.)
+  // Redirect if staff/superuser access is required (for Project Tasks, etc.)
   if (requireStaffOrSuperuser && (!isAuthenticated || !user || (user.is_superuser !== true && user.is_staff !== true))) {
     return <Navigate to="/profile" replace />;
+  }
+
+  // Financial dashboard: superuser/staff alone is not enough — explicit grant required
+  if (requireFinancialDashboard && (!isAuthenticated || !user || user.can_view_financial_dashboard !== true)) {
+    return <Navigate to="/admin" replace />;
   }
 
   // For client-only routes (profile, portal, etc.), prevent superusers from accessing

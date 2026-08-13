@@ -3,18 +3,30 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import {
+  ADMIN_INPUT_CLASS,
+  AdminLoadingSkeleton,
+  AdminPageBanner,
+  AdminStatGrid,
+  AdminListSection,
+  AdminTableWrap,
+  AdminActionButtons,
+  AdminRefreshButton,
+  AdminPrimaryBannerButton,
+} from '../../components/admin/adminPageUi';
 import api from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1920&q=85';
+
 const STATUS_OPTIONS = [
-  { value: '', label: 'All statuses' },
   { value: 'todo', label: 'To Do' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'done', label: 'Done' },
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: '', label: 'All priorities' },
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
@@ -35,9 +47,10 @@ const AdminTasks = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [projects, setProjects] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -46,8 +59,9 @@ const AdminTasks = () => {
   const [formError, setFormError] = useState('');
   const [formData, setFormData] = useState(defaultFormData);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await api.get('/clients/tasks/');
       const data = response.data.results || response.data;
       const list = Array.isArray(data) ? data : [];
@@ -56,6 +70,7 @@ const AdminTasks = () => {
       setTasks([]);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   }, []);
 
@@ -135,8 +150,8 @@ const AdminTasks = () => {
         !searchTerm ||
         task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = !statusFilter || task.status === statusFilter;
-      const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+      const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
       return matchesSearch && matchesStatus && matchesPriority;
     });
   }, [tasks, searchTerm, statusFilter, priorityFilter]);
@@ -158,14 +173,6 @@ const AdminTasks = () => {
   }, [filteredTasks]);
 
   const overdueTasks = useMemo(() => tasks.filter((t) => isOverdue(t)), [tasks]);
-
-  const stats = [
-    { label: 'Total', value: filteredTasks.length },
-    { label: 'To Do', value: filteredTasks.filter((t) => t.status === 'todo').length },
-    { label: 'In Progress', value: filteredTasks.filter((t) => t.status === 'in_progress').length },
-    { label: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length },
-    { label: 'Overdue', value: overdueTasks.length },
-  ];
 
   const statusBadge = (value) => {
     const base = 'px-2 py-1 text-xs rounded-full capitalize ';
@@ -217,124 +224,137 @@ const AdminTasks = () => {
     }
   };
 
+  const statCards = [
+    {
+      label: 'Total',
+      value: filteredTasks.length,
+      tone: 'bg-slate-900 text-white',
+      iconBg: 'bg-white/15',
+      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+    },
+    {
+      label: 'To Do',
+      value: filteredTasks.filter((t) => t.status === 'todo').length,
+      tone: 'bg-white border border-slate-100',
+      iconBg: 'bg-slate-100 text-slate-600',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'In Progress',
+      value: filteredTasks.filter((t) => t.status === 'in_progress').length,
+      tone: 'bg-white border border-blue-100',
+      valueClass: 'text-blue-600',
+      iconBg: 'bg-blue-100 text-blue-600',
+      icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+    },
+    {
+      label: 'Done',
+      value: filteredTasks.filter((t) => t.status === 'done').length,
+      tone: 'bg-white border border-emerald-100',
+      valueClass: 'text-emerald-600',
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    },
+    {
+      label: 'Overdue',
+      value: overdueTasks.length,
+      tone: 'bg-white border border-red-100',
+      valueClass: 'text-red-600',
+      iconBg: 'bg-red-100 text-red-600',
+      icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+    },
+  ];
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: tasks.length },
+    ...STATUS_OPTIONS.map((opt) => ({
+      id: opt.value,
+      label: opt.label,
+      count: tasks.filter((t) => t.status === opt.value).length,
+    })),
+  ];
+
+  const listIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  );
+
   if (loading) {
     return (
       <AdminLayout allowStaff={true}>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-600 font-medium">Loading tasks...</p>
-          </div>
-        </div>
+        <AdminLoadingSkeleton />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout allowStaff={true}>
-      <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto min-w-0 overflow-x-hidden">
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-600 via-slate-500 to-slate-600 p-4 sm:p-6 lg:p-8 text-white shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                <span className="p-2 sm:p-2.5 bg-white/20 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                </span>
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Project Tasks</h1>
-              </div>
-              <p className="text-slate-100 text-sm sm:text-lg">Internal task board, grouped by project. Clients never see these tasks.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-              <button
-                onClick={handleCreateNew}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New Task
-              </button>
-              <button
-                onClick={fetchTasks}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-slate-600 hover:bg-slate-50 rounded-lg sm:rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                Refresh
-              </button>
+      <div className="space-y-6 sm:space-y-8 w-full max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+        <AdminPageBanner
+          image={HERO_IMAGE}
+          eyebrow="Admin · Business"
+          title="Project Tasks"
+          description="Internal task board grouped by project. Clients never see these tasks."
+          primaryAction={
+            <AdminPrimaryBannerButton onClick={handleCreateNew}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New task
+            </AdminPrimaryBannerButton>
+          }
+          secondaryAction={
+            <div className="flex flex-wrap gap-3">
+              <AdminRefreshButton onClick={() => fetchTasks(true)} refreshing={refreshing} />
               <Link
                 to="/admin/projects"
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors"
               >
                 Projects
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
             </div>
-          </div>
+          }
+        />
+
+        <AdminStatGrid stats={statCards} />
+
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-5 py-4">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+            Priority
+          </label>
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className={`${ADMIN_INPUT_CLASS} mt-0 max-w-xs`}
+          >
+            <option value="all">All priorities</option>
+            {PRIORITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <p className="text-2xl sm:text-3xl font-bold text-slate-600">{s.value}</p>
-              <p className="text-sm font-medium text-gray-600">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <input
-              type="text"
-              placeholder="Search by title or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value || 'all-status'} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-            >
-              {PRIORITY_OPTIONS.map((opt) => (
-                <option key={opt.value || 'all-priority'} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Overdue tasks summary */}
         {overdueTasks.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold text-gray-900">Overdue Tasks</h2>
-              <span className="text-sm font-medium text-red-700">{overdueTasks.length} overdue</span>
+          <div className="rounded-2xl border border-amber-200 bg-white shadow-sm p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-slate-900">Overdue tasks</h2>
+              <span className="text-sm font-semibold text-red-700">{overdueTasks.length} overdue</span>
             </div>
             <ul className="space-y-2">
               {overdueTasks.map((task) => (
                 <li
                   key={task.id}
-                  className="flex items-center justify-between text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+                  className="flex items-center justify-between text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2"
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-red-700">{task.title}</span>
-                    <span className="text-gray-500">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium text-red-700 truncate">{task.title}</span>
+                    <span className="text-slate-500 text-xs truncate">
                       {(() => {
                         const pid = typeof task.project === 'object' ? task.project?.id : task.project;
                         const project = projects.find((p) => p.id === pid);
@@ -343,12 +363,7 @@ const AdminTasks = () => {
                           project?.name ||
                           project?.quote_project_title ||
                           `Project #${pid}`;
-                        const clientLabel = task.client_name
-                          ? ` • Client: ${task.client_name}`
-                          : project?.client_name
-                            ? ` • Client: ${project.client_name}`
-                            : '';
-                        return `${projectLabel}${clientLabel} • due ${formatDate(task.due_date)}`;
+                        return `${projectLabel} • due ${formatDate(task.due_date)}`;
                       })()}
                     </span>
                   </div>
@@ -359,118 +374,125 @@ const AdminTasks = () => {
           </div>
         )}
 
-        {/* Grouped tasks by project */}
-        <div className="space-y-6">
-          {groupedByProject.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center text-gray-500">
-              <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <p className="text-lg font-medium">No tasks found</p>
-              <p className="text-sm mt-1">Try adjusting your search or filters</p>
-            </div>
-          ) : (
-            groupedByProject.map((group) => (
-              <div key={group.projectId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-4 sm:px-6 py-3 border-b border-gray-200 bg-gray-50">
-                  <div>
-                    {(() => {
-                      const gid = typeof group.projectId === 'object' ? group.projectId?.id : group.projectId;
-                      const firstTask = group.tasks[0];
-                      const project = projects.find((p) => p.id === gid);
-                      const projectLabel =
-                        firstTask?.project_name ||
-                        project?.name ||
-                        project?.quote_project_title ||
-                        `Project #${gid}`;
-                      const clientLabel = firstTask?.client_name
-                        ? ` • Client: ${firstTask.client_name}`
-                        : project?.client_name
-                          ? ` • Client: ${project.client_name}`
-                          : '';
-                      return (
-                        <h2 className="text-lg font-bold text-gray-900">
+        <AdminListSection
+          title="Tasks by project"
+          subtitle="Track internal work across client projects"
+          listIcon={listIcon}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by title or description…"
+          filters={statusFilters}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          showingCount={filteredTasks.length}
+          totalCount={tasks.length}
+          hasActiveFilters={!!searchTerm.trim() || statusFilter !== 'all' || priorityFilter !== 'all'}
+          onClearFilters={() => {
+            setSearchTerm('');
+            setStatusFilter('all');
+            setPriorityFilter('all');
+          }}
+          onCreate={handleCreateNew}
+          createLabel="New task"
+          emptyTitle="No tasks found"
+          emptyDescription="Try adjusting your search or filters, or create a task."
+          emptyActionLabel={searchTerm.trim() || statusFilter !== 'all' || priorityFilter !== 'all' ? 'Clear filters' : 'Add first task'}
+          onEmptyAction={
+            searchTerm.trim() || statusFilter !== 'all' || priorityFilter !== 'all'
+              ? () => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setPriorityFilter('all');
+                }
+              : handleCreateNew
+          }
+          hideResultCount
+        >
+          <div className="divide-y divide-slate-100">
+            {groupedByProject.map((group) => (
+              <div key={group.projectId} className="p-4 sm:p-6">
+                <div className="mb-4">
+                  {(() => {
+                    const gid = typeof group.projectId === 'object' ? group.projectId?.id : group.projectId;
+                    const firstTask = group.tasks[0];
+                    const project = projects.find((p) => p.id === gid);
+                    const projectLabel =
+                      firstTask?.project_name ||
+                      project?.name ||
+                      project?.quote_project_title ||
+                      `Project #${gid}`;
+                    const clientLabel = firstTask?.client_name
+                      ? ` • ${firstTask.client_name}`
+                      : project?.client_name
+                        ? ` • ${project.client_name}`
+                        : '';
+                    return (
+                      <>
+                        <h3 className="text-base font-bold text-slate-900">
                           {projectLabel}
-                          <span className="text-sm font-normal text-gray-500">{clientLabel}</span>
-                        </h2>
-                      );
-                    })()}
-                    <p className="text-sm text-gray-500">
-                      {group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
+                          <span className="text-sm font-normal text-slate-500">{clientLabel}</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                        <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <AdminTableWrap>
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-white">
+                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Title</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Priority</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Due</th>
+                        <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-slate-100">
                       {group.tasks.map((task) => (
-                        <tr key={task.id} className="hover:bg-gray-50/80">
-                          <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900">{task.title}</td>
-                          <td className="px-4 sm:px-6 py-4">
+                        <tr key={task.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium text-slate-900">{task.title}</td>
+                          <td className="px-4 py-3">
                             <select
                               value={task.status}
                               onChange={(e) => handleQuickStatusChange(task, e.target.value)}
-                              className={`text-sm rounded-lg border-0 px-2 py-1 font-medium focus:ring-2 focus:ring-slate-500 ${statusBadge(task.status)}`}
+                              className={`text-xs rounded-lg border-0 px-2 py-1 font-semibold focus:ring-2 focus:ring-slate-500 ${statusBadge(task.status)}`}
                             >
                               <option value="todo">To Do</option>
                               <option value="in_progress">In Progress</option>
                               <option value="done">Done</option>
                             </select>
                           </td>
-                          <td className="px-4 sm:px-6 py-4">
+                          <td className="px-4 py-3 hidden sm:table-cell">
                             <span className={priorityBadge(task.priority)}>{task.priority}</span>
                           </td>
-                          <td className="px-4 sm:px-6 py-4 text-sm">
+                          <td className="px-4 py-3 text-sm hidden md:table-cell">
                             {task.due_date ? (
-                              <span className={isOverdue(task) ? 'text-red-600 font-semibold' : 'text-gray-800'}>
+                              <span className={isOverdue(task) ? 'text-red-600 font-semibold' : 'text-slate-700'}>
                                 {formatDate(task.due_date)}
                               </span>
                             ) : (
-                              <span className="text-gray-400">No due date</span>
+                              <span className="text-slate-400">—</span>
                             )}
                           </td>
-                          <td className="px-4 sm:px-6 py-4 text-right">
-                            <div className="flex justify-end gap-1">
-                              <button
-                                onClick={() => handleEdit(task)}
-                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg"
-                                title="Edit"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => handleDelete(task)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                title="Delete"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
+                          <td className="px-4 py-3 text-right">
+                            <AdminActionButtons
+                              onEdit={() => handleEdit(task)}
+                              onDelete={() => handleDelete(task)}
+                            />
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </AdminTableWrap>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        </AdminListSection>
 
-        {/* New/Edit Task Modal */}
         {showForm && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

@@ -16,6 +16,8 @@ class InAppNotification(models.Model):
     EVENT_INVOICE_GENERATED = 'invoice_generated'
     EVENT_INVOICE_PAID = 'invoice_paid'
     EVENT_INVOICE_OVERDUE = 'invoice_overdue'
+    EVENT_INVOICE_PAYMENT_REMINDER = 'invoice_payment_reminder'
+    EVENT_QUOTE_PAYMENT_REMINDER = 'quote_payment_reminder'
     EVENT_PROJECT_CREATED = 'project_created'
     EVENT_PROJECT_UPDATED = 'project_updated'
     EVENT_PROJECT_COMPLETED = 'project_completed'
@@ -47,6 +49,8 @@ class InAppNotification(models.Model):
         (EVENT_INVOICE_GENERATED, 'Invoice generated'),
         (EVENT_INVOICE_PAID, 'Invoice paid'),
         (EVENT_INVOICE_OVERDUE, 'Invoice overdue'),
+        (EVENT_INVOICE_PAYMENT_REMINDER, 'Invoice payment reminder'),
+        (EVENT_QUOTE_PAYMENT_REMINDER, 'Quote payment reminder'),
         (EVENT_PROJECT_CREATED, 'Project created'),
         (EVENT_PROJECT_UPDATED, 'Project updated'),
         (EVENT_PROJECT_COMPLETED, 'Project completed'),

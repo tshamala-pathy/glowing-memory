@@ -5,8 +5,19 @@ import api, { getMediaUrl } from '../services/api';
 import { formatDate, formatDateTime, formatCurrency } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
 import ProfileWorkspace from '../components/profile/ProfileWorkspace';
+import ProfileQuoteCard from '../components/profile/ProfileQuoteCard';
 import UserAvatar from '../components/UserAvatar';
 import { getTestimonialAvatarUrl, getUserAvatarUrl } from '../utils/userAvatar';
+import {
+  PROFILE_IMAGES,
+  ProfileBannerImage,
+  ProfileTabBanner,
+  ProfileSectionCard,
+  ProfileEmptyState,
+  ProfileLoadingState,
+  ProfileStatPill,
+} from '../components/profile/profileUi';
+import { CLIENT_WORKSPACE_NAV, WorkspaceNavIcon, getWorkspaceAccent } from '../constants/clientWorkspaceNav';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
@@ -61,7 +72,8 @@ const StatusBadge = ({ status, label }) => {
     overdue: 'bg-red-100 text-red-800 border-red-200',
     draft: 'bg-gray-100 text-gray-600 border-gray-200',
     cancelled: 'bg-gray-100 text-gray-600 border-gray-200',
-    reviewed: 'bg-gray-100 text-gray-700 border-gray-200',
+    reviewed: 'bg-sky-100 text-sky-800 border-sky-200',
+    changes_requested: 'bg-orange-100 text-orange-800 border-orange-200',
     planning: 'bg-amber-100 text-amber-800 border-amber-200',
     design: 'bg-sky-100 text-sky-800 border-sky-200',
     development: 'bg-indigo-100 text-indigo-800 border-indigo-200',
@@ -79,45 +91,6 @@ const StatusBadge = ({ status, label }) => {
   );
 };
 
-/** AWS-style section card: white bg, subtle border, clear header */
-const SectionCard = ({ title, icon, iconBg = 'bg-[#f4f4f4]', iconColor = 'text-[var(--aws-dark)]', children, className = '' }) => (
-  <div className={`bg-white border border-[var(--aws-card-border)] overflow-hidden ${className}`}>
-    <div className="px-6 sm:px-8 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa]">
-      <h2 className="text-base font-semibold text-[var(--aws-dark)] flex items-center gap-3">
-        <span className={`w-9 h-9 rounded ${iconBg} ${iconColor} flex items-center justify-center flex-shrink-0`}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
-          </svg>
-        </span>
-        {title}
-      </h2>
-    </div>
-    <div className="p-6 sm:p-8">{children}</div>
-  </div>
-);
-
-/** Empty state with icon, friendly message, and CTA */
-const EmptyState = ({ icon, title, message, action }) => (
-  <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-6 text-center">
-    <div className="w-16 h-16 rounded bg-[#f4f4f4] text-[#737373] flex items-center justify-center mb-4">
-      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={icon} />
-      </svg>
-    </div>
-    <h3 className="text-lg font-semibold text-[var(--aws-dark)] mb-2">{title}</h3>
-    <p className="text-[#545b64] text-sm max-w-md leading-relaxed mb-6">{message}</p>
-    {action}
-  </div>
-);
-
-/** Loading skeleton for section content */
-const LoadingState = ({ label = 'Loading...' }) => (
-  <div className="flex flex-col items-center justify-center py-12">
-    <div className="w-10 h-10 border-2 border-[var(--aws-orange)] border-t-transparent rounded-full animate-spin mb-4" />
-    <p className="text-sm font-medium text-[#545b64]">{label}</p>
-  </div>
-);
-
 /**
  * Profile — Main authenticated user hub.
  *
@@ -126,7 +99,7 @@ const LoadingState = ({ label = 'Loading...' }) => (
  * Invoices, Projects, Testimonials, Account Settings.
  */
 const Profile = () => {
-  const { user, isAuthenticated, loading, refreshUser } = useAuth();
+  const { user, isAuthenticated, loading, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [client, setClient] = useState(null);
@@ -322,11 +295,11 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--aws-content-bg)] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#faf9f7] flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-2 border-[var(--aws-orange)] border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-[var(--aws-dark)] font-semibold">Loading your profile...</p>
-          <p className="text-[#545b64] text-sm mt-1">This will only take a moment</p>
+          <div className="inline-block w-12 h-12 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-slate-900 font-bold">Loading your profile...</p>
+          <p className="text-slate-500 text-sm mt-1">This will only take a moment</p>
         </div>
       </div>
     );
@@ -380,6 +353,13 @@ const Profile = () => {
     return status ? String(status).replace(/_/g, ' ') : '—';
   };
 
+  const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to sign out?');
+    if (!confirmed) return;
+    logout();
+    navigate('/');
+  };
+
   const renderTabContent = () => {
     if (activeTab === 'overview') {
       return (
@@ -404,15 +384,15 @@ const Profile = () => {
       if (dataLoading) {
         return (
           <div className={SPACING.section}>
-            <div className="rounded-xl border border-[var(--aws-card-border)] bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
-              <LoadingState label="Loading your messages..." />
+            <div className="rounded-xl border border-slate-200/80 bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
+              <ProfileLoadingState label="Loading your messages..." />
             </div>
           </div>
         );
       }
       return (
         <div className={SPACING.section}>
-          <SectionCard
+          <ProfileSectionCard
             title="Project conversations"
             icon={msgIcon}
             iconBg="bg-teal-50"
@@ -434,7 +414,7 @@ const Profile = () => {
               </Link>
             </div>
             {threads.length === 0 ? (
-              <EmptyState
+              <ProfileEmptyState
                 icon={msgIcon}
                 title="No project conversations yet"
                 message="When a project is underway, your team thread appears here so you can message us directly without leaving the portal."
@@ -487,9 +467,9 @@ const Profile = () => {
                 ))}
               </ul>
             )}
-          </SectionCard>
+          </ProfileSectionCard>
 
-          <SectionCard
+          <ProfileSectionCard
             title="Contact requests"
             icon={contactFormIcon}
             iconBg="bg-sky-50"
@@ -545,7 +525,7 @@ const Profile = () => {
                 ))}
               </ul>
             )}
-          </SectionCard>
+          </ProfileSectionCard>
         </div>
       );
     }
@@ -554,15 +534,15 @@ const Profile = () => {
       if (dataLoading) {
         return (
           <div className={SPACING.section}>
-            <div className="rounded-xl border border-[var(--aws-card-border)] bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
-              <LoadingState label="Loading your quotes..." />
+            <div className="rounded-xl border border-slate-200/80 bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
+              <ProfileLoadingState label="Loading your quotes..." />
             </div>
           </div>
         );
       }
       return (
         <div className={SPACING.section}>
-          <SectionCard
+          <ProfileSectionCard
             title="Your quotes & proposals"
             icon={docIcon}
             iconBg="bg-amber-50"
@@ -571,7 +551,7 @@ const Profile = () => {
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                Each row is a request you’ve submitted. When we respond, you’ll see our notes, line items, and next steps—including payment when you’re ready to proceed.
+                Track every request from submission through formal proposal, approval, and payment. Open a proposal for full scope, deliverables, and next steps.
               </p>
               <Link
                 to="/request-quote"
@@ -594,7 +574,7 @@ const Profile = () => {
               </div>
             )}
             {quotes.length === 0 ? (
-              <EmptyState
+              <ProfileEmptyState
                 icon={docIcon}
                 title="No quotes yet"
                 message="Tell us about your project and we’ll return a tailored estimate—most replies land within one business day."
@@ -608,112 +588,20 @@ const Profile = () => {
                 }
               />
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {quotes.map((q) => (
-                  <div
+                  <ProfileQuoteCard
                     key={q.id}
-                    className="overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-amber-50/30 shadow-sm ring-1 ring-slate-900/[0.04] transition hover:border-amber-200/80 hover:shadow-md"
-                  >
-                    <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-bold tracking-tight text-slate-900">{q.title || 'Quote request'}</h3>
-                          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Submitted {formatDate(q.created_at)}
-                            {q.responded_at && q.admin_response ? ` · Updated ${formatDate(q.responded_at)}` : ''}
-                          </p>
-                        </div>
-                        <StatusBadge status={q.status} label={quoteStatusLabel(q.status)} />
-                      </div>
-                    </div>
-                    <div className="space-y-4 px-5 py-5 sm:px-6">
-                      {q.description && (
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{q.description}</p>
-                      )}
-                      {Array.isArray(q.item_breakdown) && q.item_breakdown.length > 0 && (
-                        <div className="rounded-xl border border-slate-100 bg-slate-50/50 overflow-hidden">
-                          <p className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100/80 border-b border-slate-100">
-                            Line items
-                          </p>
-                          <ul className="divide-y divide-slate-100">
-                            {q.item_breakdown.map((item, idx) => (
-                              <li key={idx} className="flex justify-between gap-4 px-4 py-2.5 text-sm text-slate-800">
-                                <span className="min-w-0">{item.description}</span>
-                                {item.amount != null && (
-                                  <span className="font-medium tabular-nums text-slate-900 shrink-0">{formatCurrency(item.amount)}</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {q.total_price != null && (
-                        <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3">
-                          <span className="text-sm font-semibold text-teal-900">Total</span>
-                          <span className="text-xl font-bold tabular-nums text-teal-950">{formatCurrency(q.total_price)}</span>
-                        </div>
-                      )}
-                      {q.admin_response && (
-                        <div className="rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-slate-50/50 p-4">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800 mb-2">Our response</p>
-                          <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{q.admin_response}</p>
-                          {q.responded_at && (
-                            <p className="text-xs font-medium text-slate-500 mt-3 tabular-nums">{formatDateTime(q.responded_at)}</p>
-                          )}
-                        </div>
-                      )}
-                      {(q.status === 'replied' || q.status === 'reviewed') && (
-                        <div className="flex flex-wrap gap-2.5 pt-1">
-                          <Link
-                            to={`/proposal/${q.id}`}
-                            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-500"
-                          >
-                            Review proposal
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleQuoteApprove(q.id)}
-                            disabled={quoteActionLoading === q.id}
-                            className="inline-flex items-center justify-center rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-sm font-semibold text-teal-800 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
-                          >
-                            {quoteActionLoading === q.id ? 'Working…' : 'Approve'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleQuoteDecline(q.id)}
-                            disabled={quoteActionLoading === q.id}
-                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {quoteActionLoading === q.id ? 'Working…' : 'Decline'}
-                          </button>
-                        </div>
-                      )}
-                      {(q.status === 'approved' || q.status === 'Approved') && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-4">
-                          <Link
-                            to={`/payment/${q.id}`}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-amber-400 hover:to-amber-500"
-                          >
-                            Pay now
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                          </Link>
-                          <p className="mt-3 text-xs text-slate-600 leading-relaxed">
-                            Complete payment to generate your invoice and kick off your project.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    quote={q}
+                    actionLoading={quoteActionLoading}
+                    onApprove={handleQuoteApprove}
+                    onDecline={handleQuoteDecline}
+                  />
                 ))}
-                <div className="flex justify-center pt-2 sm:justify-start">
+                <div className="flex justify-center pt-3 sm:justify-start">
                   <Link
                     to="/request-quote"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 transition hover:text-amber-900"
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -723,7 +611,7 @@ const Profile = () => {
                 </div>
               </div>
             )}
-          </SectionCard>
+          </ProfileSectionCard>
         </div>
       );
     }
@@ -732,15 +620,15 @@ const Profile = () => {
       if (dataLoading) {
         return (
           <div className={SPACING.section}>
-            <div className="rounded-xl border border-[var(--aws-card-border)] bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
-              <LoadingState label="Loading your invoices..." />
+            <div className="rounded-xl border border-slate-200/80 bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
+              <ProfileLoadingState label="Loading your invoices..." />
             </div>
           </div>
         );
       }
       return (
         <div className={SPACING.section}>
-          <SectionCard
+          <ProfileSectionCard
             title="Invoice history"
             icon={docIcon}
             iconBg="bg-emerald-50"
@@ -762,7 +650,7 @@ const Profile = () => {
               </Link>
             </div>
             {invoices.length === 0 ? (
-              <EmptyState
+              <ProfileEmptyState
                 icon={docIcon}
                 title="No invoices yet"
                 message="Invoices are issued after a quote is approved and we’re ready to bill. Track quotes in the Quotes tab—we’ll email you when an invoice is ready."
@@ -835,7 +723,7 @@ const Profile = () => {
                 </div>
               </div>
             )}
-          </SectionCard>
+          </ProfileSectionCard>
         </div>
       );
     }
@@ -843,9 +731,9 @@ const Profile = () => {
     if (activeTab === 'projects') {
       return (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--aws-card-border)] rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-5 sm:px-6 py-4 border-b border-[var(--aws-card-border)] bg-[#fafafa]">
-              <h2 className="text-base font-semibold text-[var(--aws-dark)] flex items-center gap-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-200/80 bg-[#fafafa]">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-3">
                 <span className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={projectIcon} />
@@ -859,9 +747,9 @@ const Profile = () => {
             </div>
             <div className="p-5 sm:p-6">
               {dataLoading ? (
-                <LoadingState label="Loading your projects..." />
+                <ProfileLoadingState label="Loading your projects..." />
               ) : projects.length === 0 ? (
-                <EmptyState
+                <ProfileEmptyState
                   icon={projectIcon}
                   title="No projects yet"
                   message="Projects appear after your invoice is paid and work begins. You can track quotes and invoices in the other tabs."
@@ -870,7 +758,7 @@ const Profile = () => {
                       <Link to="/portal" className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors shadow-sm">
                         Client portal
                       </Link>
-                      <Link to="/request-quote" className="inline-flex items-center gap-2 px-5 py-2.5 border border-[var(--aws-card-border)] text-[var(--aws-dark)] rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">
+                      <Link to="/request-quote" className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-200/80 text-slate-900 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">
                         Request a quote
                       </Link>
                     </div>
@@ -908,7 +796,7 @@ const Profile = () => {
                                 </span>
                               </div>
                               <div className="p-4">
-                                <p className="font-semibold text-[var(--aws-dark)] line-clamp-2 group-hover:text-teal-700 transition-colors">
+                                <p className="font-semibold text-slate-900 line-clamp-2 group-hover:text-teal-700 transition-colors">
                                   {p.name || p.quote_project_title || 'Project'}
                                 </p>
                                 {p.description && (
@@ -951,7 +839,7 @@ const Profile = () => {
                               </svg>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-[var(--aws-dark)] truncate">{p.name || p.quote_project_title || 'Project'}</p>
+                              <p className="font-semibold text-slate-900 truncate">{p.name || p.quote_project_title || 'Project'}</p>
                               <StatusBadge status="completed" label="Completed" />
                             </div>
                           </div>
@@ -982,15 +870,15 @@ const Profile = () => {
       if (dataLoading) {
         return (
           <div className={SPACING.section}>
-            <div className="rounded-xl border border-[var(--aws-card-border)] bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
-              <LoadingState label="Loading your testimonials..." />
+            <div className="rounded-xl border border-slate-200/80 bg-white p-12 sm:p-16 shadow-sm ring-1 ring-slate-900/5">
+              <ProfileLoadingState label="Loading your testimonials..." />
             </div>
           </div>
         );
       }
       return (
         <div className={SPACING.section}>
-          <SectionCard
+          <ProfileSectionCard
             title="Your testimonials"
             icon={starIcon}
             iconBg="bg-teal-50"
@@ -1084,7 +972,7 @@ const Profile = () => {
                 </Link>
               </div>
             )}
-          </SectionCard>
+          </ProfileSectionCard>
         </div>
       );
     }
@@ -1092,7 +980,7 @@ const Profile = () => {
     if (activeTab === 'settings') {
       return (
         <div className={SPACING.section}>
-          <SectionCard
+          <ProfileSectionCard
             title="Account snapshot"
             icon="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
             iconBg="bg-teal-50"
@@ -1144,9 +1032,9 @@ const Profile = () => {
                 </dd>
               </div>
             </dl>
-          </SectionCard>
+          </ProfileSectionCard>
 
-          <SectionCard
+          <ProfileSectionCard
             title="Profile & photo"
             icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
             iconBg="bg-teal-50"
@@ -1257,9 +1145,9 @@ const Profile = () => {
                 </button>
               </div>
             </form>
-          </SectionCard>
+          </ProfileSectionCard>
 
-          <SectionCard
+          <ProfileSectionCard
             title="Password"
             icon="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
             iconBg="bg-amber-50"
@@ -1339,9 +1227,9 @@ const Profile = () => {
                 </button>
               </form>
             </div>
-          </SectionCard>
+          </ProfileSectionCard>
 
-          <SectionCard
+          <ProfileSectionCard
             title="Email address"
             icon="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
             iconBg="bg-sky-50"
@@ -1413,7 +1301,7 @@ const Profile = () => {
                 </button>
               </form>
             </div>
-          </SectionCard>
+          </ProfileSectionCard>
         </div>
       );
     }
@@ -1421,25 +1309,221 @@ const Profile = () => {
     return null;
   };
 
+  const tabIcon = (path, className = 'w-8 h-8 text-teal-200') => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={path} />
+    </svg>
+  );
+
+  const renderProfileTabHeader = () => {
+    if (activeTab === 'overview') {
+      return (
+        <div className="mb-8 rounded-3xl overflow-hidden border border-slate-200/80 shadow-xl shadow-slate-900/[0.06] ring-1 ring-slate-900/5">
+          <div className="relative min-h-[220px] sm:min-h-[260px]">
+            <ProfileBannerImage src={PROFILE_IMAGES.overview} />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/70 to-teal-900/45" />
+            <div className="relative px-6 py-8 sm:px-8 sm:py-10 text-white">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6 min-w-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-white/15 shadow-2xl" />
+                  ) : (
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-teal-400/40 to-teal-700/30 ring-4 ring-white/15 flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-2xl">
+                      {user?.first_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-teal-200/95 text-xs font-bold uppercase tracking-[0.2em] mb-2">Your client hub</p>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Welcome back, {overviewDisplayName}</h1>
+                    <p className="mt-3 text-sm sm:text-base text-slate-200/95 leading-relaxed max-w-xl">{TAB_SUBTITLES.overview}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {[
+                    { count: threads.length, label: 'Threads', tabId: 'messages' },
+                    { count: quotes.length, label: 'Quotes', tabId: 'quotes' },
+                    { count: invoices.length, label: 'Invoices', tabId: 'invoices' },
+                    { count: projects.length, label: 'Projects', tabId: 'projects' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => setActiveTab(item.tabId)}
+                      className="rounded-xl px-3 py-3 text-left border border-white/15 bg-white/10 backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      <p className="text-xl font-bold tabular-nums">{item.count}</p>
+                      <p className="text-[11px] font-medium text-slate-300 mt-0.5">{item.label}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {approvedUnpaidQuotes.length > 0 && (
+                <div className="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-amber-400/35 bg-amber-500/15 px-4 py-3.5 sm:px-5">
+                  <div>
+                    <p className="font-semibold text-amber-50 text-sm">Payment pending</p>
+                    <p className="text-xs text-amber-100/85 mt-0.5">
+                      {approvedUnpaidQuotes.length === 1
+                        ? 'Complete payment to move your project forward.'
+                        : `${approvedUnpaidQuotes.length} approved quotes are ready for payment.`}
+                    </p>
+                  </div>
+                  <Link
+                    to={`/payment/${approvedUnpaidQuotes[0].id}`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-md hover:bg-amber-50 transition-colors shrink-0"
+                  >
+                    Pay now
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const headers = {
+      messages: {
+        image: PROFILE_IMAGES.messages,
+        eyebrow: 'Inbox',
+        title: 'My Messages',
+        icon: tabIcon('M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'),
+        stat: { count: threads.length, label: 'Project threads' },
+        action: { to: '/messages', label: 'Open inbox' },
+      },
+      quotes: {
+        image: PROFILE_IMAGES.quotes,
+        eyebrow: 'Estimates & proposals',
+        title: 'My Quotes',
+        icon: tabIcon('M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 'w-8 h-8 text-amber-200'),
+        stat: { count: quotes.length, label: 'Quote requests' },
+        action: { to: '/request-quote', label: 'Request quote', accent: 'bg-amber-500 text-slate-900 hover:bg-amber-400' },
+      },
+      invoices: {
+        image: PROFILE_IMAGES.invoices,
+        eyebrow: 'Billing',
+        title: 'My Invoices',
+        icon: tabIcon('M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 'w-8 h-8 text-emerald-200'),
+        stat: { count: invoices.length, label: 'On file' },
+        action: { to: '/portal', label: 'Portal', accent: 'bg-emerald-400 text-slate-900 hover:bg-emerald-300' },
+      },
+      projects: {
+        image: PROFILE_IMAGES.projects,
+        eyebrow: 'Your work with us',
+        title: 'My Projects',
+        accent: 'from-teal-900/90 via-teal-800/75 to-cyan-900/55',
+        icon: tabIcon('M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'),
+        action: { to: '/my-projects', label: 'Open project hub' },
+      },
+      testimonials: {
+        image: PROFILE_IMAGES.testimonials,
+        eyebrow: 'Client feedback',
+        title: 'Testimonials',
+        icon: (
+          <svg className="w-9 h-9 text-amber-300" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        ),
+        stat: { count: testimonials.length, label: 'On record' },
+        action: { to: '/contact', label: 'Share feedback' },
+      },
+      settings: {
+        image: PROFILE_IMAGES.settings,
+        eyebrow: 'Account & security',
+        title: 'Profile Settings',
+        icon: tabIcon('M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'),
+      },
+    };
+
+    const config = headers[activeTab];
+    if (!config) return null;
+
+    return (
+      <ProfileTabBanner
+        image={config.image}
+        eyebrow={config.eyebrow}
+        title={config.title}
+        subtitle={TAB_SUBTITLES[activeTab]}
+        icon={config.icon}
+        accent={config.accent}
+      >
+        {config.stat && <ProfileStatPill count={config.stat.count} label={config.stat.label} />}
+        {config.action && (
+          <Link
+            to={config.action.to}
+            className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-md transition ${
+              config.action.accent || 'bg-white text-teal-800 hover:bg-teal-50'
+            }`}
+          >
+            {config.action.label}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        )}
+      </ProfileTabBanner>
+    );
+  };
+
   return (
-    <div className="min-h-screen flex bg-[var(--aws-content-bg)]">
-      {/* AWS-style dark sidebar */}
-      <aside className="hidden lg:flex lg:flex-col w-64 flex-shrink-0 bg-[var(--aws-dark)] text-white">
-        <div className="p-4 border-b border-white/10">
-          <Link to="/" className="flex items-center gap-2 text-white hover:opacity-90">
-            <img src="/pathycode-logo.png" alt="PathyCode" className="h-8 w-auto" />
-            <span className="font-semibold text-sm">Client profile</span>
+    <div className="min-h-screen flex bg-[#f8f9fb]">
+      <aside className="hidden lg:flex lg:flex-col w-64 flex-shrink-0 min-h-screen bg-slate-900 border-r border-slate-800">
+        <div className="shrink-0 px-5 pt-6 pb-5 border-b border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/pathycode-logo.png"
+              alt="PathyCode"
+              className="h-8 w-auto brightness-0 invert opacity-95 group-hover:opacity-100 transition-opacity"
+            />
+            <div>
+              <p className="text-sm font-bold text-white tracking-tight">PathyCode</p>
+              <p className="text-[11px] text-violet-300/80 font-medium">Client workspace</p>
+            </div>
           </Link>
         </div>
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+
+        <nav className="shrink-0 px-3 py-4 space-y-0.5 border-b border-slate-800" aria-label="Workspace">
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Workspace
+          </p>
+          {CLIENT_WORKSPACE_NAV.map((item) => {
+            const active = item.to === '/profile';
+            const accent = getWorkspaceAccent(item.accent);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  active
+                    ? accent.sidebarActive
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}
+              >
+                <span
+                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                    active ? accent.sidebarActiveIcon : accent.sidebarIcon
+                  }`}
+                >
+                  <WorkspaceNavIcon name={item.icon} className="w-4 h-4" />
+                </span>
+                <span className="leading-tight">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <nav className="flex-1 min-h-0 p-3 space-y-0.5 overflow-y-auto" aria-label="Account sections">
+          <p className="px-3 pb-2 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Account
+          </p>
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded-xl transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-[var(--aws-orange)] text-white'
-                  : 'text-[#d5dbdb] hover:bg-[var(--aws-dark-hover)] hover:text-white'
+                  ? 'bg-slate-800 text-white ring-1 ring-slate-700'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
               }`}
             >
               <svg className="w-5 h-5 flex-shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1449,37 +1533,54 @@ const Profile = () => {
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-white/10">
-          <div className="px-3 py-2 text-xs text-[#d5dbdb]">
-            <p className="font-medium text-white truncate">{user?.first_name} {user?.last_name}</p>
-            <p className="truncate opacity-90">{user?.email}</p>
+
+        <div className="shrink-0 mt-auto p-4 border-t border-slate-800 bg-slate-950/50 space-y-3">
+          <div className="flex items-center gap-3 px-2">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover ring-2 ring-violet-500/30" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm ring-2 ring-violet-500/30">
+                {user?.first_name?.charAt(0) || 'U'}
+              </div>
+            )}
+            <div className="min-w-0 text-xs">
+              <p className="font-semibold text-white truncate">{user?.first_name} {user?.last_name}</p>
+              <p className="truncate text-slate-400">{user?.email}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:text-red-200 transition-colors"
+          >
+            <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+              <WorkspaceNavIcon name="signOut" className="w-4 h-4" />
+            </span>
+            Sign out
+          </button>
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 min-w-0 flex flex-col">
-        {/* Breadcrumb + mobile nav */}
-        <div className="bg-white border-b border-[var(--aws-card-border)] px-4 sm:px-6 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <nav className="flex items-center gap-2 text-sm text-[#545b64]">
-              <Link to="/" className="hover:text-[var(--aws-orange)]">Home</Link>
-              <span aria-hidden>/</span>
-              <span className="text-[var(--aws-dark)] font-medium">Profile</span>
-              <span aria-hidden>/</span>
-              <span className="text-[var(--aws-dark)]">{TABS.find((t) => t.id === activeTab)?.label ?? 'Overview'}</span>
+        <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 sticky top-0 z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 max-w-6xl mx-auto">
+            <nav className="flex items-center gap-2 text-sm text-slate-500">
+              <Link to="/profile" className="hover:text-slate-800 font-medium">Dashboard</Link>
+              <span aria-hidden className="text-slate-300">/</span>
+              <span className="text-slate-800 font-semibold">{TABS.find((t) => t.id === activeTab)?.label ?? 'Overview'}</span>
             </nav>
-            {/* Mobile tab dropdown / pills */}
-            <div className="flex lg:hidden gap-1 overflow-x-auto pb-1">
+            <div className="flex lg:hidden gap-1.5 overflow-x-auto pb-1">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium shrink-0 ${
-                    activeTab === tab.id ? 'bg-[var(--aws-orange)] text-white' : 'bg-[#f4f4f4] text-[#545b64] hover:bg-[#e8e8e8]'
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold shrink-0 transition ${
+                    activeTab === tab.id
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} /></svg>
                   {tab.label}
                 </button>
               ))}
@@ -1487,319 +1588,25 @@ const Profile = () => {
           </div>
         </div>
 
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
           {error && (
-            <div className="mb-6 p-4 bg-[#fff4e5] border border-[#ffb366] flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm">
               <div className="flex items-start gap-3 flex-1">
-                <div className="w-9 h-9 rounded bg-[#ffb366] flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="font-semibold text-[var(--aws-dark)]">Something went wrong</p>
-                  <p className="text-[#545b64] text-sm mt-0.5">{error}</p>
+                  <p className="font-bold text-slate-900">Something went wrong</p>
+                  <p className="text-slate-600 text-sm mt-0.5">{error}</p>
                 </div>
               </div>
-              <button onClick={() => window.location.reload()} className="px-4 py-2 bg-[var(--aws-dark)] text-white text-sm font-medium hover:bg-[var(--aws-dark-hover)] shrink-0">
+              <button type="button" onClick={() => window.location.reload()} className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 shrink-0">
                 Try again
               </button>
             </div>
           )}
 
-          {activeTab === 'projects' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-teal-100 shadow-lg">
-              <div className="relative bg-gradient-to-br from-teal-600 via-teal-500 to-cyan-700 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.15] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="relative max-w-3xl">
-                  <p className="text-teal-100 text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-2">Your work with us</p>
-                  <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">My Projects</h1>
-                  <p className="mt-3 text-base sm:text-lg text-white/95 leading-relaxed">
-                    See stages, progress, and previews here. For search, filters, and file uploads, open your full project hub.
-                  </p>
-                  <Link
-                    to="/my-projects"
-                    className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-teal-700 text-sm font-semibold shadow-md hover:bg-teal-50 transition-colors"
-                  >
-                    Open project hub
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'overview' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 min-w-0">
-                    <div className="flex-shrink-0">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-4 ring-white/15 shadow-2xl"
-                        />
-                      ) : (
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-teal-400/40 to-teal-700/30 ring-4 ring-white/15 flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shadow-2xl">
-                          {user?.first_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 max-w-xl">
-                      <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] mb-2">
-                        Your client hub
-                      </p>
-                      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white">
-                        Welcome back, {overviewDisplayName}
-                      </h1>
-                      <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed">
-                        {TAB_SUBTITLES.overview}
-                      </p>
-                      {user?.email && (
-                        <p className="mt-4 inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400">
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-                            <svg className="w-3.5 h-3.5 text-teal-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                          </span>
-                          <span className="truncate">{user.email}</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 lg:min-w-[min(100%,20rem)] xl:min-w-0">
-                    {[
-                      { count: threads.length, label: 'Threads', tabId: 'messages', accent: 'from-blue-500/20 to-blue-600/10 border-blue-400/25' },
-                      { count: quotes.length, label: 'Quotes', tabId: 'quotes', accent: 'from-amber-500/20 to-amber-600/10 border-amber-400/25' },
-                      { count: invoices.length, label: 'Invoices', tabId: 'invoices', accent: 'from-emerald-500/20 to-emerald-600/10 border-emerald-400/25' },
-                      { count: projects.length, label: 'Projects', tabId: 'projects', accent: 'from-violet-500/20 to-violet-600/10 border-violet-400/25' },
-                    ].map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => setActiveTab(item.tabId)}
-                        className={`rounded-xl px-3 py-3 text-left border bg-gradient-to-br ${item.accent} backdrop-blur-sm transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-slate-900`}
-                      >
-                        <p className="text-xl sm:text-2xl font-bold tabular-nums text-white">{item.count}</p>
-                        <p className="text-[11px] sm:text-xs font-medium text-slate-300 mt-0.5">{item.label}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {approvedUnpaidQuotes.length > 0 && (
-                  <div className="relative mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-amber-400/35 bg-amber-500/15 px-4 py-3.5 sm:px-5">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-400/25 text-amber-100">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </span>
-                      <div>
-                        <p className="font-semibold text-amber-50 text-sm">Payment pending</p>
-                        <p className="text-xs text-amber-100/85 mt-0.5">
-                          {approvedUnpaidQuotes.length === 1
-                            ? 'Complete payment to move your project forward.'
-                            : `${approvedUnpaidQuotes.length} approved quotes are ready for payment.`}
-                        </p>
-                      </div>
-                    </div>
-                    <Link
-                      to={`/payment/${approvedUnpaidQuotes[0].id}`}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-md hover:bg-amber-50 transition-colors shrink-0"
-                    >
-                      Pay now
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : activeTab === 'messages' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 min-w-0">
-                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-lg">
-                      <svg className="w-8 h-8 text-teal-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] mb-2">Inbox</p>
-                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Messages</h1>
-                      <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed max-w-2xl">{TAB_SUBTITLES.messages}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                    <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
-                      <p className="text-2xl font-bold tabular-nums text-white">{threads.length}</p>
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-teal-100/90">Project threads</p>
-                    </div>
-                    <Link
-                      to="/messages"
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-teal-800 shadow-md transition hover:bg-teal-50"
-                    >
-                      Open inbox
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'quotes' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 min-w-0">
-                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-lg">
-                      <svg className="w-8 h-8 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] mb-2">Estimates & proposals</p>
-                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Quotes</h1>
-                      <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed max-w-2xl">{TAB_SUBTITLES.quotes}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                    <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
-                      <p className="text-2xl font-bold tabular-nums text-white">{quotes.length}</p>
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-teal-100/90">Quote requests</p>
-                    </div>
-                    <Link
-                      to="/request-quote"
-                      className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-slate-900 shadow-md transition hover:bg-amber-400"
-                    >
-                      Request quote
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'invoices' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 min-w-0">
-                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-lg">
-                      <svg className="w-8 h-8 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] mb-2">Billing</p>
-                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Invoices</h1>
-                      <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed max-w-2xl">{TAB_SUBTITLES.invoices}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                    <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
-                      <p className="text-2xl font-bold tabular-nums text-white">{invoices.length}</p>
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-100/95">On file</p>
-                    </div>
-                    <Link
-                      to="/portal"
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-md transition hover:bg-emerald-300"
-                    >
-                      Portal
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'testimonials' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 min-w-0">
-                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-lg">
-                      <svg className="w-9 h-9 text-amber-300" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] mb-2">Client feedback</p>
-                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Testimonials</h1>
-                      <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed max-w-2xl">{TAB_SUBTITLES.testimonials}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                    <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
-                      <p className="text-2xl font-bold tabular-nums text-white">{testimonials.length}</p>
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-teal-100/90">On record</p>
-                    </div>
-                    <Link
-                      to="/contact"
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-teal-800 shadow-md transition hover:bg-teal-50"
-                    >
-                      Share feedback
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'settings' ? (
-            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
-                <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-                <div className="relative flex flex-col sm:flex-row sm:items-center gap-6">
-                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-lg">
-                    <svg className="w-8 h-8 text-teal-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-teal-200/95 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] mb-2">Account & security</p>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
-                    <p className="mt-3 text-sm sm:text-base text-slate-300/95 leading-relaxed max-w-2xl">{TAB_SUBTITLES.settings}</p>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {['Profile', 'Password', 'Email', 'Snapshot'].map((label) => (
-                        <span
-                          key={label}
-                          className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-teal-100/95"
-                        >
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-6">
-              <h1 className="text-xl sm:text-2xl font-bold text-[var(--aws-dark)]">
-                {TABS.find((t) => t.id === activeTab)?.label}
-              </h1>
-              <p className="text-sm text-[#545b64] mt-1 max-w-2xl">{TAB_SUBTITLES[activeTab] ?? ''}</p>
-            </div>
-          )}
-
+          {renderProfileTabHeader()}
           <div className="space-y-6">
             {renderTabContent()}
           </div>

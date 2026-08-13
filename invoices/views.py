@@ -13,7 +13,7 @@ from django.db.models import Q, Sum, F
 from django.db.models.functions import TruncMonth, TruncYear, Coalesce
 from datetime import timedelta
 from decimal import Decimal
-from PathyCodeback.permissions import IsSuperuser
+from PathyCodeback.permissions import IsSuperuser, CanViewFinancialDashboard
 from .models import Invoice, Payment
 from .serializers import InvoiceSerializer
 from .utils import generate_invoice_pdf
@@ -22,8 +22,6 @@ from clients.models import Project, Client
 from django.contrib.auth import get_user_model
 from users.activity import log_activity
 import logging
-import csv
-
 User = get_user_model()
 
 
@@ -80,89 +78,55 @@ PathyCode Team
 
 class FinancialDashboardView(APIView):
     """
-    Financial dashboard metrics for admin only.
-    Returns: total revenue, monthly revenue, yearly revenue, unpaid/outstanding total,
-    overdue total, active projects count.
-    All monetary sums use the same filters as the model (Paid = revenue; non-Paid/non-Cancelled = unpaid;
-    overdue = due_date < today and not Paid/Cancelled).
+    Financial dashboard metrics for explicitly authorized staff/superusers.
+
+    Query params:
+        period — month | quarter | year | all | custom
+        start, end — YYYY-MM-DD when period=custom
+        upcoming_days — 7 or 14 (default 14)
+        export — pdf | csv
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, CanViewFinancialDashboard]
 
     def get(self, request):
-        today = timezone.now().date()
-
-        # Total revenue: sum of total_amount for all paid invoices (single source of truth)
-        total_revenue_result = Invoice.objects.filter(status='paid').aggregate(
-            total=Sum('total_amount')
+        from .financial_dashboard import (
+            build_financial_dashboard,
+            financial_dashboard_csv,
+            financial_dashboard_pdf,
         )
-        total_revenue = float(total_revenue_result['total'] or 0)
 
-        # Yearly revenue: sum of total_amount for paid invoices in the current calendar year
-        yearly_data = (
-            Invoice.objects.filter(status='paid')
-            .annotate(year=TruncYear(Coalesce(F('paid_date'), F('issue_date'))))
-            .values('year')
-            .annotate(revenue=Sum('total_amount'))
+        period = request.query_params.get('period', 'month')
+        start = request.query_params.get('start')
+        end = request.query_params.get('end')
+        try:
+            upcoming_days = int(request.query_params.get('upcoming_days', 14) or 14)
+        except (TypeError, ValueError):
+            upcoming_days = 14
+        export = request.query_params.get('export')
+
+        if export == 'csv':
+            return financial_dashboard_csv(
+                period=period,
+                start_str=start,
+                end_str=end,
+                upcoming_days=upcoming_days,
+            )
+        if export == 'pdf':
+            data = build_financial_dashboard(
+                period=period,
+                start_str=start,
+                end_str=end,
+                upcoming_days=upcoming_days,
+            )
+            return financial_dashboard_pdf(data)
+
+        data = build_financial_dashboard(
+            period=period,
+            start_str=start,
+            end_str=end,
+            upcoming_days=upcoming_days,
         )
-        current_year = today.year
-        yearly_revenue = 0.0
-        for item in yearly_data:
-            year_value = item['year'].year if hasattr(item['year'], 'year') else None
-            if year_value == current_year:
-                yearly_revenue = float(item['revenue'] or 0)
-                break
-
-        # Monthly revenue: last 6 calendar months; use paid_date for paid invoices, fallback to issue_date
-        monthly_data = (
-            Invoice.objects.filter(status='paid')
-            .annotate(month=TruncMonth(Coalesce(F('paid_date'), F('issue_date'))))
-            .values('month')
-            .annotate(revenue=Sum('total_amount'))
-            .order_by('-month')
-        )
-        # Build last 6 calendar months (YYYY-MM) with 0 for months that have no data
-        monthly_revenue = {}
-        for i in range(6):
-            year = today.year
-            month = today.month - i
-            while month <= 0:
-                month += 12
-                year -= 1
-            key = f"{year}-{month:02d}"
-            monthly_revenue[key] = 0.0
-        for item in monthly_data:
-            key = item['month'].strftime('%Y-%m')
-            if key in monthly_revenue:
-                monthly_revenue[key] = float(item['revenue'] or 0)
-        # Sort keys descending (most recent first) for consistent API response
-        monthly_revenue = dict(sorted(monthly_revenue.items(), key=lambda x: x[0], reverse=True))
-
-        # Unpaid invoices total / outstanding balance: sum of amount_due for non-paid, non-cancelled
-        unpaid_result = Invoice.objects.exclude(
-            status__in=('paid', 'cancelled')
-        ).aggregate(total=Sum('amount_due'))
-        unpaid_invoices_total = float(unpaid_result['total'] or 0)
-
-        # Overdue total: sum amount_due where due_date < today AND not paid/cancelled
-        overdue_result = Invoice.objects.filter(
-            due_date__lt=today
-        ).exclude(status__in=('paid', 'cancelled')).aggregate(total=Sum('amount_due'))
-        overdue_invoices_total = float(overdue_result['total'] or 0)
-
-        # Active projects: count all except completed (clients.Project uses planning, design, development, testing, completed)
-        active_projects_count = Project.objects.exclude(
-            status='completed'
-        ).count()
-
-        return Response({
-            'total_revenue': total_revenue,
-            'monthly_revenue': monthly_revenue,
-             'yearly_revenue': yearly_revenue,
-            'unpaid_invoices_total': unpaid_invoices_total,
-             'outstanding_balance': unpaid_invoices_total,
-            'overdue_invoices_total': overdue_invoices_total,
-            'active_projects_count': active_projects_count,
-        })
+        return Response(data)
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -186,21 +150,25 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Restrict so clients never access other clients' invoices.
-        Non-superusers: only invoices where client=request.user's client_profile, or
-        client is null and client_email matches request.user.email. Superusers: all.
+        Staff/superusers see all invoices; clients see own only.
         """
         qs = super().get_queryset()
-        if self.request.user.is_authenticated and not self.request.user.is_superuser:
-            profile = getattr(self.request.user, 'client_profile', None)
+        user = self.request.user
+        if user.is_authenticated and (user.is_superuser or user.is_staff):
+            return qs
+        if user.is_authenticated:
+            profile = getattr(user, 'client_profile', None)
             if profile:
-                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=self.request.user.email))
-            return qs.filter(client_email__iexact=self.request.user.email)
+                return qs.filter(Q(client=profile) | Q(client__isnull=True, client_email__iexact=user.email))
+            return qs.filter(client_email__iexact=user.email)
         return qs
 
     def get_permissions(self):
-        """List, retrieve, pdf: authenticated (own only). Create/update/delete/actions: superuser only."""
+        """List, retrieve, pdf: authenticated (own only). Staff follow-up actions: IsAdminUser. Else: superuser."""
         if self.action in ('list', 'retrieve', 'pdf'):
             return [IsAuthenticated()]
+        if self.action in ('send_reminder', 'mark_contacted'):
+            return [IsAdminUser()]
         return [IsSuperuser()]
     
     def perform_create(self, serializer):
@@ -266,10 +234,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         Export all invoices as CSV.
         Admin/staff only.
         """
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="invoices.csv"'
+        from PathyCodeback.csv_export import branded_csv_response
 
-        writer = csv.writer(response)
+        response, writer = branded_csv_response(
+            'invoices.csv',
+            'Invoices Export',
+            'Complete export of invoice records including billing status, amounts, and due dates.',
+        )
         writer.writerow(
             [
                 "ID",
@@ -354,6 +325,67 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(invoice)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def send_reminder(self, request, pk=None):
+        """Send a payment reminder email for an open invoice."""
+        invoice = self.get_object()
+        if invoice.status in ('paid', 'cancelled'):
+            return Response(
+                {'detail': 'Cannot send reminder for a closed invoice.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        subject = f'Payment reminder — Invoice {invoice.invoice_number}'
+        message = f"""
+Hello {invoice.client_name},
+
+This is a friendly reminder that invoice {invoice.invoice_number} has an outstanding balance.
+
+Amount due: R {invoice.amount_due:.2f}
+Due date: {invoice.due_date.strftime('%B %d, %Y') if invoice.due_date else 'As soon as possible'}
+
+Once payment is received, we can proceed with your project.
+
+Please arrange payment at your earliest convenience. If you have already paid, please disregard this message.
+
+Best regards,
+{getattr(settings, 'BRAND_NAME', 'PathyCode')} Team
+"""
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@pathycodes.com'),
+                recipient_list=[invoice.client_email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            logger.error('Error sending invoice reminder: %s', e, exc_info=True)
+            return Response({'detail': 'Failed to send reminder email.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from notifications.helpers import notify_invoice_payment_reminder
+
+        notify_invoice_payment_reminder(invoice)
+        log_activity(
+            request.user,
+            'invoice_reminder_sent',
+            object_type='invoice',
+            object_id=invoice.id,
+            details=invoice.invoice_number,
+        )
+        return Response({'detail': 'Payment reminder sent.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def mark_contacted(self, request, pk=None):
+        """Log that staff contacted the client about this invoice."""
+        invoice = self.get_object()
+        log_activity(
+            request.user,
+            'invoice_contacted',
+            object_type='invoice',
+            object_id=invoice.id,
+            details=invoice.invoice_number,
+        )
+        return Response({'detail': 'Marked as contacted.'})
     
     @action(detail=False, methods=['post'])
     def create_from_quote(self, request):
@@ -547,4 +579,53 @@ class PaymentQuoteView(APIView):
             'message': 'Payment recorded. Invoice created and project will appear in your portal.',
             'invoice': serializer.data,
         }, status=status.HTTP_201_CREATED)
+
+
+class AdminPaymentsView(APIView):
+    """List all payment records (invoice + PayFast) for admin."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from payments.models import Payment as PayFastPayment
+
+        invoice_payments = Payment.objects.select_related('client', 'quote').order_by('-created_at')[:500]
+        payfast_payments = PayFastPayment.objects.select_related('client', 'quote', 'user').order_by('-created_at')[:500]
+
+        def client_label(client):
+            return client.name if client else ''
+
+        return Response({
+            'invoice_payments': [
+                {
+                    'id': p.id,
+                    'source': 'invoice',
+                    'quote_id': p.quote_id,
+                    'quote_title': p.quote.project_title if p.quote else '',
+                    'client': client_label(p.client),
+                    'amount': float(p.amount),
+                    'status': p.payment_status,
+                    'payment_date': p.payment_date.isoformat() if p.payment_date else None,
+                    'created_at': p.created_at.isoformat() if p.created_at else None,
+                }
+                for p in invoice_payments
+            ],
+            'payfast_payments': [
+                {
+                    'id': p.id,
+                    'source': 'payfast',
+                    'quote_id': p.quote_id,
+                    'quote_title': p.quote.project_title if p.quote else '',
+                    'client': client_label(p.client),
+                    'user': (p.user.get_full_name() or p.user.email) if p.user else '',
+                    'amount': float(p.amount),
+                    'currency': p.currency,
+                    'status': p.payment_status,
+                    'provider_reference': p.provider_reference or '',
+                    'paid_at': p.paid_at.isoformat() if p.paid_at else None,
+                    'created_at': p.created_at.isoformat() if p.created_at else None,
+                }
+                for p in payfast_payments
+            ],
+        })
 

@@ -1,4 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import SafeImage from '../SafeImage';
+import { SITE_IMAGES } from '../../constants/siteImages';
 
 export const ADMIN_INPUT_CLASS =
   'mt-1.5 block w-full border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors bg-white';
@@ -16,63 +19,108 @@ export const AdminLoadingSkeleton = () => (
 );
 
 export const AdminPageBanner = ({
-  image,
-  eyebrow,
+  image = SITE_IMAGES.admin,
+  eyebrow = 'Admin',
   title,
   description,
   primaryAction,
   secondaryAction,
-}) => (
-  <section className="relative overflow-hidden rounded-3xl shadow-lg min-h-[200px] sm:min-h-[220px]">
-    <img src={image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
-    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/75 to-slate-900/30" />
-    <div className="relative px-6 sm:px-8 py-8 sm:py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 mb-2">{eyebrow}</p>
-        <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">{title}</h1>
-        <p className="mt-2 text-slate-200 text-sm sm:text-base max-w-lg">{description}</p>
-      </div>
-      {(primaryAction || secondaryAction) && (
-        <div className="flex flex-wrap gap-3">
-          {primaryAction}
-          {secondaryAction}
+  actions,
+}) => {
+  const primary = primaryAction || actions;
+
+  return (
+    <section className="relative overflow-hidden rounded-3xl shadow-lg min-h-[200px] sm:min-h-[220px]">
+      <SafeImage src={image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/75 to-slate-900/30" />
+      <div className="relative px-6 sm:px-8 py-8 sm:py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div>
+          {eyebrow && (
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300 mb-2">{eyebrow}</p>
+          )}
+          <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">{title}</h1>
+          {description && (
+            <p className="mt-2 text-slate-200 text-sm sm:text-base max-w-lg">{description}</p>
+          )}
         </div>
-      )}
-    </div>
-  </section>
-);
+        {(primary || secondaryAction) && (
+          <div className="flex flex-wrap gap-3">
+            {primary}
+            {secondaryAction}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
 
 export const AdminStatGrid = ({ stats }) => (
   <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    {stats.map((stat) => (
-      <div key={stat.label} className={`rounded-2xl p-5 shadow-sm ${stat.tone}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p
-              className={`text-xs font-semibold uppercase tracking-wider ${
-                stat.tone?.includes('text-white') ? 'text-slate-300' : 'text-slate-500'
-              }`}
-            >
-              {stat.label}
-            </p>
-            <p
-              className={`mt-2 text-3xl font-bold ${
-                stat.valueClass || (stat.tone?.includes('text-white') ? 'text-white' : 'text-slate-900')
-              }`}
-            >
-              {stat.value}
-            </p>
+    {stats.map((stat) => {
+      const card = (
+        <div
+          className={`rounded-2xl p-5 shadow-sm h-full ${stat.tone} ${
+            stat.href ? 'hover:shadow-md transition-shadow' : ''
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p
+                className={`text-xs font-semibold uppercase tracking-wider ${
+                  stat.labelClass
+                  || (stat.tone?.includes('text-white') || stat.tone?.includes('bg-slate-800')
+                    ? 'text-slate-300'
+                    : 'text-slate-600')
+                }`}
+              >
+                {stat.label}
+              </p>
+              <p
+                className={`mt-2 text-3xl font-bold ${
+                  stat.valueClass || (stat.tone?.includes('text-white') || stat.tone?.includes('bg-slate-800')
+                    ? 'text-white'
+                    : 'text-slate-900')
+                }`}
+              >
+                {stat.value}
+              </p>
+              {stat.sublabel && (
+                <p
+                  className={`mt-1 text-xs font-medium ${
+                    stat.sublabelClass || (stat.tone?.includes('text-white') || stat.tone?.includes('bg-slate-800')
+                      ? 'text-slate-300'
+                      : 'text-slate-600')
+                  }`}
+                >
+                  {stat.sublabel}
+                </p>
+              )}
+            </div>
+            {stat.icon && (
+              <span className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${stat.iconBg}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
+                </svg>
+              </span>
+            )}
           </div>
-          {stat.icon && (
-            <span className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${stat.iconBg}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
-              </svg>
-            </span>
-          )}
         </div>
-      </div>
-    ))}
+      );
+
+      if (stat.href) {
+        return (
+          <Link
+            key={stat.label}
+            to={stat.href}
+            className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          >
+            {card}
+          </Link>
+        );
+      }
+
+      return <div key={stat.label}>{card}</div>;
+    })}
   </section>
 );
 
@@ -97,9 +145,18 @@ export const AdminListSection = ({
   emptyActionLabel,
   onEmptyAction,
   hideResultCount = false,
+  toolbar,
+  className = '',
   children,
-}) => (
-  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+}) => {
+  const hasToolbarSection =
+    onSearchChange
+    || filters.length > 0
+    || toolbar
+    || (typeof showingCount === 'number' && typeof totalCount === 'number' && !hideResultCount);
+
+  return (
+  <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden ${className}`}>
     <div className="border-b border-slate-200 bg-slate-900 px-5 sm:px-6 py-4">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -128,8 +185,11 @@ export const AdminListSection = ({
       </div>
     </div>
 
+    {hasToolbarSection && (
     <div className="px-5 sm:px-6 py-5 bg-slate-50 border-b border-slate-200 space-y-4">
+      {(onSearchChange || (hasActiveFilters && onClearFilters)) && (
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {onSearchChange && (
         <div className="relative flex-1">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
@@ -142,7 +202,7 @@ export const AdminListSection = ({
           <input
             type="text"
             placeholder={searchPlaceholder}
-            value={searchValue}
+            value={searchValue || ''}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
           />
@@ -159,6 +219,7 @@ export const AdminListSection = ({
             </button>
           )}
         </div>
+        )}
         {hasActiveFilters && onClearFilters && (
           <button
             type="button"
@@ -169,6 +230,9 @@ export const AdminListSection = ({
           </button>
         )}
       </div>
+      )}
+
+      {toolbar}
 
       {filters.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -205,6 +269,7 @@ export const AdminListSection = ({
         </p>
       )}
     </div>
+    )}
 
     {showingCount === 0 ? (
       <div className="px-6 py-16 text-center">
@@ -231,35 +296,66 @@ export const AdminListSection = ({
       children
     )}
   </section>
-);
+  );
+};
 
 export const AdminTableWrap = ({ children }) => (
   <div className="overflow-x-auto">{children}</div>
 );
 
-export const AdminActionButtons = ({ onEdit, onDelete, editLabel = 'Edit', deleteLabel = 'Delete', extra }) => (
-  <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
-    {extra}
-    {onEdit && (
-      <button
-        type="button"
-        onClick={onEdit}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
-      >
-        {editLabel}
-      </button>
-    )}
-    {onDelete && (
-      <button
-        type="button"
-        onClick={onDelete}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
-      >
-        {deleteLabel}
-      </button>
-    )}
-  </div>
-);
+export const AdminActionButtons = ({
+  onEdit,
+  onDelete,
+  editLabel = 'Edit',
+  deleteLabel = 'Delete',
+  extra,
+  actions,
+}) => {
+  if (actions?.length) {
+    return (
+      <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+        {actions.map((action) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={action.onClick}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              action.tone === 'danger'
+                ? 'text-red-700 bg-red-50 hover:bg-red-100'
+                : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+            }`}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+      {extra}
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+        >
+          {editLabel}
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+        >
+          {deleteLabel}
+        </button>
+      )}
+    </div>
+  );
+};
 
 export const AdminRefreshButton = ({ onClick, refreshing, label = 'Refresh' }) => (
   <button

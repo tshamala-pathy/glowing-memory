@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
+import { normalizeClientProjectDetail, normalizePortfolioProject } from '../utils/portfolioProjects';
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isClientProject = location.pathname.includes('/projects/c/');
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,14 +15,19 @@ const ProjectDetail = () => {
   useEffect(() => {
     fetchProject();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isClientProject]);
 
   const fetchProject = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/projects/${id}/`);
-      setProject(response.data);
+      if (isClientProject) {
+        const response = await api.get(`/clients/projects/${id}/`);
+        setProject(normalizeClientProjectDetail(response.data));
+      } else {
+        const response = await api.get(`/projects/${id}/`);
+        setProject(normalizePortfolioProject(response.data));
+      }
     } catch {
       setError('Project not found or failed to load.');
     } finally {
@@ -88,7 +96,7 @@ const ProjectDetail = () => {
                       ? 'bg-blue-500/90 text-white'
                       : 'bg-yellow-500/90 text-white'
                   }`}>
-                    {project.status}
+                    {project.statusLabel || project.status}
                   </span>
                   {project.category && (
                     <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-medium">
@@ -123,7 +131,7 @@ const ProjectDetail = () => {
                       ? 'bg-blue-500/90 text-white'
                       : 'bg-yellow-500/90 text-white'
                   }`}>
-                    {project.status}
+                    {project.statusLabel || project.status}
                   </span>
                   {project.category && (
                     <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-medium">
@@ -185,7 +193,7 @@ const ProjectDetail = () => {
           </div>
 
           {/* Technologies Section */}
-          {project.technologies && (
+          {(project.technologies?.length > 0 || project.technologies) && (
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-1 h-8 bg-slate-600 rounded-full"></div>
@@ -206,6 +214,26 @@ const ProjectDetail = () => {
                     {project.technologies}
                   </span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {project.screenshots?.length > 0 && (
+            <div className="mb-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-slate-600 rounded-full"></div>
+                <h2 className="text-3xl font-bold text-slate-900">Screenshots</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {project.screenshots.map((shot, idx) => (
+                  <img
+                    key={idx}
+                    src={getMediaUrl(shot)}
+                    alt={`${project.title} screenshot ${idx + 1}`}
+                    className="w-full rounded-xl border border-slate-200 shadow-sm"
+                    loading="lazy"
+                  />
+                ))}
               </div>
             </div>
           )}

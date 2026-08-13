@@ -93,6 +93,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -177,11 +178,30 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # Media files (User uploaded files)
 MEDIA_URL = '/media/'
 # BASE_DIR points to project root (where manage.py is), so media goes at root level
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Company branding for PDF/CSV exports and invoice documents
+BRAND_NAME = config('BRAND_NAME', default='PathyCode')
+COMPANY_TAGLINE = config('COMPANY_TAGLINE', default='Business & financial operations')
+COMPANY_LOGO_PATH = config(
+    'COMPANY_LOGO_PATH',
+    default=str(BASE_DIR / 'frontend' / 'public' / 'pathycode-logo.png'),
+)
+
+# Comma-separated emails allowed to open the Financial Dashboard (in addition to Django permission)
+FINANCIAL_DASHBOARD_ALLOWED_EMAILS = config('FINANCIAL_DASHBOARD_ALLOWED_EMAILS', default='', cast=Csv())
 
 # Ensure media directory and upload subdirs exist at startup (projects, blog, about, clients, testimonials)
 for subdir in ('', 'projects', 'blog', 'about', 'clients/logos', 'testimonials'):
@@ -235,7 +255,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
     'EXCEPTION_HANDLER': 'PathyCodeback.exceptions.custom_exception_handler',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'PathyCodeback.pagination.StandardPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -289,4 +309,33 @@ PAYFAST_SANDBOX_URL = config(
 )
 # Passphrase for ITN signature verification (set in PayFast merchant settings). Empty = skip verification.
 PAYFAST_PASSPHRASE = config("PAYFAST_PASSPHRASE", default="")
+
+# Production logging (console in dev; structured file optional via env)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': config('LOG_LEVEL', default='INFO' if not DEBUG else 'DEBUG'),
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
 

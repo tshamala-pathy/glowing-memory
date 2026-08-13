@@ -1,26 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-/**
- * Curated photography — cohesive cool neutrals + warm accents (Unsplash).
- * Local asset adds texture without extra network for one band.
- */
 const IMAGES = {
-  hero: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=2400&q=88',
-  heroAccent: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=88',
-  approach: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=88',
-  cta: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=2400&q=88',
-  empty: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1600&q=85',
-  craft: '/blog/hero-writing-desk.jpg',
+  hero: SITE_IMAGES.workspace,
+  heroAccent: SITE_IMAGES.backend,
+  approach: SITE_IMAGES.team,
+  cta: SITE_IMAGES.contact,
+  empty: SITE_IMAGES.blog.heroMain,
+  craft: SITE_IMAGES.blog.heroSide,
 };
 
 const PLACEHOLDER_BY_THEME = {
-  web: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1200&q=85',
-  backend: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=85',
-  support: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a4?auto=format&fit=crop&w=1200&q=85',
-  mobile: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=85',
-  default: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=85',
+  web: SITE_IMAGES.backend,
+  backend: SITE_IMAGES.backend,
+  support: SITE_IMAGES.contact,
+  mobile: SITE_IMAGES.clientPortal,
+  default: SITE_IMAGES.blog.heroMain,
 };
 
 const DELIVERY_STEPS = [
@@ -244,7 +242,7 @@ const Services = () => {
       <main>
         <header className="relative">
           <div className="absolute inset-0 min-h-[min(92vh,620px)]">
-            <img
+            <SafeImage
               src={IMAGES.hero}
               alt="Modern workspace with natural light"
               className="h-full w-full object-cover object-center"
@@ -295,7 +293,7 @@ const Services = () => {
                   aria-hidden
                 />
                 <div className="relative overflow-hidden rounded-[1.35rem] border border-white/20 shadow-2xl shadow-black/40 ring-1 ring-white/10">
-                  <img
+                  <SafeImage
                     src={IMAGES.heroAccent}
                     alt="City skyline representing scale and ambition"
                     className="aspect-[4/5] w-full object-cover object-[center_30%] sm:aspect-[5/6]"
@@ -382,7 +380,7 @@ const Services = () => {
         <section className="relative overflow-hidden border-b border-stone-200/60 bg-gradient-to-br from-white via-[#faf8f5] to-stone-100/80">
           <div className="mx-auto grid max-w-7xl gap-0 lg:grid-cols-2">
             <div className="relative min-h-[280px] lg:min-h-[420px]">
-              <img
+              <SafeImage
                 src={IMAGES.approach}
                 alt="Team collaborating at a laptop"
                 className="absolute inset-0 h-full w-full object-cover object-[center_35%]"
@@ -419,7 +417,7 @@ const Services = () => {
         <section className="relative border-b border-stone-200/60 bg-[#f0ebe3]/50">
           <div className="mx-auto grid max-w-7xl gap-0 lg:grid-cols-2 lg:[direction:rtl]">
             <div className="relative min-h-[240px] [direction:ltr] lg:min-h-[360px]">
-              <img
+              <SafeImage
                 src={IMAGES.craft}
                 alt="Writing and planning at a desk"
                 className="absolute inset-0 h-full w-full object-cover object-center"
@@ -453,7 +451,7 @@ const Services = () => {
               <div id="offerings" className="scroll-mt-24 overflow-hidden rounded-[1.5rem] bg-white shadow-xl shadow-stone-300/40 ring-1 ring-stone-200/80">
                 <div className="grid md:grid-cols-2">
                   <div className="relative min-h-[240px] md:min-h-[300px]">
-                    <img
+                    <SafeImage
                       src={IMAGES.empty}
                       alt=""
                       className="absolute inset-0 h-full w-full object-cover object-center"
@@ -510,7 +508,7 @@ const Services = () => {
                       >
                         <article className="flex h-full flex-col overflow-hidden rounded-[1.35rem] border border-stone-200/80 bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] ring-1 ring-black/[0.03] transition duration-300 hover:-translate-y-1 hover:border-sky-200/90 hover:shadow-[0_32px_70px_-24px_rgba(14,116,144,0.22)]">
                           <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
-                            <img
+                            <SafeImage
                               src={service.image ? getMediaUrl(service.image) : fallbackPhoto}
                               alt=""
                               className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
@@ -615,7 +613,7 @@ const Services = () => {
 
             {sortedServices.length > 0 && (
               <div className="relative mt-16 overflow-hidden rounded-[1.5rem] shadow-2xl shadow-stone-400/30 ring-1 ring-white/20 sm:mt-20">
-                <img
+                <SafeImage
                   src={IMAGES.cta}
                   alt="Professionals in a meeting"
                   className="absolute inset-0 h-full w-full object-cover object-[center_40%]"

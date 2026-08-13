@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +14,15 @@ from .models import Invoice
 
 
 User = get_user_model()
+
+
+def grant_financial_dashboard_access(user):
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+
+    content_type = ContentType.objects.get(app_label='invoices', model='invoice')
+    permission = Permission.objects.get(content_type=content_type, codename='view_financial_dashboard')
+    user.user_permissions.add(permission)
 
 
 class InvoiceModelTests(TestCase):
@@ -123,6 +134,7 @@ class FinancialDashboardTests(TestCase):
             email="dash@example.com",
             password="password",
         )
+        grant_financial_dashboard_access(self.admin)
         self.client_profile = Client.objects.get(user=self.admin)
         self.client_profile.name = "Dashboard Client"
         self.client_profile.save()
@@ -236,6 +248,30 @@ class FinancialDashboardTests(TestCase):
             status="completed",
         )
 
+        # Approved quote with no invoice yet (awaiting PayFast / client payment)
+        self.approved_awaiting_payment = Quote.objects.create(
+            client=self.client_profile,
+            client_name="Client Five",
+            client_email="five@example.com",
+            project_title="Awaiting Payment Project",
+            project_description="Desc",
+            requirements_accepted=True,
+            status="approved",
+            estimated_amount=Decimal("1200.00"),
+            approved_at=timezone.now(),
+        )
+
+    def test_superuser_without_financial_grant_denied(self):
+        denied_admin = User.objects.create_superuser(
+            username="locked_financial_admin",
+            email="locked@example.com",
+            password="password",
+        )
+        api_client = APIClient()
+        api_client.force_authenticate(user=denied_admin)
+        response = api_client.get(reverse("financial-dashboard"))
+        self.assertEqual(response.status_code, 403)
+
     def test_financial_dashboard_metrics(self):
         api_client = APIClient()
         api_client.force_authenticate(user=self.admin)
@@ -245,41 +281,202 @@ class FinancialDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
 
-        # Total revenue = sum of paid invoices
-        expected_total_revenue = float(
-            self.paid_invoice_current.total_amount
-            + self.paid_invoice_prev.total_amount
-        )
-        self.assertEqual(data["total_revenue"], expected_total_revenue)
+        # Default period is month — only current month paid invoice counts
+        self.assertEqual(data["total_revenue"], float(self.paid_invoice_current.total_amount))
+        self.assertIn("period_label", data)
+        self.assertIn("vat_summary", data)
+        self.assertIn("quote_funnel", data)
+        self.assertIn("upcoming_due", data)
+        self.assertIn("revenue_by_service_type", data)
+        self.assertIn("reconciliation", data)
+        self.assertIn("smart_metrics", data)
+        self.assertIn("client_health", data)
+        self.assertIn("cash_forecast", data)
+        self.assertIn("vat_ytd", data["vat_summary"])
 
-        # Yearly revenue = sum of paid invoices in current year
         today = timezone.now().date()
-        expected_yearly = 0.0
-        for inv in (self.paid_invoice_current, self.paid_invoice_prev):
-            if inv.paid_date.year == today.year:
-                expected_yearly += float(inv.total_amount)
-        self.assertEqual(data["yearly_revenue"], expected_yearly)
-
-        # Monthly revenue should have entries for current and previous month
         current_key = today.strftime("%Y-%m")
-        prev_month = today.month - 1 or 12
-        prev_year = today.year if today.month > 1 else today.year - 1
-        prev_key = f"{prev_year}-{prev_month:02d}"
-
         self.assertIn(current_key, data["monthly_revenue"])
-        self.assertIn(prev_key, data["monthly_revenue"])
         self.assertEqual(
             data["monthly_revenue"][current_key],
             float(self.paid_invoice_current.total_amount),
         )
-        self.assertEqual(
-            data["monthly_revenue"][prev_key],
-            float(self.paid_invoice_prev.total_amount),
-        )
 
-        # Unpaid total and overdue totals
         self.assertGreater(data["unpaid_invoices_total"], 0.0)
         self.assertGreater(data["overdue_invoices_total"], 0.0)
-
-        # Active projects count (all except completed)
         self.assertEqual(data["active_projects_count"], 1)
+
+        self.assertIn("yearly_revenue", data)
+        self.assertIn("unpaid_invoices_count", data)
+        self.assertIn("overdue_invoices_count", data)
+        self.assertIn("overdue_aging", data)
+        self.assertIn("payments", data)
+        self.assertIn("pipeline", data)
+        self.assertIn("needs_attention", data)
+        self.assertIn("payment_followups", data)
+        self.assertIn("finance_activity", data)
+        self.assertIn("recent_collections", data)
+        self.assertGreaterEqual(data["unpaid_invoices_count"], 1)
+        self.assertGreaterEqual(data["overdue_invoices_count"], 1)
+        self.assertGreater(len(data["needs_attention"]), 0)
+        self.assertGreater(len(data["payment_followups"]), 0)
+        pending = [p for p in data["payment_followups"] if p["type"] == "pending_invoice"]
+        self.assertGreater(len(pending), 0)
+        for item in data["payment_followups"]:
+            action_keys = [a["key"] for a in item.get("actions", [])]
+            if item["type"] == "approved_quote":
+                self.assertIn("send_payment_reminder", action_keys)
+                self.assertIn("mark_quote_contacted", action_keys)
+            else:
+                self.assertIn("send_reminder", action_keys)
+                self.assertIn("mark_contacted", action_keys)
+        if data["upcoming_due"]:
+            self.assertIn("actions", data["upcoming_due"][0])
+            self.assertIn("send_reminder", [a["key"] for a in data["upcoming_due"][0]["actions"]])
+
+        approved_quotes = [p for p in data["payment_followups"] if p["type"] == "approved_quote"]
+        self.assertGreater(len(approved_quotes), 0)
+        self.assertIn("send_payment_reminder", [a["key"] for a in approved_quotes[0]["actions"]])
+        self.assertIn("awaiting_payment", data["pipeline"])
+        self.assertGreater(len(data["pipeline"]["awaiting_payment"]), 0)
+
+        self.assertGreater(len(data["recent_collections"]), 0)
+
+        # Upcoming due invoice (due in 7 days)
+        self.assertGreaterEqual(len(data["upcoming_due"]), 1)
+
+        funnel = data["quote_funnel"]
+        stage_keys = [s["key"] for s in funnel["stages"]]
+        self.assertEqual(stage_keys, ["pending", "reviewed", "approved", "paid"])
+        self.assertIn("pending_to_reviewed", funnel["conversion_rates"])
+
+    def test_financial_dashboard_upcoming_7_days(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        url = reverse("financial-dashboard")
+
+        response = api_client.get(url, {"upcoming_days": 7})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["upcoming_days"], 7)
+
+    def test_financial_dashboard_csv_export(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        url = reverse("financial-dashboard")
+
+        response = api_client.get(url, {"period": "month", "export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/csv", response["Content-Type"])
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("Paid invoices", content)
+        self.assertIn("Outstanding invoices", content)
+        self.assertIn("VAT summary", content)
+        self.assertIn("PayFast payment log", content)
+
+    def test_financial_dashboard_all_time(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        url = reverse("financial-dashboard")
+
+        response = api_client.get(url, {"period": "all"})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        expected_total_revenue = float(
+            self.paid_invoice_current.total_amount + self.paid_invoice_prev.total_amount
+        )
+        self.assertEqual(data["total_revenue"], expected_total_revenue)
+
+        today = timezone.now().date()
+        prev_month = today.month - 1 or 12
+        prev_year = today.year if today.month > 1 else today.year - 1
+        prev_key = f"{prev_year}-{prev_month:02d}"
+        self.assertIn(prev_key, data["monthly_revenue"])
+
+    def test_financial_dashboard_pdf_export(self):
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        url = reverse("financial-dashboard")
+
+        response = api_client.get(url, {"period": "month", "export": "pdf"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn("financial-dashboard.pdf", response["Content-Disposition"])
+
+    def test_invoice_send_reminder(self):
+        from notifications.models import InAppNotification
+
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        open_invoice = Invoice.objects.exclude(status__in=('paid', 'cancelled')).first()
+        self.assertIsNotNone(open_invoice)
+        url = reverse("invoice-send-reminder", kwargs={"pk": open_invoice.pk})
+        with patch("invoices.views.send_mail") as mock_mail:
+            response = api_client.post(url)
+        self.assertEqual(response.status_code, 200)
+        mock_mail.assert_called_once()
+        self.assertTrue(
+            InAppNotification.objects.filter(
+                event_type=InAppNotification.EVENT_INVOICE_PAYMENT_REMINDER,
+                user=self.admin,
+            ).exists()
+        )
+
+    def test_reminder_and_contact_recorded_in_dashboard_activity(self):
+        from users.models import ActivityLog
+
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        open_invoice = Invoice.objects.exclude(status__in=('paid', 'cancelled')).first()
+        self.assertIsNotNone(open_invoice)
+
+        with patch("invoices.views.send_mail"):
+            api_client.post(reverse("invoice-send-reminder", kwargs={"pk": open_invoice.pk}))
+        api_client.post(reverse("invoice-mark-contacted", kwargs={"pk": open_invoice.pk}))
+
+        self.assertTrue(
+            ActivityLog.objects.filter(action='invoice_reminder_sent', object_id=open_invoice.pk).exists()
+        )
+        self.assertTrue(
+            ActivityLog.objects.filter(action='invoice_contacted', object_id=open_invoice.pk).exists()
+        )
+
+        dash = api_client.get(reverse("financial-dashboard")).json()
+        actions = {entry["action"] for entry in dash.get("finance_activity", [])}
+        self.assertIn("invoice_reminder_sent", actions)
+        self.assertIn("invoice_contacted", actions)
+
+    def test_quote_send_payment_reminder(self):
+        from notifications.models import InAppNotification
+
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.admin)
+        url = reverse("quote-send-payment-reminder", kwargs={"pk": self.approved_awaiting_payment.pk})
+        with patch("quotes.views.send_mail") as mock_mail:
+            response = api_client.post(url)
+        self.assertEqual(response.status_code, 200)
+        mock_mail.assert_called_once()
+        notification = InAppNotification.objects.filter(
+            event_type=InAppNotification.EVENT_QUOTE_PAYMENT_REMINDER,
+            user=self.admin,
+            link=f'/payment/{self.approved_awaiting_payment.pk}',
+        ).first()
+        self.assertIsNotNone(notification)
+        self.assertIn('Payment required', notification.title)
+
+    def test_staff_user_can_send_quote_payment_reminder(self):
+        staff = User.objects.create_user(
+            username="dashboard_staff",
+            email="staff@example.com",
+            password="password",
+            is_staff=True,
+            is_superuser=False,
+        )
+        api_client = APIClient()
+        api_client.force_authenticate(user=staff)
+        url = reverse("quote-send-payment-reminder", kwargs={"pk": self.approved_awaiting_payment.pk})
+        with patch("quotes.views.send_mail") as mock_mail:
+            response = api_client.post(url)
+        self.assertEqual(response.status_code, 200, response.data if hasattr(response, "data") else response.content)
+        mock_mail.assert_called_once()

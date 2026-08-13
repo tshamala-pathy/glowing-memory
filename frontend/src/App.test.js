@@ -25,6 +25,7 @@ test('renders app with home content', async () => {
 
 test('renders main navigation', async () => {
   render(<App />);
-  const loginLink = await screen.findByRole('link', { name: /^sign in$/i });
-  expect(loginLink).toHaveAttribute('href', '/login');
+  const loginLinks = await screen.findAllByRole('link', { name: /^sign in$/i });
+  expect(loginLinks.length).toBeGreaterThan(0);
+  expect(loginLinks.some((link) => link.getAttribute('href') === '/login')).toBe(true);
 });

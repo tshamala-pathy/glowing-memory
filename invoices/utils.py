@@ -16,7 +16,8 @@ def _get_company_logo():
     The lookup strategy is:
 
     * Use ``settings.COMPANY_LOGO_PATH`` if defined and the file exists.
-    * Otherwise, fall back to ``MEDIA_ROOT/clients/logos/logo.png`` if present.
+    * Otherwise, check common repo and media locations (frontend public asset,
+      uploaded media logo, static asset).
 
     Returns:
         str | None: Absolute filesystem path to the logo file, or ``None`` if
@@ -25,10 +26,19 @@ def _get_company_logo():
     logo_path = getattr(settings, "COMPANY_LOGO_PATH", None)
     if logo_path and os.path.exists(logo_path):
         return logo_path
-    # Fallback: common logo location under MEDIA_ROOT
-    candidate = os.path.join(settings.MEDIA_ROOT, "clients", "logos", "logo.png")
-    if os.path.exists(candidate):
-        return candidate
+
+    base_dir = getattr(settings, "BASE_DIR", None)
+    candidates = []
+    if base_dir is not None:
+        candidates.extend([
+            os.path.join(base_dir, "frontend", "public", "pathycode-logo.png"),
+            os.path.join(base_dir, "static", "pathycode-logo.png"),
+        ])
+    candidates.append(os.path.join(settings.MEDIA_ROOT, "clients", "logos", "logo.png"))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
     return None
 
 

@@ -4,6 +4,8 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatDate, formatCurrency, getQuoteStatusClass, getInvoiceStatusClass, getProjectStatusClass } from '../utils/formatters';
 import InvoiceDetailModal from '../components/InvoiceDetailModal';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
 /**
  * Client Portal: shows the logged-in client's quotes, invoices, and projects.
@@ -176,6 +178,12 @@ const ClientPortal = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12">
         <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl shadow-slate-900/[0.08] ring-1 ring-slate-900/5">
           <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 sm:px-8 sm:py-10 text-white">
+            <SafeImage
+              src={SITE_IMAGES.clientPortal}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover opacity-35"
+            />
             <div className="absolute inset-0 opacity-[0.14] bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
             <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">

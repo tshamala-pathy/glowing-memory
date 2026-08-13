@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-const LOGIN_IMAGE = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80';
+const LOGIN_IMAGE = SITE_IMAGES.clientPortal;
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +16,8 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from || '/profile';
 
   const handleChange = (e) => {
     setFormData({
@@ -35,7 +39,7 @@ const Login = () => {
       if (loggedInUser?.is_superuser) {
         navigate('/admin');
       } else {
-        navigate('/profile');
+        navigate(redirectTo, { replace: true });
       }
     } else {
       setError(result.error);
@@ -48,7 +52,7 @@ const Login = () => {
     <div className="min-h-screen flex">
       {/* Left: Image panel - hidden on small screens, shown from md up */}
       <div className="hidden md:flex md:w-1/2 lg:w-[55%] relative overflow-hidden">
-        <img
+        <SafeImage
           src={LOGIN_IMAGE}
           alt="Modern workspace"
           className="absolute inset-0 w-full h-full object-cover"
@@ -82,7 +86,7 @@ const Login = () => {
         {/* Mobile: compact image banner + logo */}
         <div className="md:hidden mb-8">
           <div className="relative h-40 rounded-2xl overflow-hidden mb-6">
-            <img src={LOGIN_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <SafeImage src={LOGIN_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-4">
               <Link to="/" className="inline-flex items-center gap-2 text-white">
