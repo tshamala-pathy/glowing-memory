@@ -36,6 +36,13 @@ class DeploymentArtifactTests(SimpleTestCase):
 
     def test_whitenoise_is_enabled(self):
         self.assertIn('whitenoise.middleware.WhiteNoiseMiddleware', settings.MIDDLEWARE)
+        self.assertIn(
+            settings.STORAGES['staticfiles']['BACKEND'],
+            {
+                'django.contrib.staticfiles.storage.StaticFilesStorage',
+                'whitenoise.storage.CompressedManifestStaticFilesStorage',
+            },
+        )
 
     def test_company_logo_resolves(self):
         logo = _get_company_logo()
