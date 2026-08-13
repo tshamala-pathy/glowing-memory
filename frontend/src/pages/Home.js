@@ -16,21 +16,23 @@ import Testimonials from "../components/Testimonials";
 import AboutSection from "../components/AboutSection";
 import StatsSection from "../components/StatsSection";
 import SiteFooter from "../components/SiteFooter";
+import SafeImage from "../components/SafeImage";
+import { SITE_IMAGES } from "../constants/siteImages";
 
 const CONTAINER = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
 
 const IMAGES = {
-  heroMain: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=85",
-  heroAccent: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=85",
-  heroDetail: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=85",
-  showcase: "https://images.unsplash.com/photo-1524758631624-f6584a0d3600?auto=format&fit=crop&w=1920&q=85",
+  heroMain: SITE_IMAGES.workspace,
+  heroAccent: SITE_IMAGES.team,
+  heroDetail: SITE_IMAGES.pricing,
+  showcase: SITE_IMAGES.backend,
   spotlight: [
-    { src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=85", label: "Web Apps" },
-    { src: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=85", label: "Dashboards" },
-    { src: "https://images.unsplash.com/photo-1618005182382-a83a8bd57fbe?auto=format&fit=crop&w=900&q=85", label: "Design Systems" },
+    { src: SITE_IMAGES.backend, label: "Web Apps" },
+    { src: SITE_IMAGES.blog.heroMain, label: "Dashboards" },
+    { src: SITE_IMAGES.clientPortal, label: "Design Systems" },
   ],
-  newsletter: "https://images.unsplash.com/photo-1573497019148-b8d87734a5a2?auto=format&fit=crop&w=800&q=85",
-  cta: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1920&q=85",
+  newsletter: SITE_IMAGES.newsletter.hero,
+  cta: SITE_IMAGES.contact,
 };
 
 const MARQUEE_ITEMS = [
@@ -147,7 +149,7 @@ const Home = () => {
 
               {/* Mobile hero image */}
               <div className="sm:hidden mt-8 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-200/80">
-                <img
+                <SafeImage
                   src={IMAGES.heroMain}
                   alt="Modern digital workspace"
                   className="w-full aspect-[4/3] object-cover"
@@ -158,13 +160,13 @@ const Home = () => {
             {/* Image collage */}
             <div className="relative hidden sm:grid grid-cols-12 gap-3 lg:gap-4 fade-in" style={{ animationDelay: "0.15s" }}>
               <div className="col-span-7 row-span-2 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-200/80">
-                <img src={IMAGES.heroMain} alt="Modern workspace" className="w-full h-full min-h-[280px] lg:min-h-[380px] object-cover" />
+                <SafeImage src={IMAGES.heroMain} alt="Modern workspace" className="w-full h-full min-h-[280px] lg:min-h-[380px] object-cover" />
               </div>
               <div className="col-span-5 rounded-2xl overflow-hidden shadow-lg ring-1 ring-slate-200/80">
-                <img src={IMAGES.heroAccent} alt="Team collaboration" className="w-full h-36 lg:h-44 object-cover" />
+                <SafeImage src={IMAGES.heroAccent} alt="Team collaboration" className="w-full h-36 lg:h-44 object-cover" />
               </div>
               <div className="col-span-5 relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-slate-200/80 bg-teal-800 p-5 flex flex-col justify-end min-h-[140px]">
-                <img src={IMAGES.heroDetail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" aria-hidden />
+                <SafeImage src={IMAGES.heroDetail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" aria-hidden />
                 <p className="relative text-white font-bold text-lg leading-snug">From concept to launch — one dedicated team.</p>
               </div>
             </div>
@@ -232,7 +234,7 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {IMAGES.spotlight.map((item, i) => (
               <div key={i} className="group relative rounded-2xl overflow-hidden aspect-[4/3] ring-1 ring-white/10">
-                <img src={item.src} alt={item.label} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
+                <SafeImage src={item.src} alt={item.label} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6">
                   <p className="text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">Capability</p>
@@ -276,7 +278,7 @@ const Home = () => {
 
       {/* —— Showcase band —— */}
       <section className="relative h-72 sm:h-80 lg:h-[28rem] overflow-hidden">
-        <img
+        <SafeImage
           src={IMAGES.showcase}
           alt=""
           aria-hidden="true"
@@ -357,7 +359,7 @@ const Home = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             <div className="lg:col-span-5 order-2 lg:order-1">
               <div className="rounded-2xl overflow-hidden shadow-xl ring-1 ring-slate-200">
-                <img src={IMAGES.newsletter} alt="Stay in the loop" loading="lazy" className="w-full h-64 lg:h-80 object-cover" />
+                <SafeImage src={IMAGES.newsletter} alt="Stay in the loop" loading="lazy" className="w-full h-64 lg:h-80 object-cover" />
               </div>
             </div>
             <div className="lg:col-span-7 order-1 lg:order-2">

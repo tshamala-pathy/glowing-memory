@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
+
+const SERVICE_HERO = SITE_IMAGES.backend;
 
 const ServiceDetail = () => {
   const { id } = useParams();
@@ -69,8 +73,8 @@ const ServiceDetail = () => {
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <div className="relative h-[60vh] min-h-[500px] overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=80"
+        <SafeImage
+          src={SERVICE_HERO}
           alt="Service"
           className="w-full h-full object-cover"
         />
@@ -172,8 +176,8 @@ const ServiceDetail = () => {
           {/* Pricing Highlight */}
           {service.price && (
             <div className="mb-10 p-8 relative rounded-2xl overflow-hidden text-white">
-              <img
-                src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=80"
+              <SafeImage
+                src={SERVICE_HERO}
                 alt="Pricing"
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -209,8 +213,8 @@ const ServiceDetail = () => {
       {/* Related Services CTA */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-16">
         <div className="relative rounded-2xl overflow-hidden p-8 md:p-12 text-center text-white shadow-xl">
-          <img
-            src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=80"
+          <SafeImage
+            src={SERVICE_HERO}
             alt="Services"
             className="absolute inset-0 w-full h-full object-cover"
           />

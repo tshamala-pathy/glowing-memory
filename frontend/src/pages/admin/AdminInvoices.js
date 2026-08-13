@@ -148,7 +148,7 @@ const AdminInvoices = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users/admin/');
+      const response = await api.get('/users/admin/', { params: { page_size: 500 } });
       const data = response.data.results || response.data;
       setUsers(Array.isArray(data) ? data : []);
     } catch {

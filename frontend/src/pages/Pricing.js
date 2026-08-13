@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-/**
- * Hero + section imagery (Unsplash) — transparent pricing, planning, value.
- */
 const IMAGES = {
-  hero: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=2400&q=85',
-  included: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1600&q=85',
-  cta: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=2400&q=85',
+  hero: SITE_IMAGES.pricing,
+  included: SITE_IMAGES.blog.heroSide,
+  cta: SITE_IMAGES.contact,
 };
 
 /**
@@ -136,7 +135,7 @@ const Pricing = () => {
       {/* Hero — full-bleed image + headline */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={IMAGES.hero}
             alt=""
             className="h-full w-full object-cover object-center"
@@ -239,7 +238,7 @@ const Pricing = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
             <div className="relative order-2 overflow-hidden rounded-3xl shadow-xl ring-1 ring-slate-200/80 lg:order-1">
-              <img
+              <SafeImage
                 src={IMAGES.included}
                 alt="Collaboration and clear project planning"
                 className="aspect-[4/3] w-full object-cover sm:aspect-auto sm:min-h-[320px] lg:min-h-[380px]"
@@ -295,7 +294,7 @@ const Pricing = () => {
       {/* CTA — background image */}
       <section className="relative overflow-hidden py-20 md:py-24">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={IMAGES.cta}
             alt=""
             className="h-full w-full object-cover"

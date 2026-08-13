@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { SITE_IMAGES } from '../../constants/siteImages';
 
-const PROFILE_IMAGE_FALLBACK =
-  'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1920&q=85';
+const PROFILE_IMAGE_FALLBACK = SITE_IMAGES.workspace;
 
 export const PROFILE_IMAGES = {
-  overview: PROFILE_IMAGE_FALLBACK,
-  messages: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=85',
-  quotes: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1920&q=85',
-  invoices: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1920&q=85',
-  projects: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1920&q=85',
-  testimonials: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1920&q=85',
-  settings: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1920&q=85',
-  workspace: PROFILE_IMAGE_FALLBACK,
-  activity: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85',
+  overview: SITE_IMAGES.clientPortal,
+  messages: SITE_IMAGES.team,
+  quotes: SITE_IMAGES.pricing,
+  invoices: SITE_IMAGES.contact,
+  projects: SITE_IMAGES.backend,
+  testimonials: SITE_IMAGES.newsletter.hero,
+  settings: SITE_IMAGES.blog.heroSide,
+  workspace: SITE_IMAGES.workspace,
+  activity: SITE_IMAGES.blog.heroMain,
 };
 
 export const ProfileBannerImage = ({ src, className = 'absolute inset-0 w-full h-full object-cover' }) => {

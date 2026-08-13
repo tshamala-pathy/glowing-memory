@@ -3,8 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { formatDateTime, formatRelativeTime } from '../utils/formatters';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-const HISTORY_IMAGE = 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=1200&q=80';
+const HISTORY_IMAGE = SITE_IMAGES.blog.heroMain;
 
 const ACTION_CONFIG = {
   login: { icon: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3h-2a3 3 0 01-3-3V7a3 3 0 013-3h2a3 3 0 013 3v1', label: 'Signed in', bg: 'bg-emerald-100', text: 'text-emerald-700', iconBg: 'bg-emerald-500/15' },
@@ -145,7 +147,7 @@ const ActivityLog = () => {
         {/* Mobile: compact image banner + back link */}
         <div className="md:hidden">
           <div className="relative h-44 overflow-hidden">
-            <img src={HISTORY_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <SafeImage src={HISTORY_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/50 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-between p-4">
               <Link to="/profile" className="inline-flex items-center gap-2 text-white/90 hover:text-white">

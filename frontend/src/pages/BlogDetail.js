@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 import { formatDate } from '../utils/formatters';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1486312338219-ce68e2c6f44d?w=1920&q=80';
+const FALLBACK_IMAGE = SITE_IMAGES.blog.heroMain;
 
 const BlogDetail = () => {
   const { id } = useParams();

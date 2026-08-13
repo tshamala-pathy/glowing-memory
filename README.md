@@ -68,6 +68,9 @@ python manage.py migrate
 5. **Create superuser** (optional, for admin access)
 ```bash
 python manage.py createsuperuser
+# Or, on a fresh empty database:
+python manage.py bootstrap_dev
+# Default login: admin / Admin123! — change after first login
 ```
 
 6. **Run development server**

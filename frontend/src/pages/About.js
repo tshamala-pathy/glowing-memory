@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES } from '../constants/siteImages';
 
-/**
- * Stock photos (Unsplash) paired with each section theme. Replace URLs if you host your own assets.
- */
 const SECTION_IMAGES = {
-  hero: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2400&q=80',
-  story: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1600&q=80',
-  problems: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=2000&q=80',
-  services: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=2000&q=80',
-  mission: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80',
-  vision: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80',
-  values: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=2000&q=80',
-  howWeWork: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=2000&q=80',
-  whyUs: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=2000&q=80',
-  tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2000&q=80',
-  stats: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80',
-  founder: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80',
-  cta: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=2400&q=80',
+  hero: SITE_IMAGES.team,
+  story: SITE_IMAGES.blog.heroMain,
+  problems: SITE_IMAGES.pricing,
+  services: SITE_IMAGES.backend,
+  mission: SITE_IMAGES.blog.heroSide,
+  vision: SITE_IMAGES.contact,
+  values: SITE_IMAGES.newsletter.hero,
+  howWeWork: SITE_IMAGES.blog.footer,
+  whyUs: SITE_IMAGES.clientPortal,
+  tech: SITE_IMAGES.backend,
+  stats: SITE_IMAGES.pricing,
+  founder: SITE_IMAGES.blog.heroMain,
+  cta: SITE_IMAGES.contact,
 };
 
 const defaultHeroTitle = 'About PathyCode';
@@ -115,7 +114,7 @@ const About = () => {
       {/* Hero — full-bleed photo + gradient for readability */}
       <section className="relative overflow-hidden text-white">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={SECTION_IMAGES.hero}
             alt=""
             className="h-full w-full object-cover"
@@ -152,7 +151,7 @@ const About = () => {
             </p>
           </div>
           <div className="relative overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200/80">
-            <img
+            <SafeImage
               src={aboutData.image ? getMediaUrl(aboutData.image) : SECTION_IMAGES.story}
               alt="About PathyCode — our team and workspace"
               className="w-full h-full min-h-[260px] sm:min-h-[320px] object-cover"
@@ -175,7 +174,7 @@ const About = () => {
             </p>
           </div>
           <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
-            <img
+            <SafeImage
               src={SECTION_IMAGES.problems}
               alt="Planning and solving business challenges together"
               className="h-48 w-full object-cover sm:h-56 md:h-64"
@@ -212,7 +211,7 @@ const About = () => {
             </p>
           </div>
           <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
-            <img
+            <SafeImage
               src={SECTION_IMAGES.services}
               alt="Building software and digital products"
               className="h-48 w-full object-cover sm:h-56 md:h-64"
@@ -251,7 +250,7 @@ const About = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
-                <img
+                <SafeImage
                   src={SECTION_IMAGES.mission}
                   alt=""
                   className="w-full h-full object-cover"
@@ -278,7 +277,7 @@ const About = () => {
             </div>
             <div className="relative rounded-3xl overflow-hidden shadow-xl">
               <div className="absolute inset-0">
-                <img
+                <SafeImage
                   src={SECTION_IMAGES.vision}
                   alt=""
                   className="w-full h-full object-cover"
@@ -313,7 +312,7 @@ const About = () => {
         <section className="py-20 lg:py-28 bg-white">
           <div className="max-w-7xl mx-auto px-6">
             <div className="max-w-5xl mx-auto mb-12 overflow-hidden rounded-2xl shadow-md ring-1 ring-slate-200/80">
-              <img
+              <SafeImage
                 src={SECTION_IMAGES.values}
                 alt="Collaboration and shared values"
                 className="h-40 w-full object-cover sm:h-48"
@@ -357,7 +356,7 @@ const About = () => {
             </p>
           </div>
           <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
-            <img
+            <SafeImage
               src={SECTION_IMAGES.howWeWork}
               alt="Discovery, design, build, and delivery"
               className="h-44 w-full object-cover sm:h-52"
@@ -394,7 +393,7 @@ const About = () => {
             </p>
           </div>
           <div className="max-w-5xl mx-auto mb-14 overflow-hidden rounded-2xl shadow-lg ring-1 ring-slate-200/80">
-            <img
+            <SafeImage
               src={SECTION_IMAGES.whyUs}
               alt="Partnership and successful collaboration"
               className="h-44 w-full object-cover sm:h-52"
@@ -425,7 +424,7 @@ const About = () => {
       {/* Tech Stack */}
       <section className="relative overflow-hidden py-20 bg-slate-50">
         <div className="pointer-events-none absolute inset-0 opacity-[0.18]">
-          <img
+          <SafeImage
             src={SECTION_IMAGES.tech}
             alt=""
             className="h-full w-full object-cover"
@@ -455,7 +454,7 @@ const About = () => {
       {/* Stats */}
       <section className="relative overflow-hidden py-20 text-white">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={SECTION_IMAGES.stats}
             alt=""
             className="h-full w-full object-cover"
@@ -486,7 +485,7 @@ const About = () => {
           <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-10">Meet the Founder</h2>
           <div className="grid gap-8 text-left sm:grid-cols-[minmax(0,220px)_1fr] sm:items-center sm:gap-10">
             <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200/80 sm:mx-0">
-              <img
+              <SafeImage
                 src={SECTION_IMAGES.founder}
                 alt="Tshamala Pathy"
                 className="aspect-[4/5] w-full object-cover object-top"
@@ -508,7 +507,7 @@ const About = () => {
       {/* CTA */}
       <section className="relative overflow-hidden py-24">
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={SECTION_IMAGES.cta}
             alt=""
             className="h-full w-full object-cover"

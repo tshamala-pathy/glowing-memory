@@ -21,6 +21,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Django system check
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: 'True'
+          DB_ENGINE: django.db.backends.sqlite3
+        run: python manage.py check
+
+      - name: Pre-deploy script (dev mode)
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: 'True'
+          DB_ENGINE: django.db.backends.sqlite3
+        run: python scripts/check_deploy.py
+
       - name: Run Django tests
         env:
           SECRET_KEY: ci-test-secret-key
@@ -62,5 +76,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build backend Docker image
         run: docker build -t pathycodeback:test .
+
+      - name: Build frontend nginx Docker image
+        run: docker build -t pathycode-nginx:test -f frontend/Dockerfile .

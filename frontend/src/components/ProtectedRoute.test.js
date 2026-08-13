@@ -1,20 +1,23 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
-// Mock AuthContext
 const mockUseAuth = jest.fn();
 jest.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
 describe('ProtectedRoute', () => {
-  const renderWithRouter = (ui, { route = '/' } = {}) => {
-    window.history.pushState({}, 'Test', route);
+  const renderWithRouter = (ui, { route = '/app' } = {}) => {
     return render(
       <MemoryRouter initialEntries={[route]}>
-        {ui}
+        <Routes>
+          <Route path="/login" element={<div>Login page</div>} />
+          <Route path="/profile" element={<div>Profile page</div>} />
+          <Route path="/admin" element={<div>Admin page</div>} />
+          <Route path="/app" element={ui} />
+        </Routes>
       </MemoryRouter>
     );
   };
@@ -50,6 +53,7 @@ describe('ProtectedRoute', () => {
       </ProtectedRoute>
     );
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+    expect(screen.getByText('Login page')).toBeInTheDocument();
   });
 
   it('renders children when requireAuth and authenticated', () => {
@@ -78,6 +82,7 @@ describe('ProtectedRoute', () => {
       </ProtectedRoute>
     );
     expect(screen.queryByText('Admin content')).not.toBeInTheDocument();
+    expect(screen.getByText('Profile page')).toBeInTheDocument();
   });
 
   it('renders children when requireSuperuser and user is superuser', () => {
@@ -92,6 +97,35 @@ describe('ProtectedRoute', () => {
       </ProtectedRoute>
     );
     expect(screen.getByText('Admin content')).toBeInTheDocument();
+  });
+
+  it('redirects when requireFinancialDashboard and user has no grant', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 1, is_superuser: true, can_view_financial_dashboard: false },
+      isAuthenticated: true,
+      loading: false,
+    });
+    renderWithRouter(
+      <ProtectedRoute requireFinancialDashboard={true}>
+        <div>Finance content</div>
+      </ProtectedRoute>
+    );
+    expect(screen.queryByText('Finance content')).not.toBeInTheDocument();
+    expect(screen.getByText('Admin page')).toBeInTheDocument();
+  });
+
+  it('renders children when requireFinancialDashboard and user has grant', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 1, is_staff: true, can_view_financial_dashboard: true },
+      isAuthenticated: true,
+      loading: false,
+    });
+    renderWithRouter(
+      <ProtectedRoute requireFinancialDashboard={true}>
+        <div>Finance content</div>
+      </ProtectedRoute>
+    );
+    expect(screen.getByText('Finance content')).toBeInTheDocument();
   });
 
   it('renders children when neither requireAuth nor requireSuperuser', () => {

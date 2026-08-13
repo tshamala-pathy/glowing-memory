@@ -45,7 +45,7 @@ const AdminCalendar = () => {
       if (isRefresh) setRefreshing(true);
       const [eventsRes, usersRes, projectsRes] = await Promise.all([
         api.get('/calendar/'),
-        api.get('/users/list/'),
+        api.get('/users/list/', { params: { page_size: 500 } }),
         api.get('/clients/projects/'),
       ]);
       setEvents(Array.isArray(eventsRes.data) ? eventsRes.data : eventsRes.data?.results || []);

@@ -2,32 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getMediaUrl } from '../services/api';
 import { formatDate } from '../utils/formatters';
+import SafeImage from '../components/SafeImage';
+import { SITE_IMAGES, LOCAL_PLACEHOLDERS } from '../constants/siteImages';
 
-const publicUrl = process.env.PUBLIC_URL || '';
-
-/** Served from /public/blog so hero images always load (some Unsplash IDs 404 as hotlinks). */
 const IMAGES = {
-  /** Wide banner — reading & books */
-  heroMain: `${publicUrl}/blog/hero-reading-learning.jpg`,
-  /** Side hero — laptop & writing */
-  heroSide: `${publicUrl}/blog/hero-writing-desk.jpg`,
-  stripA: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=82',
-  stripB: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=800&q=82',
-  stripC: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=800&q=82',
-  empty: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1600&q=85',
-  /** End-of-page band — ideas & editorial context */
-  footerMore: `${publicUrl}/blog/footer-more-insights.jpg`,
+  heroMain: SITE_IMAGES.blog.heroMain,
+  heroSide: SITE_IMAGES.blog.heroSide,
+  stripA: SITE_IMAGES.blog.heroMain,
+  stripB: SITE_IMAGES.blog.heroSide,
+  stripC: SITE_IMAGES.blog.footer,
+  empty: SITE_IMAGES.blog.footer,
+  footerMore: SITE_IMAGES.blog.footer,
 };
 
-/** When a post has no featured image (or load fails) — URLs verified to resolve */
-const POST_PLACEHOLDERS = [
-  'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=1200&q=82',
-  'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=82',
-  'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=82',
-  'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=1200&q=82',
-  'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=82',
-  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=1200&q=82',
-];
+const POST_PLACEHOLDERS = LOCAL_PLACEHOLDERS;
 
 const placeholderForPost = (postId) => POST_PLACEHOLDERS[Number(postId) % POST_PLACEHOLDERS.length];
 
@@ -162,7 +150,7 @@ const Blog = () => {
               </p>
             </div>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 shadow-lg ring-1 ring-slate-200/80">
-              <img
+              <SafeImage
                 src={IMAGES.heroSide}
                 alt="Writing and ideas at a desk"
                 className="absolute inset-0 h-full w-full object-cover"
@@ -176,7 +164,7 @@ const Blog = () => {
 
           {/* Photo strip — extra context without heavy styling */}
           <div className="mt-10 grid grid-cols-3 gap-3 sm:mt-12 sm:gap-4">
-            <img
+            <SafeImage
               src={IMAGES.stripA}
               alt=""
               className="aspect-[5/3] w-full rounded-xl object-cover ring-1 ring-slate-200/80"
@@ -184,7 +172,7 @@ const Blog = () => {
               decoding="async"
               aria-hidden
             />
-            <img
+            <SafeImage
               src={IMAGES.stripB}
               alt=""
               className="aspect-[5/3] w-full rounded-xl object-cover ring-1 ring-slate-200/80"
@@ -192,7 +180,7 @@ const Blog = () => {
               decoding="async"
               aria-hidden
             />
-            <img
+            <SafeImage
               src={IMAGES.stripC}
               alt=""
               className="aspect-[5/3] w-full rounded-xl object-cover ring-1 ring-slate-200/80"
@@ -204,7 +192,7 @@ const Blog = () => {
 
           {/* Wide banner image under intro */}
           <div className="mt-8 overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200/80 sm:mt-10">
-            <img
+            <SafeImage
               src={IMAGES.heroMain}
               alt="Reading and learning"
               className="block h-48 w-full object-cover object-center sm:h-56 md:h-64"
@@ -313,7 +301,7 @@ const Blog = () => {
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="grid md:grid-cols-2">
                 <div className="relative min-h-[240px]">
-                  <img
+                  <SafeImage
                     src={IMAGES.empty}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover"
@@ -350,7 +338,7 @@ const Blog = () => {
                   className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
                 >
                   <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-                    <img
+                    <SafeImage
                       src={imgSrc}
                       alt=""
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
@@ -439,7 +427,7 @@ const Blog = () => {
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
             <div className="grid md:grid-cols-2 md:items-stretch">
               <div className="relative min-h-[220px] bg-slate-100 md:min-h-[320px]">
-                <img
+                <SafeImage
                   src={IMAGES.footerMore}
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover"

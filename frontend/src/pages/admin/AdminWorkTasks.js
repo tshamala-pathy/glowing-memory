@@ -110,7 +110,7 @@ const AdminWorkTasks = () => {
       const [tasksRes, projectsRes, usersRes] = await Promise.all([
         api.get('/tasks/'),
         api.get('/clients/projects/'),
-        api.get('/users/list/'),
+        api.get('/users/list/', { params: { page_size: 500 } }),
       ]);
       setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : tasksRes.data?.results || []);
       setProjects(Array.isArray(projectsRes.data) ? projectsRes.data : projectsRes.data?.results || []);

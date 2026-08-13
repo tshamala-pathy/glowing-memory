@@ -109,7 +109,7 @@ const AdminQuotes = () => {
     fetchQuotes();
     const loadUsers = async () => {
       try {
-        const res = await api.get('/users/list/');
+        const res = await api.get('/users/list/', { params: { page_size: 500 } });
         const data = res.data.results || res.data;
         setUsers(Array.isArray(data) ? data : []);
       } catch {

@@ -38,7 +38,7 @@ const AdminNotifications = () => {
     try {
       const [nRes, uRes] = await Promise.all([
         api.get('/notifications/admin/'),
-        api.get('/users/list/'),
+        api.get('/users/list/', { params: { page_size: 500 } }),
       ]);
       setItems(Array.isArray(nRes.data) ? nRes.data : nRes.data?.results || []);
       setUsers(Array.isArray(uRes.data) ? uRes.data : uRes.data?.results || []);

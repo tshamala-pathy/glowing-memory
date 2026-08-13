@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SafeImage from '../SafeImage';
+import { SITE_IMAGES } from '../../constants/siteImages';
 
 export const ADMIN_INPUT_CLASS =
   'mt-1.5 block w-full border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-colors bg-white';
@@ -16,11 +18,8 @@ export const AdminLoadingSkeleton = () => (
   </div>
 );
 
-const DEFAULT_ADMIN_BANNER_IMAGE =
-  'https://images.unsplash.com/photo-1497215848000-566045d405b0?auto=format&fit=crop&w=1920&q=85';
-
 export const AdminPageBanner = ({
-  image = DEFAULT_ADMIN_BANNER_IMAGE,
+  image = SITE_IMAGES.admin,
   eyebrow = 'Admin',
   title,
   description,
@@ -32,7 +31,7 @@ export const AdminPageBanner = ({
 
   return (
     <section className="relative overflow-hidden rounded-3xl shadow-lg min-h-[200px] sm:min-h-[220px]">
-      <img src={image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+      <SafeImage src={image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/75 to-slate-900/30" />
       <div className="relative px-6 sm:px-8 py-8 sm:py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div>

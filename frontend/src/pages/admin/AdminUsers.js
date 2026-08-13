@@ -383,7 +383,7 @@ const AdminUsers = () => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const response = await api.get('/users/admin/');
+      const response = await api.get('/users/admin/', { params: { page_size: 500 } });
       setUsers(response.data.results || response.data || []);
       setError('');
     } catch (err) {
