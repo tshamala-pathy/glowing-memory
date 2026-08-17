@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PathyCode Internal Business System &#8212; PathyCode Internal Business System 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="System Architecture" href="architecture.html" />
+    <link rel="prev" title="PathyCode Internal Business System documentation" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pathycode-internal-business-system">
+<h1>PathyCode Internal Business System<a class="headerlink" href="#pathycode-internal-business-system" title="Link to this heading">¶</a></h1>
+<p>Welcome to the internal documentation for the PathyCode Internal Business System.</p>
+<p>This section provides an overview of the system architecture, core workflows,
+and detailed module-level documentation for quotes, invoices, projects,
+payments, and services.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">System Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#user-vs-client">User vs Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#dashboard-vs-profile">Dashboard vs Profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#quote-payment-invoice-project-workflow">Quote → Payment → Invoice → Project Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#service-layer-design-pattern">Service-layer Design Pattern</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Business Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#high-level-flow-text-diagram">High-level Flow (Text Diagram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#client-submits-quote">1. Client Submits Quote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#admin-replies-to-quote">2. Admin Replies to Quote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#client-approves-quote">3. Client Approves Quote</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#redirect-to-payment">4. Redirect to Payment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#payment-webhook-callback">5. Payment Webhook / Callback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#invoice-creation">6. Invoice Creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="workflow.html#project-creation">7. Project Creation</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="modules">
+<h2>Modules<a class="headerlink" href="#modules" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Business Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/users.html">Users Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/users.html#models">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/users.html#activity-logging">Activity Logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/users.html#views-api">Views / API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/quotes.html">Quotes Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/quotes.html#models">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/quotes.html#views-api">Views / API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/quotes.html#module-quotes.utils">Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/invoices.html">Invoices Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/invoices.html#models">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/invoices.html#views-api">Views / API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/invoices.html#module-invoices.utils">Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/projects.html">Projects Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/projects.html#models">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/projects.html#views-api">Views / API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/projects.html#signals-utilities">Signals &amp; Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/payments.html">Payments Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/payments.html#invoice-payment-api-views">Invoice Payment API / Views</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/payments.html#payment-related-models">Payment-related Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/payments.html#payment-signals-automation">Payment Signals &amp; Automation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/services.html">Services Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/services.html#module-quotes.utils">Quote &amp; Invoice Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/services.html#client-project-services">Client &amp; Project Services</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PathyCode Internal Business System</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PathyCode Internal Business System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#modules">Modules</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">PathyCode Internal Business System documentation</a></li>
+      <li>Next: <a href="architecture.html" title="next chapter">System Architecture</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, PathyCode.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/source/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
