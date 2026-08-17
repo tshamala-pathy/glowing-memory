@@ -24,8 +24,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy project files
 COPY . /app/
 
-# Make entrypoint executable
-RUN chmod +x /app/scripts/entrypoint.sh
+# Strip Windows CRLF if present, then make the Linux entrypoint executable
+RUN sed -i 's/\r$//' /app/scripts/entrypoint.sh \
+    && chmod +x /app/scripts/entrypoint.sh
 
 EXPOSE 8000
 

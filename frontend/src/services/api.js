@@ -1,8 +1,8 @@
 /**
  * Axios API client: JWT auth, refresh, errors, and multipart-safe uploads.
  *
- * Base URL: `{REACT_APP_BACKEND_URL}/api` (default `http://localhost:8000/api`).
- * Set `REACT_APP_BACKEND_URL` at build time for production (no trailing slash).
+ * Base URL: `{getBackendOrigin()}/api`.
+ * Leave `REACT_APP_BACKEND_URL` unset for nginx same-origin deploys.
  *
  * **FormData / file uploads:** The instance defaults to `Content-Type: application/json`.
  * For `FormData`, the request interceptor clears `Content-Type` so the browser sets
@@ -115,7 +115,7 @@ api.interceptors.response.use(
       });
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -137,7 +137,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (error.code === 'ERR_NETWORK' || error.message.includes('CORS')) {
+    if (error.code === 'ERR_NETWORK' || (typeof error.message === 'string' && error.message.includes('CORS'))) {
       return Promise.reject({
         message: 'CORS error. Please check backend configuration.',
         isCorsError: true,

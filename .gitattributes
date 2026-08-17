@@ -1,0 +1,3 @@
+# Keep shell scripts Linux-compatible in Docker (avoid CRLF shebang failures).
+*.sh text eol=lf
+scripts/entrypoint.sh text eol=lf

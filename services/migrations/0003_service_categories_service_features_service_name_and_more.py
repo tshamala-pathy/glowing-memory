@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
             name='features',
             field=models.TextField(blank=True, help_text='JSON array or comma-separated list of features'),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='service',
             name='name',
             field=models.CharField(default='Service', help_text="Name of the service (e.g., 'Web Development')", max_length=255),
