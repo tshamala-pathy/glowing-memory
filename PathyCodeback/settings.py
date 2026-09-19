@@ -16,6 +16,7 @@ See also: https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 from pathlib import Path
 from decouple import config, Csv
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 import os
 
 # Build paths: PathyCodeback/settings.py -> parent.parent = project root (manage.py location)
@@ -125,14 +126,49 @@ WSGI_APPLICATION = 'PathyCodeback.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+def _require_postgres_credentials(engine, name, user, password):
+    """Fail fast when PostgreSQL is selected but credentials are missing.
+
+    Does not log credential values. Empty DB_PASSWORD is what produces
+    psycopg2 ``fe_sendauth: no password supplied`` on Elastic Beanstalk.
+    """
+    if 'postgresql' not in (engine or ''):
+        return
+    missing = []
+    name_text = str(name or '').strip()
+    if not name_text or name_text.endswith('db.sqlite3'):
+        missing.append('DB_NAME')
+    if not str(user or '').strip():
+        missing.append('DB_USER')
+    if not str(password or '').strip():
+        missing.append('DB_PASSWORD')
+    if missing:
+        raise ImproperlyConfigured(
+            'PostgreSQL is selected but these environment variables are missing '
+            'or empty: {0}. Set them in `.env` for local Docker, or as Elastic '
+            'Beanstalk environment properties. docker-compose.prod.yml must pass '
+            'the same DB_NAME, DB_USER, and DB_PASSWORD into both db and web.'.format(
+                ', '.join(missing)
+            )
+        )
+
+
+_DB_ENGINE = config('DB_ENGINE', default='django.db.backends.sqlite3')
+_DB_NAME = config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3'))
+_DB_USER = config('DB_USER', default='')
+_DB_PASSWORD = config('DB_PASSWORD', default='')
+_DB_HOST = config('DB_HOST', default='')
+_DB_PORT = config('DB_PORT', default='')
+_require_postgres_credentials(_DB_ENGINE, _DB_NAME, _DB_USER, _DB_PASSWORD)
+
 DATABASES = {
     'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
-        'USER': config('DB_USER', default=''),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default=''),
-        'PORT': config('DB_PORT', default=''),
+        'ENGINE': _DB_ENGINE,
+        'NAME': _DB_NAME,
+        'USER': _DB_USER,
+        'PASSWORD': _DB_PASSWORD,
+        'HOST': _DB_HOST,
+        'PORT': _DB_PORT,
     }
 }
 

@@ -50,8 +50,13 @@ def main():
         if secret.startswith('django-insecure') or secret == 'change-me-to-a-long-random-string':
             errors.append('SECRET_KEY is still a placeholder — generate a strong secret.')
 
-        if config('DB_ENGINE', default='').endswith('sqlite3'):
+        engine = config('DB_ENGINE', default='')
+        if engine.endswith('sqlite3'):
             errors.append('DB_ENGINE is SQLite — use PostgreSQL in production.')
+        elif 'postgresql' in engine:
+            for name in ('DB_NAME', 'DB_USER', 'DB_PASSWORD'):
+                if not str(config(name, default='')).strip():
+                    errors.append(f'Missing or empty env var: {name}')
 
     if not debug:
         print('Running Django deploy checks...')

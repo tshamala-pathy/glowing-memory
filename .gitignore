@@ -2,8 +2,11 @@
 __pycache__/
 *.py[cod]
 
-# Environment variables file (hide secrets)
+# Environment variables / secrets (never commit)
 .env
+.env.*
+!.env.example
+!.env.production.example
 
 # Virtual environment folder
 venv/

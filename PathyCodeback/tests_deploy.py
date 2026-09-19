@@ -19,6 +19,38 @@ class DeploymentArtifactTests(SimpleTestCase):
         self.assertTrue((ROOT / 'DEPLOYMENT.md').is_file())
         self.assertTrue((ROOT / '.env.production.example').is_file())
 
+    def test_prod_compose_passes_db_credentials_to_web(self):
+        text = (ROOT / 'docker-compose.prod.yml').read_text(encoding='utf-8')
+        self.assertIn('DB_PASSWORD: ${DB_PASSWORD:?', text)
+        self.assertIn('DB_NAME: ${DB_NAME:-pathycode}', text)
+        self.assertIn('DB_USER: ${DB_USER:-pathycode}', text)
+        self.assertIn('DB_HOST: db', text)
+        self.assertIn("DB_PORT: '5432'", text)
+        self.assertIn('required: false', text)
+
+    def test_postgres_credentials_helper_rejects_empty_password(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from PathyCodeback.settings import _require_postgres_credentials
+
+        with self.assertRaises(ImproperlyConfigured) as ctx:
+            _require_postgres_credentials(
+                'django.db.backends.postgresql',
+                'pathycode',
+                'pathycode',
+                '',
+            )
+        self.assertIn('DB_PASSWORD', str(ctx.exception))
+
+    def test_postgres_credentials_helper_allows_sqlite(self):
+        from PathyCodeback.settings import _require_postgres_credentials
+
+        _require_postgres_credentials(
+            'django.db.backends.sqlite3',
+            'db.sqlite3',
+            '',
+            '',
+        )
+
     def test_production_env_example_has_required_keys(self):
         text = (ROOT / '.env.production.example').read_text(encoding='utf-8')
         for key in (
